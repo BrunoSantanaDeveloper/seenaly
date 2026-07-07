@@ -14,10 +14,7 @@
 
 /* --------- Theme (design tokens: source of truth in packages/design-tokens) --------- */
 @import "@flyee/design-tokens/css/common.css";
-@import "@flyee/design-tokens/css/blue.css";
-@import "@flyee/design-tokens/css/green.css";
 @import "@flyee/design-tokens/css/orange.css";
-@import "@flyee/design-tokens/css/purple.css";
 @import "@flyee/design-tokens/css/marketing.css";
 
 /* --------- Surfaces --------- */

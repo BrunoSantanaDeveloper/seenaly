@@ -1,14 +1,14 @@
-# Flyee Web (apps/web)
+# Seenaly Web (apps/web)
 
-Next.js 15 (App Router) + React 19 admin template.
+Next.js 15 (App Router) + React 19 — Seenaly's web app (admin + public marketing site).
 
 ## Stack and conventions
 
 - **UI**: MUI v9 is the base — before building a component from scratch, check for an existing MUI or MUI X equivalent (DataGrid Premium, Charts Pro, Date Pickers Pro, Tree View are already installed). Icons: individual named imports from `@mui/icons-material`.
 - **Styling**: MUI theme driven by CSS variables (`hsl(var(--token))`) defined in `@flyee/design-tokens`. MUI component overrides live in `src/style/**/*.css` (organized by category), inside CSS layers (`theme, base, mui, components, utilities`). Tailwind 4 only for layout utilities; classes merged with `tailwind-merge`.
-- **Themes**: 4 color themes × light/dark, switched via classes on `<html>` (`theme-blue dark` etc.) by the `ThemeProvider` (`src/theme/theme-provider.tsx`).
+- **Themes**: single locked palette `theme-orange` × light/dark, switched via classes on `<html>` (`theme-orange dark`) by the `ThemeProvider` (`src/theme/theme-provider.tsx`). The theme-color switcher was removed at init; only the light/dark mode toggle remains.
 - **Forms**: Formik + Yup.
-- **i18n**: next-intl — every UI string goes through messages, never hardcoded. Locales: `de,en,es,fr,pt-BR`; catalogs live in `packages/content/messages/` (shared with apps/mobile); public-site copy lives in the `marketing` namespace.
+- **i18n**: next-intl — every UI string goes through messages, never hardcoded. Default locale: `pt-BR`; available: `de,en,es,fr,pt-BR`; catalogs live in `packages/content/messages/`; public-site copy lives in the `marketing` namespace.
 - **Path alias**: `@/*` → `./src/*`.
 - **Brand**: site identity (name, tagline, siteUrl, favicon paths) comes from `@flyee/content` (`src/brand.ts` is a re-export shim); the logo is the single component `src/components/logo/logo.tsx` (used by admin AND marketing chrome).
 

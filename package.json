@@ -1,5 +1,5 @@
 {
-  "name": "flyee",
+  "name": "seenaly",
   "version": "6.3.0",
   "private": true,
   "workspaces": [
@@ -8,7 +8,6 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @flyee/web",
-    "dev:mobile": "npm run start -w @flyee/mobile",
     "build": "npm run build -w @flyee/web",
     "start": "npm run start -w @flyee/web",
     "lint": "npm run lint -w @flyee/web",
@@ -17,7 +16,7 @@
     "tokens:generate": "npm run generate -w @flyee/design-tokens",
     "prepare": "husky",
     "pre-commit": "lint-staged",
-    "typecheck": "npm run typecheck -w @flyee/web && npm run typecheck -w @flyee/mobile"
+    "typecheck": "npm run typecheck -w @flyee/web"
   },
   "devDependencies": {
     "husky": "9.1.7",

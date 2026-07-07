@@ -4,7 +4,7 @@ import { DEFAULTS } from "@/config";
 import { LocaleOption, LOCALES } from "@/constants";
 import { getClientLocale } from "@/i18n/locale";
 
-// Message catalogs live in @flyee/content (shared with apps/mobile).
+// Message catalogs live in @flyee/content.
 // Static map instead of a template-string import so the bundler can
 // resolve each catalog.
 const MESSAGES: Record<LocaleOption, () => Promise<{ default: Record<string, unknown> }>> = {

@@ -4,9 +4,9 @@
 
 @layer base {
   .theme-orange {
-    --primary: 35 94% 57%;
-    --primary-light: 35 94% 67%;
-    --primary-dark: 35 94% 47%;
+    --primary: 14 99% 55%;
+    --primary-light: 14 99% 65%;
+    --primary-dark: 14 99% 45%;
 
     --secondary: 19 77% 48%;
     --secondary-light: 19 77% 58%;
@@ -31,9 +31,9 @@
     color-scheme: light;
   }
   .theme-orange.dark {
-    --primary: 35 94% 57%;
-    --primary-light: 35 94% 67%;
-    --primary-dark: 35 94% 47%;
+    --primary: 14 99% 55%;
+    --primary-light: 14 99% 65%;
+    --primary-dark: 14 99% 45%;
 
     --secondary: 19 77% 48%;
     --secondary-light: 19 77% 58%;

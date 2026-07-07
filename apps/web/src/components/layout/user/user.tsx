@@ -2,7 +2,6 @@
 
 import UserLanguageSwitch from "./user-language-switch";
 import UserModeSwitch from "./user-mode-switch";
-import UserThemeSwitch from "./user-theme-switch";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -262,7 +261,6 @@ export default function User() {
                         <Divider className="large" />
 
                         <UserModeSwitch />
-                        <UserThemeSwitch />
                         <UserLanguageSwitch />
 
                         <Divider className="large" />

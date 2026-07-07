@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cross-platform site identity (BRAND) and i18n message catalogs, shared by apps/web and apps/mobile so copy and branding never drift between platforms.",
+  "description": "Site identity (BRAND) and i18n message catalogs for the Seenaly apps.",
   "exports": {
     ".": "./src/index.ts",
     "./messages/*": "./messages/*"

@@ -9,7 +9,8 @@
     /* --------- Globals --------- */
 
     /* --------- Background Colors --------- */
-    --background: 0 0% 98%;
+    /* Brand off-white #F6F5F1 */
+    --background: 48 22% 96%;
     --background-paper: 0 0% 100%;
     /* --------- Background Colors --------- */
 
@@ -115,8 +116,9 @@
   }
   .dark {
     /* --------- Background Colors --------- */
-    --background: 0 0% 14%;
-    --background-paper: 0 0% 16%;
+    /* Brand charcoal #171B1C */
+    --background: 192 10% 10%;
+    --background-paper: 192 8% 13%;
     /* --------- Background Colors --------- */
 
     /* --------- Grey Scales --------- */

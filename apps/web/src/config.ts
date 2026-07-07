@@ -4,8 +4,8 @@ import { ModeVariant, ThemeVariant } from "@/constants";
 
 export const DEFAULTS = {
   appRoot: "/dashboards/default",
-  locale: "en",
-  themeColor: "theme-green" as ThemeVariant,
+  locale: "pt-BR",
+  themeColor: "theme-orange" as ThemeVariant,
   themeMode: "system" as ModeVariant,
   contentType: ContentType.Boxed,
   leftMenuType: MenuType.Comfort,

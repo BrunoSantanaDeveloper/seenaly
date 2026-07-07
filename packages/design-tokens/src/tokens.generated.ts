@@ -8,7 +8,7 @@
 export const common = {
   "light": {
     "main-padding": "16px",
-    "background": "0 0% 98%",
+    "background": "48 22% 96%",
     "background-paper": "0 0% 100%",
     "grey-20": "0 0% 98%",
     "grey-25": "0 0% 97%",
@@ -81,8 +81,8 @@ export const common = {
     "layout-duration": "0ms"
   },
   "dark": {
-    "background": "0 0% 14%",
-    "background-paper": "0 0% 16%",
+    "background": "192 10% 10%",
+    "background-paper": "192 8% 13%",
     "grey-20": "0 0% 18%",
     "grey-25": "0 0% 20%",
     "grey-50": "0 0% 22%",
@@ -233,9 +233,9 @@ export const themes = {
   },
   "orange": {
     "light": {
-      "primary": "35 94% 57%",
-      "primary-light": "35 94% 67%",
-      "primary-dark": "35 94% 47%",
+      "primary": "14 99% 55%",
+      "primary-light": "14 99% 65%",
+      "primary-dark": "14 99% 45%",
       "secondary": "19 77% 48%",
       "secondary-light": "19 77% 58%",
       "secondary-dark": "19 77% 38%",
@@ -253,9 +253,9 @@ export const themes = {
       "accent-4-dark": "219 89% 53%"
     },
     "dark": {
-      "primary": "35 94% 57%",
-      "primary-light": "35 94% 67%",
-      "primary-dark": "35 94% 47%",
+      "primary": "14 99% 55%",
+      "primary-light": "14 99% 65%",
+      "primary-dark": "14 99% 45%",
       "secondary": "19 77% 48%",
       "secondary-light": "19 77% 58%",
       "secondary-dark": "19 77% 38%",
