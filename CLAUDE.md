@@ -17,7 +17,8 @@ Product language: pt-BR is the default locale (catalogs also ship de/en/es/fr).
 - `packages/knowledge` — ACTIVE: knowledge base with trust levels + pgvector RAG; Gemini embeddings; ingestion via Inngest with inline fallback. Superadmin console at `/admin/knowledge`; assistants opt in via `config.knowledge`. See `packages/knowledge/README.md`.
 - `packages/connectors` — ACTIVE: framework for per-org connections to external APIs (Seenaly's target: Meta Ads). Implement `Connector`s and register them in `apps/web/src/lib/connectors.ts`; service-role-only secret storage; sync via Inngest; customer UI at `/settings/connections`. See `packages/connectors/README.md`.
 - `packages/jobs` — Inngest client + typed event map for background jobs/cron. Functions live in the owning package's `src/jobs.ts`; all served by `apps/web` at `/api/inngest`. `sendEvent` never throws — callers must fall back to inline processing. See `packages/jobs/README.md`.
-- `packages/content` — site identity (`BRAND`) + i18n message catalogs (`messages/{de,en,es,fr,pt-BR}.json`), consumed by web via next-intl.
+- `packages/content` — site identity (`BRAND`) + i18n message catalogs (`messages/{de,en,es,fr,pt-BR}.json`), consumed by web via next-intl. Brand master art lives in `packages/content/brand/`; derivatives (favicons, email logo, logo component artwork) are generated from it.
+- `attachments/` — input inbox: the user drops project material here (brand art, page imagery, briefs); agents route each file to its canonical home per `attachments/README.md` and the folder trends back to empty.
 - Inert (kept for clean template merges, no env keys configured): `packages/documents`, `packages/audit`, `packages/transcribe`, `packages/whatsapp`. Never delete `packages/*`.
 - `apps/mobile` was pruned at init; the `/add-mobile` skill restores it from the template remote if ever needed.
 

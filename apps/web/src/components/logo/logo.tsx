@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
  * Rebrand contract (see src/brand.ts): the two variants (full wordmark + compact
  * mobile mark) use token-based tinting (fill-text-primary / hsl(var(--primary-*))
  * gradients) so the logo follows light/dark mode.
- * Artwork: Seenaly bird mark (from apps/web/public/logo-icon.svg, tile removed)
- * + "seenaly" text wordmark. Source SVGs with the Baloo Thambi 2 wordmark live in
- * apps/web/public/logo-{dark,lite,icon}.svg.
+ * Artwork: Seenaly bird mark (from the brand master art, tile removed)
+ * + "seenaly" text wordmark. Master SVGs with the Baloo Thambi 2 wordmark live in
+ * packages/content/brand/logo-{dark,lite,icon}.svg.
  */
 
 const Mark = ({ gradientId }: { gradientId: string }) => (
