@@ -19,18 +19,24 @@ export type FeatureRowItem = {
  * Use INSTEAD of a second card grid when features deserve depth.
  */
 export default function FeatureRows({
+  id,
   eyebrow,
   title,
   subtitle,
   items,
+  background,
+  decor,
 }: {
+  id?: string;
   eyebrow?: string;
   title?: string;
   subtitle?: string;
   items: FeatureRowItem[];
+  background?: React.ComponentProps<typeof Section>["background"];
+  decor?: React.ComponentProps<typeof Section>["decor"];
 }) {
   return (
-    <Section>
+    <Section id={id} background={background} decor={decor}>
       {title && <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />}
       <div className="flex flex-col gap-[var(--section-space-sm)]">
         {items.map((item, index) => (

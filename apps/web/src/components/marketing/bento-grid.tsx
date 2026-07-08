@@ -18,18 +18,24 @@ export type BentoItem = {
  * Keep 4–6 cells; more belongs in FeatureRows or a plain grid.
  */
 export default function BentoGrid({
+  id,
   eyebrow,
   title,
   subtitle,
   items,
+  background,
+  decor,
 }: {
+  id?: string;
   eyebrow?: string;
   title: string;
   subtitle?: string;
   items: BentoItem[];
+  background?: React.ComponentProps<typeof Section>["background"];
+  decor?: React.ComponentProps<typeof Section>["decor"];
 }) {
   return (
-    <Section>
+    <Section id={id} background={background} decor={decor}>
       <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
       <Reveal stagger={0.08} className="grid gap-4 md:grid-cols-3">
         {items.map((item) => (
