@@ -4,6 +4,8 @@ Self-contained fallback of the direction engine (works even if the `ui-ux-pro-ma
 
 Rule of use: pick the direction from the product's category and audience, write down WHY in one sentence, then stay consistent — mixing directions is how pages become generic again.
 
+Palette note (applies to EVERY direction): the theme ships 6 harmonic hues (`primary`, `secondary`, `accent-1..4`). Primary carries CTAs and the bold moment; categorical elements (tiers, feature families, chart series, icon chips) take accent tones via the `tone` prop with a consistent meaning-mapping. Monochrome primary-only pages fail the premium bar — and hues outside the tokens are forbidden.
+
 ---
 
 ## 1. Premium SaaS / Data-driven ("the Linear/Stripe look")

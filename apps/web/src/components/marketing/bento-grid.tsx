@@ -1,6 +1,7 @@
 import Reveal from "@/components/marketing/reveal";
 import Section from "@/components/marketing/section";
 import SectionHeader from "@/components/marketing/section-header";
+import { TONE, type Tone, toneAt } from "@/components/marketing/tone";
 import { cn } from "@/lib/utils";
 
 export type BentoItem = {
@@ -10,6 +11,8 @@ export type BentoItem = {
   visual?: React.ReactNode;
   /** Featured cells span 2 columns on desktop — give the strongest 1–2 features the room. */
   featured?: boolean;
+  /** Harmonic hue for this cell (icon chip + hover wash). Defaults to a rotation. */
+  tone?: Tone;
 };
 
 /**
@@ -38,27 +41,36 @@ export default function BentoGrid({
     <Section id={id} background={background} decor={decor}>
       <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
       <Reveal stagger={0.08} className="grid gap-4 md:grid-cols-3">
-        {items.map((item) => (
-          <div
-            key={item.title}
-            className={cn(
-              "group border-grey-100 bg-background-paper hover:border-primary/40 relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-7 transition-colors duration-300",
-              item.featured && "md:col-span-2",
-            )}
-          >
-            {item.visual && <div className="min-h-24">{item.visual}</div>}
-            <div>
-              <h3 className="text-text-primary text-lg font-bold">{item.title}</h3>
-              <p className="text-text-secondary mt-2 leading-6">{item.body}</p>
-            </div>
-            {/* Corner wash that answers hover — quiet until touched. */}
+        {items.map((item, index) => {
+          const tone = TONE[item.tone ?? toneAt(index)];
+          return (
             <div
-              aria-hidden
-              className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-              style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.12), transparent 70%)" }}
-            />
-          </div>
-        ))}
+              key={item.title}
+              className={cn(
+                "group border-grey-100 bg-background-paper relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-7 transition-colors duration-300",
+                item.featured && "md:col-span-2",
+              )}
+              style={{ ["--bento-tone" as string]: `var(${tone.cssVar})` }}
+            >
+              {item.visual && <div className={cn("min-h-24", tone.text)}>{item.visual}</div>}
+              <div>
+                <h3 className="text-text-primary text-lg font-bold">{item.title}</h3>
+                <p className="text-text-secondary mt-2 leading-6">{item.body}</p>
+              </div>
+              {/* Corner wash in the cell's own hue — quiet until touched. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                style={{ background: "radial-gradient(circle, hsl(var(--bento-tone) / 0.14), transparent 70%)" }}
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0 rounded-3xl border border-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ borderColor: "hsl(var(--bento-tone) / 0.35)" }}
+              />
+            </div>
+          );
+        })}
       </Reveal>
     </Section>
   );

@@ -22,7 +22,7 @@ Derived projects: `/init-project` rewrites this file when the brand direction is
 | **Display type** | Urbanist (geometric sans), loaded via `next/font` as `--font-heading`; marketing `font-display` resolves to it. Tight tracking, extrabold at the top of the fluid scale. |
 | **Body type** | Mulish (`--font-body`), 16–18px, line-height 1.5+. |
 | **Numbers** | Tabular/extrabold in the display face for `StatBand` and KPIs — data credibility. |
-| **Palette usage** | Dark-first. The one bold moment is the primary-tinted hero glow + the live data viz; everything else stays quiet (neutral surfaces, hairline borders). Never more than one saturated focus per viewport. |
+| **Palette usage** | Dark-first, **harmonic — never monochrome**. Primary is reserved for CTAs and the bold moment (hero glow + data viz main series). Categorical elements use the theme's harmonic hues via `tone` (`secondary`, `accent-1..4`): plan tiers, feature families, chart comparison series, icon chips — each family keeps ONE consistent hue across the whole site. Quiet base (neutral surfaces, hairline borders); never more than one saturated focus per viewport. |
 | **Depth treatment** | `Section decor="glow"` on the hero, `decor="grid"` on one technical/feature section, one `background="contrast"` band (StatBand). The background MUST change ≥2× down the page. |
 | **Layout archetypes** | Hero `layout="split"` + `<ProductFrame glow>`; `<FeatureRows>` zig-zag for depth features; `<BentoGrid>` for secondary; `<StatBand>` for proof. Never centered-stack + equal-card-grid all the way down. |
 | **Signature element** | The animated `<DataVizPlaceholder>` (or a real product screenshot in `<ProductFrame glow>`) — product evidence above the fold, always. A naked text hero is a direction violation. |
@@ -36,6 +36,7 @@ Derived projects: `/init-project` rewrites this file when the brand direction is
 4. 1440px density check: no viewport >50% empty.
 5. One orchestrated motion moment + a runtime scroll pass (no `<Reveal>` left un-fired).
 6. Display typography is the committed display font, not the raw admin font.
+7. Harmonic palette in use: at least two hues beyond primary, purposefully mapped (tiers/families/series), via the `tone` prop — never a 100%-primary page and never hues outside the tokens.
 
 ## Open items (template baseline)
 

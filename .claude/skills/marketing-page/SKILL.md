@@ -41,6 +41,7 @@ A page can follow every rule below and still look like a beginner site if it is 
 4. **Density check at 1440px**: scroll the whole page — no viewport-height stretch may be >50% empty. Fix by tightening spacing, adding an anchor visual, or merging sections; never by padding with filler copy.
 5. **One orchestrated motion moment** (GSAP timeline on the hero: staggered copy + media entrance) instead of uniform scroll-reveals everywhere. Then RUN the page and scroll it end to end: a `<Reveal>` that never fires leaves a permanent hole — every section must actually appear.
 6. **Display typography is not the admin font** (Pass 0.3).
+7. **Harmonic palette, not monochrome** — the theme ships 6 hues designed to combine (`primary`, `secondary`, `accent-1..4`, all with light/dark variants). Primary is reserved for CTAs and the bold moment; categorical elements (plan tiers, feature families, chart series, icon chips) take accent tones via the `tone` prop (`components/marketing/tone.ts`) with a CONSISTENT meaning-mapping across the page and site (the same family keeps the same hue everywhere). A page where every tinted element is primary reads flat and monochrome — it FAILS. Never invent hues outside the token palette.
 
 ## Anti-slop list (never ship these)
 

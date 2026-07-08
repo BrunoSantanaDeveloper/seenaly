@@ -24,5 +24,6 @@ Building blocks for every public page under `apps/web/src/app/(marketing)/`. Con
 - `<BentoGrid>` — asymmetric feature grid with `featured` cells.
 - `<StatBand>` — contrast band of oversized real numbers.
 - `Section` `decor="glow" | "grid" | "gradient-edge"` and `background="contrast"` — token-driven depth; vary the treatment at least twice along a page.
+- **Harmonic tones** (`tone.ts`): `BentoGrid` cells, `FeatureRows` items, `StatBand` stats and `PricingSection` plans accept `tone` (`primary | secondary | accent-1..4`). Primary stays reserved for CTAs/bold moment; categorical elements rotate through the harmonic hues with a consistent meaning-mapping — a 100%-primary page fails the premium bar.
 
 See `.claude/skills/marketing-page/SKILL.md` for the full design/copy playbook (direction engine, premium bar) and its `references/directions.md` for the named design directions with font pairings.

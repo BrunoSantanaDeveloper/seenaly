@@ -9,12 +9,16 @@
 export default function DataVizPlaceholder({ label }: { label?: string }) {
   return (
     <div className="flex aspect-[16/10] w-full flex-col gap-4 p-6 sm:p-8">
-      {/* KPI row */}
+      {/* KPI row — one harmonic hue per metric family, like the real product. */}
       <div className="grid grid-cols-3 gap-3">
-        {[0.9, 0.55, 0.7].map((width, index) => (
+        {[
+          { width: 0.9, bar: "bg-primary/40" },
+          { width: 0.55, bar: "bg-accent-1/40" },
+          { width: 0.7, bar: "bg-secondary/40" },
+        ].map((kpi, index) => (
           <div key={index} className="border-grey-100 flex flex-col gap-2 rounded-xl border p-3">
-            <span className="bg-grey-100 h-2 rounded-full" style={{ width: `${width * 60}%` }} />
-            <span className="bg-primary/30 h-3.5 rounded-full" style={{ width: `${width * 100}%` }} />
+            <span className="bg-grey-100 h-2 rounded-full" style={{ width: `${kpi.width * 60}%` }} />
+            <span className={`${kpi.bar} h-3.5 rounded-full`} style={{ width: `${kpi.width * 100}%` }} />
           </div>
         ))}
       </div>
@@ -28,6 +32,15 @@ export default function DataVizPlaceholder({ label }: { label?: string }) {
           <path
             d="M0 130 C 40 120, 70 90, 110 96 S 180 118, 220 88 S 300 30, 340 42 S 380 30, 400 22 L 400 160 L 0 160 Z"
             fill="url(#dvp-fill)"
+          />
+          {/* Comparison series in a harmonic hue — data products are multi-series. */}
+          <path
+            d="M0 138 C 50 132, 90 120, 140 122 S 240 108, 290 92 S 370 78, 400 70"
+            fill="none"
+            stroke="hsl(var(--accent-1) / 0.7)"
+            strokeWidth="2"
+            strokeDasharray="6 5"
+            strokeLinecap="round"
           />
           <path
             d="M0 130 C 40 120, 70 90, 110 96 S 180 118, 220 88 S 300 30, 340 42 S 380 30, 400 22"
