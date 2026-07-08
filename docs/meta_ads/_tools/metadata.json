@@ -1,0 +1,1580 @@
+{
+ "api-conversao": {
+  "description": "Visão geral da API de Conversões: o que é, como funciona, benefícios por tipo de evento (site, app, offline, mensagens) e como se integra ao Pixel da Meta. Nota: API de Conversões Offline descontinuada em maio/2025.",
+  "tags": [
+   "capi",
+   "overview",
+   "web-events",
+   "app-events",
+   "offline-events",
+   "messaging-events",
+   "pixel"
+  ],
+  "related": [
+   "como-usar-api",
+   "parameters",
+   "boas-praticas-api-conversao",
+   "comparar-opcoes-configuracoes-api"
+  ]
+ },
+ "parameters": {
+  "description": "Referência completa dos parâmetros da API de Conversões por família: corpo principal, informações do cliente (com regras de hashing SHA-256), evento de servidor, dados de app — com obrigatoriedade de cada um.",
+  "tags": [
+   "capi",
+   "parameters",
+   "reference",
+   "hashing",
+   "user-data",
+   "custom-data"
+  ],
+  "related": [
+   "api-conversao",
+   "como-usar-api",
+   "detalhes-eventos-servidor",
+   "eventos-app"
+  ]
+ },
+ "como-usar-api": {
+  "description": "Guia prático de envio de eventos de servidor: endpoint POST /{PIXEL_ID}/events da Graph API, payload de exemplo em curl, parâmetros obrigatórios, hashing, envio em lote, test_event_code e verificação no Gerenciador de Eventos.",
+  "tags": [
+   "capi",
+   "how-to",
+   "graph-api",
+   "endpoint",
+   "payload",
+   "testing",
+   "deduplication"
+  ],
+  "related": [
+   "parameters",
+   "boas-praticas-api-conversao",
+   "api-conversao",
+   "monitorar-api-conversao"
+  ]
+ },
+ "boas-praticas-api-conversao": {
+  "description": "Checklist de implementação da API de Conversões: escolha de eventos, parâmetros completos, action_source correto, envio em tempo real, hashing, desduplicação com o Pixel via event_id, testes e monitoramento contínuo, privacidade.",
+  "tags": [
+   "capi",
+   "best-practices",
+   "deduplication",
+   "event-matching",
+   "testing",
+   "privacy"
+  ],
+  "related": [
+   "como-usar-api",
+   "boas-praticas-melhorar-anuncios-api",
+   "monitorar-api-conversao",
+   "eventos-padrao-site"
+  ]
+ },
+ "boas-praticas-melhorar-anuncios-api": {
+  "description": "Boas práticas para a API de Conversões melhorar o desempenho dos anúncios: eventos redundantes com o Pixel, meta de cobertura de 75%, desduplicação, pontuação EMQ (1–10), combinações mínimas de parâmetros (pós Graph API v13.0), ferramentas de teste, eventos offline/parceiros, pontuação de oportunidade e checklist de revisão.",
+  "tags": [
+   "capi",
+   "best-practices",
+   "performance",
+   "event-coverage",
+   "emq",
+   "redundancy"
+  ],
+  "related": [
+   "boas-praticas-api-conversao",
+   "detalhes-eventos-servidor",
+   "monitorar-api-conversao",
+   "pontuacao-oportunidade"
+  ]
+ },
+ "monitorar-api-conversao": {
+  "description": "Checklist de monitoramento da API de Conversões no Gerenciador de Eventos: eventos de teste, compartilhamento redundante, cobertura de 75%, desduplicação, aba Diagnóstico, qualidade de correspondência (EMQ) e atualidade dos dados.",
+  "tags": [
+   "capi",
+   "monitoring",
+   "events-manager",
+   "diagnostics",
+   "emq"
+  ],
+  "related": [
+   "detalhes-eventos-servidor",
+   "boas-praticas-api-conversao",
+   "gerenciador-eventos"
+  ]
+ },
+ "detalhes-eventos-servidor": {
+  "description": "Como visualizar detalhes de eventos do servidor no Gerenciador de Eventos: abas Visão geral do evento, Cobertura de eventos, Correspondência de eventos, Desduplicação de evento e Nível de atualidade dos dados.",
+  "tags": [
+   "capi",
+   "events-manager",
+   "server-events",
+   "event-coverage",
+   "deduplication",
+   "emq"
+  ],
+  "related": [
+   "monitorar-api-conversao",
+   "boas-praticas-melhorar-anuncios-api",
+   "gerenciador-eventos"
+  ]
+ },
+ "comparar-opcoes-configuracoes-api": {
+  "description": "Comparação das opções de configuração da API de Conversões — habilitada pela Meta, integração direta e parceiros — por custo, tempo de implementação, recursos necessários e fontes de eventos suportadas, com orientação de escolha.",
+  "tags": [
+   "capi",
+   "setup-options",
+   "comparison",
+   "partner-integrations",
+   "direct-integration"
+  ],
+  "related": [
+   "api-conversao",
+   "como-decidir-conjunto-dados",
+   "como-preparar-empresa-para-api"
+  ]
+ },
+ "como-decidir-conjunto-dados": {
+  "description": "Matriz de decisão para criar ou selecionar um conjunto de dados conforme as fontes de eventos (app, site, offline, mensagens e combinações) e qual identificação usar ao configurar a API de Conversões.",
+  "tags": [
+   "capi",
+   "datasets",
+   "decision-matrix",
+   "setup"
+  ],
+  "related": [
+   "conjunto-dados",
+   "comparar-opcoes-configuracoes-api",
+   "api-conversao"
+  ]
+ },
+ "conjunto-dados": {
+  "description": "Sobre conjuntos de dados no Gerenciador de Eventos: visualização unificada de eventos de site, app, offline e mensagens, como funciona a identificação (relação com pixel e app) e integrações compatíveis por origem.",
+  "tags": [
+   "datasets",
+   "events-manager",
+   "capi",
+   "pixel",
+   "sdk"
+  ],
+  "related": [
+   "como-decidir-conjunto-dados",
+   "gerenciador-eventos",
+   "api-conversao"
+  ]
+ },
+ "como-preparar-empresa-para-api": {
+  "description": "Preparação organizacional para adotar a API de Conversões: benefícios, escolha do método de configuração, envolvimento de stakeholders (executivos, jurídico, desenvolvedores, mensuração) e definição de cronograma de implementação.",
+  "tags": [
+   "capi",
+   "planning",
+   "stakeholders",
+   "compliance"
+  ],
+  "related": [
+   "comparar-opcoes-configuracoes-api",
+   "api-conversao",
+   "boas-praticas-api-conversao"
+  ]
+ },
+ "cases-api-conversao": {
+  "description": "Nove casos de sucesso com API de Conversões e Advantage+ (PRESS Healthfoods, Living Proof, Central Department Store, Five Below, HEMA, Principessa, Rosa Azul Kids, Stone, Casas Bahia), com estratégias e métricas de resultado.",
+  "tags": [
+   "capi",
+   "case-studies",
+   "advantage-plus",
+   "results"
+  ],
+  "related": [
+   "api-conversao",
+   "boas-praticas-melhorar-anuncios-api"
+  ]
+ },
+ "meta-pixel": {
+  "title": "Atualizações do Pixel da Meta e da API de Conversões (comunicado oficial)",
+  "description": "Comunicado da Meta (texto em inglês): novo recurso do Pixel que usa IA para incluir automaticamente informações de página e produto nos eventos, e configuração da API de Conversões habilitada pela Meta em um clique. Cita 17,8% menos custo por resultado com CAPI para web.",
+  "tags": [
+   "pixel",
+   "capi",
+   "meta-enabled-setup",
+   "automation",
+   "announcement"
+  ],
+  "related": [
+   "boas-praticas-configuracao-pixel",
+   "api-conversao",
+   "comparar-opcoes-configuracoes-api"
+  ]
+ },
+ "boas-praticas-configuracao-pixel": {
+  "description": "Boas práticas de instalação do Pixel da Meta: verificação do código base, posicionamento do código de evento, nomes de eventos case-sensitive (ViewContent vs viewcontent), validação com Eventos de Teste, aba Diagnóstico e Auxiliar de Pixel.",
+  "tags": [
+   "pixel",
+   "best-practices",
+   "setup",
+   "testing",
+   "debugging"
+  ],
+  "related": [
+   "meta-pixel",
+   "eventos-padrao-pixel",
+   "boas-praticas-api-conversao",
+   "gerenciador-eventos"
+  ]
+ },
+ "eventos-padrao-pixel": {
+  "description": "Referência dos eventos padrão do Pixel da Meta com o código fbq('track', ...) de cada um (AddToCart, Purchase, Lead, Subscribe etc.) e instruções de posicionamento do código base e do evento nas páginas.",
+  "tags": [
+   "pixel",
+   "standard-events",
+   "reference",
+   "fbq",
+   "code-snippets"
+  ],
+  "related": [
+   "eventos-padrao-site",
+   "boas-praticas-configuracao-pixel",
+   "conversion-traking"
+  ]
+ },
+ "eventos-padrao-site": {
+  "description": "Conceito de eventos de site: diferença entre eventos padrão (nomes predefinidos pela Meta) e eventos personalizados (nomes próprios), formas de configuração e boa prática de envio redundante por Pixel e API de Conversões.",
+  "tags": [
+   "web-events",
+   "standard-events",
+   "custom-events",
+   "pixel",
+   "capi"
+  ],
+  "related": [
+   "eventos-padrao-pixel",
+   "conversoes-personalizadas-web",
+   "api-conversao"
+  ]
+ },
+ "eventos-app": {
+  "description": "Eventos do app: tipos (padrão, personalizados e automáticos via SDK do Facebook), benefícios para direcionamento, otimização e mensuração, e opções de configuração (SDK, API de Conversões, parceiros de métricas).",
+  "tags": [
+   "app-events",
+   "sdk",
+   "capi",
+   "mobile"
+  ],
+  "related": [
+   "parameters",
+   "api-conversao",
+   "conjunto-dados"
+  ]
+ },
+ "eventos-chats-whatsapp": {
+  "description": "Eventos de mensagens em chats comerciais (Messenger, Instagram, WhatsApp): benefícios para mensuração e otimização de campanhas de clique para mensagem, e configuração via API de Conversões por parceiro ou integração direta.",
+  "tags": [
+   "messaging-events",
+   "whatsapp",
+   "messenger",
+   "instagram",
+   "capi",
+   "ctwa"
+  ],
+  "related": [
+   "api-conversao",
+   "otimizar-campanhas-mensagens",
+   "parameters"
+  ]
+ },
+ "conversion-traking": {
+  "description": "Rastreamento de conversões com o Pixel: eventos padrão via fbq('track'), eventos personalizados via fbq('trackCustom') e conversões personalizadas por regra de URL. Inclui restrição de set/2025 a conversões que sugiram dados sensíveis (saúde, finanças).",
+  "tags": [
+   "pixel",
+   "conversion-tracking",
+   "fbq",
+   "custom-conversions",
+   "policy"
+  ],
+  "related": [
+   "eventos-padrao-pixel",
+   "conversoes-personalizadas-web",
+   "eventos-padrao-site"
+  ]
+ },
+ "conversoes-offline": {
+  "description": "Conversões offline: mensuração de resultados fora do online (compras em loja, telefone) atribuídos a anúncios, fluxo com conjunto de dados no Gerenciador de Eventos e formas de envio (API de Conversões, parceiros ou upload manual).",
+  "tags": [
+   "offline-events",
+   "offline-conversions",
+   "datasets",
+   "capi",
+   "measurement"
+  ],
+  "related": [
+   "conjunto-dados",
+   "api-conversao",
+   "como-decidir-conjunto-dados"
+  ]
+ },
+ "conversoes-personalizadas-web": {
+  "description": "Conversões personalizadas para web: regras sobre eventos ou URLs para medir ações específicas (ex.: compras acima de US$ 40), uso como meta de desempenho em campanhas e compartilhamento seletivo com parceiros. Não disponível para eventos de app.",
+  "tags": [
+   "custom-conversions",
+   "web-events",
+   "rules",
+   "performance-goal"
+  ],
+  "related": [
+   "conversion-traking",
+   "eventos-padrao-site",
+   "gerenciador-eventos"
+  ]
+ },
+ "diferenca-entre-contagem-eventos": {
+  "description": "Por que as contagens de eventos diferem entre Gerenciador de Anúncios, Relatórios de Anúncios e Gerenciador de Eventos: eventos atribuídos vs recebidos, desduplicação, janelas de atribuição e o que cada ferramenta responde.",
+  "tags": [
+   "reporting",
+   "attribution",
+   "deduplication",
+   "events-manager",
+   "ads-manager"
+  ],
+  "related": [
+   "gerenciador-relatorios",
+   "detalhes-eventos-servidor",
+   "relatorio-de-anuncios"
+  ]
+ },
+ "gerenciador-eventos": {
+  "description": "Visão geral do Gerenciador de Eventos da Meta: menus (Conectar dados, Visão geral, Fontes de dados, Conversões personalizadas, Integrações de parceiros) e abas por fonte de dados (Visão geral, Eventos de teste, Diagnóstico, Histórico, Configurações).",
+  "tags": [
+   "events-manager",
+   "overview",
+   "data-sources",
+   "diagnostics",
+   "testing"
+  ],
+  "related": [
+   "conjunto-dados",
+   "detalhes-eventos-servidor",
+   "monitorar-api-conversao",
+   "conversoes-personalizadas-web"
+  ]
+ },
+ "gerenciador-eventos-otimizacao": {
+  "description": "Métrica Eventos de otimização: o que é o evento de otimização escolhido no conjunto de anúncios, relação com estratégia de lance e janela de conversão, e a referência de ~50 eventos desde a última edição significativa para veiculação estável.",
+  "tags": [
+   "ads-manager",
+   "optimization-event",
+   "metrics",
+   "bidding",
+   "attribution-window"
+  ],
+  "related": [
+   "gerenciador-fase-aprendizado",
+   "gerenciador-edicoes-significativas",
+   "estrategias-de-lance"
+  ]
+ },
+ "gerenciador-fase-aprendizado": {
+  "description": "Fase de aprendizado do sistema de veiculação: sai após ~50 resultados na semana seguinte à última edição significativa (Lojas: 17 compras no site + 5 pela Meta), boas práticas (evitar edições, orçamento realista, volume moderado) e colunas de acompanhamento.",
+  "tags": [
+   "ads-manager",
+   "learning-phase",
+   "delivery",
+   "best-practices"
+  ],
+  "related": [
+   "gerenciador-aprendizado-limitado",
+   "gerenciador-edicoes-significativas",
+   "gerenciador-volume-anuncios",
+   "gerenciador-eventos-otimizacao"
+  ]
+ },
+ "gerenciador-aprendizado-limitado": {
+  "title": "Sobre o aprendizado limitado",
+  "description": "Status Aprendizado limitado: ocorre quando o conjunto de anúncios provavelmente não receberá ~50 eventos de otimização na semana após a última edição significativa. Causas (público pequeno, orçamento/lance baixo, evento raro) e correções (combinar conjuntos, ampliar público, trocar evento).",
+  "tags": [
+   "ads-manager",
+   "learning-limited",
+   "troubleshooting",
+   "delivery"
+  ],
+  "related": [
+   "gerenciador-fase-aprendizado",
+   "gerenciador-consolidacao",
+   "gerenciador-eventos-otimizacao"
+  ]
+ },
+ "gerenciador-edicoes-significativas": {
+  "title": "Edições significativas e fase de aprendizado",
+  "description": "Quais edições reiniciam a fase de aprendizado: direcionamento, criativo, evento de otimização, novo anúncio, pausa ≥7 dias, estratégia de lance; e alterações que dependem da magnitude (orçamento, controle de lance, limite de gastos). Inclui FAQ sobre orçamento de campanha Advantage+.",
+  "tags": [
+   "ads-manager",
+   "significant-edits",
+   "learning-phase",
+   "campaign-budget"
+  ],
+  "related": [
+   "gerenciador-fase-aprendizado",
+   "gerenciador-aprendizado-limitado",
+   "estrategias-de-lance"
+  ]
+ },
+ "gerenciador-consolidacao": {
+  "description": "Consolidação de conjuntos de anúncios e campanhas para reduzir fragmentação de público: benefícios (eficiência de orçamento, menos tempo em aprendizado), uso de detalhamentos nos relatórios em vez de segmentação e regras automatizadas de combinação.",
+  "tags": [
+   "ads-manager",
+   "consolidation",
+   "audience-fragmentation",
+   "campaign-structure"
+  ],
+  "related": [
+   "gerenciador-volume-anuncios",
+   "gerenciador-fase-aprendizado",
+   "gerenciador-relatorios",
+   "gerenciador-pontuacao-oportunidade"
+  ]
+ },
+ "gerenciador-volume-anuncios": {
+  "title": "Sobre o gerenciamento do volume de anúncios",
+  "description": "Como o excesso de anúncios ativos prejudica o desempenho (menos aprendizado por anúncio) e táticas para reduzir volume: combinar conjuntos, posicionamentos Advantage+, otimização de texto múltiplo, criativo dinâmico e catálogo Advantage+.",
+  "tags": [
+   "ads-manager",
+   "ad-volume",
+   "best-practices",
+   "learning-phase",
+   "advantage-plus"
+  ],
+  "related": [
+   "gerenciador-limites-pagina",
+   "gerenciador-consolidacao",
+   "gerenciador-fase-aprendizado"
+  ]
+ },
+ "gerenciador-limites-campanhas": {
+  "title": "Limites de campanhas, conjuntos de anúncios e anúncios por conta",
+  "description": "Limites por conta de anúncios: até 50 anúncios por conjunto, 5.000 conjuntos de anúncios e 5.000 campanhas em contas regulares; quais status contam para o limite e o que acontece ao atingi-lo.",
+  "tags": [
+   "ads-manager",
+   "limits",
+   "account",
+   "reference"
+  ],
+  "related": [
+   "gerenciador-limites-pagina",
+   "gerenciador-volume-anuncios"
+  ]
+ },
+ "gerenciador-limites-pagina": {
+  "description": "Limites de anúncios por Página: quatro níveis conforme gasto mensal, quais anúncios contam (em veiculação ou análise), consequências de exceder o limite e onde consultar no Meta Business Suite.",
+  "tags": [
+   "ads-manager",
+   "limits",
+   "page",
+   "ad-volume",
+   "reference"
+  ],
+  "related": [
+   "gerenciador-limites-campanhas",
+   "gerenciador-volume-anuncios"
+  ]
+ },
+ "gerenciador-pontuacao-oportunidade": {
+  "description": "Pontuação de oportunidade no Gerenciador de Anúncios: escala 0–100 baseada em recomendações aplicadas, como os pontos são estimados, comportamento ao ignorar recomendações e ressalva de que a pontuação não reflete desempenho real.",
+  "tags": [
+   "ads-manager",
+   "opportunity-score",
+   "recommendations",
+   "optimization"
+  ],
+  "related": [
+   "pontuacao-oportunidade",
+   "pontuacao-oportunidade-2",
+   "tipos-recomendacao-pontuacao-opotunidade",
+   "gerenciador-consolidacao"
+  ]
+ },
+ "gerenciador-relatorios": {
+  "description": "Detalhamentos, métricas e filtragem nos Relatórios de Anúncios: níveis, período, demografia, geografia, tipo de mídia; limitações de detalhamento para conversões externas (9 detalhamentos em web e apps iOS) e seção Sem categoria.",
+  "tags": [
+   "ads-reporting",
+   "breakdowns",
+   "metrics",
+   "filtering"
+  ],
+  "related": [
+   "diferenca-entre-contagem-eventos",
+   "relatorio-de-anuncios",
+   "gerenciador-consolidacao"
+  ]
+ },
+ "gerenciador-anuncio": {
+  "title": "Gerenciador de Anúncios da Meta (índice do tópico)",
+  "description": "Página-índice dos artigos do tópico Gerenciador de Anúncios: fase de aprendizado, aprendizado limitado, edições significativas, volume de anúncios, consolidação, limites por conta e por Página, relatórios e pontuação de oportunidade.",
+  "tags": [
+   "ads-manager",
+   "index"
+  ],
+  "related": [
+   "gerenciador-fase-aprendizado",
+   "gerenciador-volume-anuncios",
+   "gerenciador-relatorios"
+  ]
+ },
+ "relatorio-de-anuncios": {
+  "title": "Mensagens no produto nos relatórios (SKAdNetwork e modelagem estatística)",
+  "description": "Explicação das notas exibidas nos relatórios do Gerenciador de Anúncios: conversões recebidas via API SKAdNetwork da Apple (campanhas iOS 14+) e uso de modelagem estatística quando dados de conversão são parciais ou ausentes.",
+  "tags": [
+   "ads-reporting",
+   "skadnetwork",
+   "ios",
+   "statistical-modeling",
+   "attribution"
+  ],
+  "related": [
+   "gerenciador-relatorios",
+   "diferenca-entre-contagem-eventos"
+  ]
+ },
+ "advantage+": {
+  "title": "Advantage+ (índice do tópico)",
+  "description": "Página-índice dos artigos sobre Advantage+: controles e sugestões de público, criação de campanha com público Advantage+ e controles de conta para públicos e posicionamentos.",
+  "tags": [
+   "advantage-plus",
+   "index"
+  ],
+  "related": [
+   "advantage-controles-publico",
+   "advantage-criar-campanha",
+   "controle-publico-posicionamento"
+  ]
+ },
+ "advantage-controles-publico": {
+  "description": "Controles de público (Localizações, Idade mínima, exclusões de público personalizado, Idiomas — limites rígidos) vs sugestões de público (Idade, Gênero, Direcionamento detalhado, inclusões — orientam a IA sem restringir) no público Advantage+, e como restringir de fato quando alcançar um público específico importa mais que desempenho.",
+  "tags": [
+   "advantage-plus",
+   "audience",
+   "controls",
+   "suggestions",
+   "targeting"
+  ],
+  "related": [
+   "advantage-criar-campanha",
+   "controle-publico-posicionamento"
+  ]
+ },
+ "advantage-criar-campanha": {
+  "description": "Passo a passo para criar campanha com público Advantage+ no Gerenciador de Anúncios: aplicação automática no conjunto de anúncios, como desativar (Limite ainda mais seu público), comportamento em duplicação de campanha, controles vs sugestões e restrições (não exclui públicos semelhantes).",
+  "tags": [
+   "advantage-plus",
+   "how-to",
+   "campaign-creation",
+   "audience",
+   "ads-manager"
+  ],
+  "related": [
+   "advantage-controles-publico",
+   "controle-publico-posicionamento",
+   "gerenciador-pontuacao-oportunidade"
+  ]
+ },
+ "meta-performance-5": {
+  "title": "Performance 5 — Curso Completo (índice)",
+  "description": "Índice do curso Meta Blueprint Performance 5: sete módulos com as cinco boas práticas para campanhas de resposta direta (simplificar estrutura, automatizar campanhas, diversificar criativo, dados de alta qualidade, validar resultados).",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "course",
+   "index"
+  ],
+  "related": [
+   "meta-performance-5-intro",
+   "meta-performance-5-simplificar",
+   "meta-performance-5-automatizar",
+   "meta-performance-5-criativo",
+   "meta-performance-5-dados",
+   "meta-performance-5-resultados"
+  ]
+ },
+ "meta-performance-5-intro": {
+  "description": "Introdução ao Performance 5 (curso Meta Blueprint): papel da IA no sistema de veiculação, resultados médios observados e visão geral das cinco boas práticas para campanhas de resposta direta.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "course",
+   "ai-delivery"
+  ],
+  "related": [
+   "meta-performance-5",
+   "meta-performance-5-simplificar",
+   "meta-performance-5-conclusao"
+  ]
+ },
+ "meta-performance-5-simplificar": {
+  "description": "Performance 5 — Lição 1, Simplifique a estrutura da conta: fase de aprendizado, consolidação de conjuntos de anúncios, posicionamentos Advantage+ e redução de fragmentação para acelerar a otimização.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "account-structure",
+   "learning-phase",
+   "advantage-plus"
+  ],
+  "related": [
+   "gerenciador-consolidacao",
+   "gerenciador-fase-aprendizado",
+   "gerenciador-volume-anuncios",
+   "meta-performance-5-automatizar"
+  ]
+ },
+ "meta-performance-5-automatizar": {
+  "description": "Performance 5 — Lição 2, Automatize suas campanhas: campanhas de Compras Advantage+, App Advantage+ e anúncios de catálogo Advantage+ para deixar a IA otimizar público, criativo e orçamento.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "automation",
+   "advantage-plus",
+   "shopping-campaigns"
+  ],
+  "related": [
+   "advantage-criar-campanha",
+   "meta-performance-5-simplificar",
+   "meta-performance-5-criativo"
+  ]
+ },
+ "meta-performance-5-criativo": {
+  "description": "Performance 5 — Lição 3, Diversifique o criativo do anúncio: diversificação por conceito e formato (imagem, vídeo, Reels) para combater fadiga criativa e alcançar segmentos diferentes do público.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "creative",
+   "diversification",
+   "creative-fatigue"
+  ],
+  "related": [
+   "meta-performance-5-automatizar",
+   "meta-performance-5-dados"
+  ]
+ },
+ "meta-performance-5-dados": {
+  "description": "Performance 5 — Lição 4, Use dados de alta qualidade: API de Conversões como fundamento, métodos de integração (direta, parceiro, gateway), pontuação EMQ e boas práticas de qualidade de dados.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "capi",
+   "data-quality",
+   "emq"
+  ],
+  "related": [
+   "api-conversao",
+   "comparar-opcoes-configuracoes-api",
+   "boas-praticas-melhorar-anuncios-api",
+   "meta-performance-5-resultados"
+  ]
+ },
+ "meta-performance-5-resultados": {
+  "description": "Performance 5 — Lição 5, Valide os resultados: testes A/B, Conversion Lift e métricas para validar campanhas e provar incrementalidade em vez de confiar só em métricas de atribuição.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "ab-testing",
+   "conversion-lift",
+   "measurement"
+  ],
+  "related": [
+   "meta-performance-5-dados",
+   "meta-performance-5-conclusao",
+   "diferenca-entre-contagem-eventos"
+  ]
+ },
+ "meta-performance-5-conclusao": {
+  "description": "Performance 5 — Conclusão: resumo das cinco boas práticas (simplificar estrutura, automatizar, diversificar criativo, dados de qualidade, validar resultados) e próximos passos.",
+  "tags": [
+   "performance-5",
+   "blueprint",
+   "summary"
+  ],
+  "related": [
+   "meta-performance-5",
+   "meta-performance-5-intro"
+  ]
+ },
+ "regras-de-valor": {
+  "title": "Regras de Valor em Campanhas (índice do tópico)",
+  "description": "Página-índice dos artigos sobre regras de valor: conceito, configuração, criação de campanha e detalhamento em relatórios.",
+  "tags": [
+   "value-rules",
+   "index"
+  ],
+  "related": [
+   "regras-valor-sobre",
+   "regras-valor-configurar",
+   "regras-valor-campanha",
+   "regras-valor-relatorios"
+  ]
+ },
+ "regras-valor-sobre": {
+  "description": "Regras de valor: ajustes de lance por critérios de público, posicionamento e local de conversão (aumento até 1.000%, redução até 90%), ordem de prioridade quando regras se sobrepõem e restrições para categorias de anúncio especiais.",
+  "tags": [
+   "value-rules",
+   "bidding",
+   "bid-multipliers",
+   "ltv",
+   "consolidation"
+  ],
+  "related": [
+   "regras-valor-configurar",
+   "regras-valor-campanha",
+   "estrategias-de-lance",
+   "gerenciador-consolidacao"
+  ]
+ },
+ "regras-valor-configurar": {
+  "description": "Passo a passo para criar conjuntos de regras de valor nas Configurações de publicidade: até 2 critérios por regra, até 10 regras por conjunto, definição de porcentagem de aumento/redução de lance e reordenação de prioridade.",
+  "tags": [
+   "value-rules",
+   "how-to",
+   "setup",
+   "ads-manager"
+  ],
+  "related": [
+   "regras-valor-sobre",
+   "regras-valor-campanha",
+   "regras-valor-relatorios"
+  ]
+ },
+ "regras-valor-campanha": {
+  "description": "Como criar uma campanha aplicando um conjunto de regras de valor no Gerenciador de Anúncios, incluindo interação com pontuação da campanha, configuração recomendada Advantage+ e restrições para categorias especiais.",
+  "tags": [
+   "value-rules",
+   "how-to",
+   "campaign-creation",
+   "ads-manager"
+  ],
+  "related": [
+   "regras-valor-configurar",
+   "regras-valor-sobre",
+   "pontuacao-oportunidade-criacao"
+  ]
+ },
+ "regras-valor-relatorios": {
+  "description": "Como usar o detalhamento Regras de valor nos relatórios do Gerenciador de Anúncios para ver resultados por regra (disponível nos níveis de conjunto de anúncios e anúncio) e avaliar se os gastos priorizam resultados de alto valor.",
+  "tags": [
+   "value-rules",
+   "reporting",
+   "breakdowns"
+  ],
+  "related": [
+   "regras-valor-sobre",
+   "gerenciador-relatorios"
+  ]
+ },
+ "pontuacao-oportunidade": {
+  "description": "Pontuação de oportunidade (0–100): como é calculada a partir das recomendações aplicadas, onde aparece (Visão geral da conta, Campanhas, criação de anúncio) e como interpretar — versão resumida do artigo do Gerenciador.",
+  "tags": [
+   "opportunity-score",
+   "recommendations",
+   "ads-manager",
+   "optimization"
+  ],
+  "related": [
+   "gerenciador-pontuacao-oportunidade",
+   "pontuacao-oportunidade-2",
+   "tipos-recomendacao-pontuacao-opotunidade",
+   "pontuacao-oportunidade-criacao"
+  ]
+ },
+ "pontuacao-oportunidade-2": {
+  "title": "Formas de otimizar campanhas com a pontuação de oportunidade",
+  "description": "Guia prático da pontuação de oportunidade: pontuação vs recomendações, resultado de metanálise (−5% custo por resultado médio ao adotar recomendações), como acessar e aplicar recomendações e perguntas frequentes.",
+  "tags": [
+   "opportunity-score",
+   "recommendations",
+   "how-to",
+   "results"
+  ],
+  "related": [
+   "pontuacao-oportunidade",
+   "tipos-recomendacao-pontuacao-opotunidade",
+   "gerenciador-pontuacao-oportunidade"
+  ]
+ },
+ "pontuacao-oportunidade-criacao": {
+  "title": "Pontuação da campanha durante a criação",
+  "description": "Pontuação da campanha (0–100) exibida durante a criação, prevendo o nível de otimização antes da publicação — diferença em relação à pontuação de oportunidade (que é da conta) e como recomendações, erros e avisos afetam a nota.",
+  "tags": [
+   "campaign-score",
+   "opportunity-score",
+   "campaign-creation",
+   "ads-manager"
+  ],
+  "related": [
+   "pontuacao-oportunidade",
+   "regras-valor-campanha",
+   "advantage-criar-campanha"
+  ]
+ },
+ "tipos-recomendacao-pontuacao-opotunidade": {
+  "description": "Categorias de recomendações da pontuação de oportunidade com exemplos: campanhas automatizadas, objetivo e metas, público, criativo e posicionamentos, sinais (ex.: configurar CAPI), orçamento e lances, e outros — com ordem de priorização.",
+  "tags": [
+   "opportunity-score",
+   "recommendations",
+   "categories",
+   "reference"
+  ],
+  "related": [
+   "pontuacao-oportunidade",
+   "pontuacao-oportunidade-2",
+   "boas-praticas-melhorar-anuncios-api"
+  ]
+ },
+ "estrategias-de-lance": {
+  "description": "Estratégias de lance da Meta em três tipos: baseadas em gastos (volume mais alto, valor mais alto), baseadas em metas (meta de custo por resultado, meta de ROAS — recomendadas 50–100+ conversões semanais) e manual (limite de lance), com FAQ de escolha.",
+  "tags": [
+   "bidding",
+   "bid-strategies",
+   "cost-cap",
+   "roas-goal",
+   "reference"
+  ],
+  "related": [
+   "regras-valor-sobre",
+   "gerenciador-eventos-otimizacao",
+   "gerenciador-edicoes-significativas"
+  ]
+ },
+ "otimizar-campanhas-mensagens": {
+  "description": "Meta de desempenho Maximizar o número de compras por mensagens em anúncios de clique para mensagem (Messenger, Instagram Direct, WhatsApp): benefícios, requisitos de qualificação por canal (ex.: 10+ eventos de compra em 30 dias) e configuração.",
+  "tags": [
+   "click-to-message",
+   "whatsapp",
+   "messenger",
+   "instagram",
+   "optimization",
+   "purchases"
+  ],
+  "related": [
+   "eventos-chats-whatsapp",
+   "api-conversao",
+   "estrategias-de-lance"
+  ]
+ },
+ "restricoes": {
+  "title": "Restrições de Publicidade (índice do tópico)",
+  "description": "Página-índice dos artigos sobre restrições: causas de restrição de conta, violações comuns, anúncios em análise, rejeições pós-aprovação e referências dos Padrões de Publicidade, Padrões da Comunidade, conteúdo interessante e Política de Comércio.",
+  "tags": [
+   "ad-policies",
+   "restrictions",
+   "index"
+  ],
+  "related": [
+   "restricoes-sobre",
+   "restricoes-violacoes",
+   "restricoes-padroes-pub"
+  ]
+ },
+ "restricoes-sobre": {
+  "description": "Restrições de publicidade da Meta: tipos (limites de gasto, perda de recursos de pagamento/publicidade, bloqueio de anunciar), causas (violações de políticas, conta comprometida, falta de 2FA, atividade incomum de pagamento) e onde resolver.",
+  "tags": [
+   "ad-policies",
+   "restrictions",
+   "account",
+   "enforcement"
+  ],
+  "related": [
+   "restricoes-violacoes",
+   "restricoes-em-analise",
+   "restricoes-rejeitados"
+  ]
+ },
+ "restricoes-violacoes": {
+  "description": "Exemplos comuns de violações da Política de Publicidade que geram restrições: violações de conteúdo, comportamento do anunciante e práticas a evitar, com orientações para regularização.",
+  "tags": [
+   "ad-policies",
+   "violations",
+   "examples",
+   "enforcement"
+  ],
+  "related": [
+   "restricoes-sobre",
+   "restricoes-padroes-pub",
+   "restricoes-rejeitados"
+  ]
+ },
+ "restricoes-em-analise": {
+  "title": "Sobre anúncios Em análise",
+  "description": "Processo de análise de anúncios: inicia automaticamente após criação ou edição, o que é verificado (Padrões de Publicidade), prazos típicos, status na coluna Veiculação e o que fazer quando o anúncio fica preso em análise.",
+  "tags": [
+   "ad-review",
+   "ad-policies",
+   "delivery-status"
+  ],
+  "related": [
+   "restricoes-rejeitados",
+   "restricoes-padroes-pub",
+   "restricoes-sobre"
+  ]
+ },
+ "restricoes-rejeitados": {
+  "title": "Por que anúncios aprovados são depois rejeitados",
+  "description": "Como a análise automatizada e humana pode rejeitar um anúncio após a aprovação inicial (re-análise, denúncias, novo contexto) e como solicitar nova análise ou contestar a decisão.",
+  "tags": [
+   "ad-review",
+   "rejections",
+   "appeals",
+   "ad-policies"
+  ],
+  "related": [
+   "restricoes-em-analise",
+   "restricoes-violacoes",
+   "restricoes-sobre"
+  ]
+ },
+ "restricoes-padroes-pub": {
+  "title": "Padrões de Publicidade da Meta (referência)",
+  "description": "Referência dos Padrões de Publicidade: princípios, processo de análise de anúncios, conteúdo inaceitável (por categoria), produtos e serviços restritos e comportamentos do anunciante que geram restrições. Arquivo extenso — usar busca por seção.",
+  "tags": [
+   "ad-policies",
+   "advertising-standards",
+   "reference",
+   "prohibited-content"
+  ],
+  "related": [
+   "restricoes-padroes-com",
+   "restricoes-comercio",
+   "restricoes-violacoes"
+  ]
+ },
+ "restricoes-padroes-com": {
+  "title": "Padrões da Comunidade Meta (referência)",
+  "description": "Referência dos Padrões da Comunidade (Facebook, Instagram, Messenger, Threads): conteúdo inaceitável, fraudes e golpes, propriedade intelectual e regras para publicação eleitoral ou política.",
+  "tags": [
+   "community-standards",
+   "policies",
+   "reference"
+  ],
+  "related": [
+   "restricoes-padroes-pub",
+   "restricoes-conteudo"
+  ]
+ },
+ "restricoes-conteudo": {
+  "title": "Abordagem da Meta para conteúdo interessante (newsworthy)",
+  "description": "Como a Meta pondera tolerância a conteúdo interessante/de interesse público: critérios de avaliação (contexto do país, natureza do discurso), quando remove mesmo assim, telas de aviso e estatísticas de decisões documentadas.",
+  "tags": [
+   "content-policy",
+   "newsworthy",
+   "moderation"
+  ],
+  "related": [
+   "restricoes-padroes-com",
+   "restricoes-padroes-pub"
+  ]
+ },
+ "restricoes-comercio": {
+  "title": "Política de Comércio da Meta (referência)",
+  "description": "Regras de conteúdo comercial nas plataformas da Meta: categorias proibidas (produtos adultos, álcool, partes do corpo, documentos e moedas, jogos de azar etc.) e proibição de discriminação, aplicáveis a lojas e classificados.",
+  "tags": [
+   "commerce-policy",
+   "prohibited-products",
+   "reference",
+   "shops"
+  ],
+  "related": [
+   "restricoes-padroes-pub",
+   "restricoes-padroes-com"
+  ]
+ },
+ "impostos-brasil": {
+  "title": "Impostos sobre anúncios da Meta no Brasil (2026)",
+  "description": "Mudanças nas faturas de publicidade da Meta no Brasil a partir de 01/01/2026: reforma do IVA (CBS 0,9% + IBS 0,1% exibidos em fase de teste, sem repasse em 2026) e repasse de PIS/COFINS 9,25% + ISS 2,9% (~12,15% de aumento), com fórmulas por forma de pagamento.",
+  "tags": [
+   "taxes",
+   "brazil",
+   "billing",
+   "vat",
+   "pricing"
+  ],
+  "related": [
+   "gerenciador-anuncio"
+  ]
+ },
+ "advantage-plus-shopping-campaigns": {
+  "description": "Campanhas de compras Advantage+: automação total de direcionamento, criativo, posicionamentos e orçamento com IA; benefícios, tutorial de criação, guia de configuração para o sucesso, personalizações e casos de sucesso.",
+  "tags": [
+   "advantage-plus",
+   "shopping-campaigns",
+   "automation",
+   "how-to"
+  ],
+  "related": [
+   "advantage-criar-campanha",
+   "meta-performance-5-automatizar",
+   "configurar-orcamento-advantage",
+   "meta-advantage-case"
+  ]
+ },
+ "advantage-plus-shopping-course": {
+  "description": "Curso Blueprint sobre campanhas de vendas Advantage+: papel da IA generativa, alavancas de automação total e parcial, sinais de dados no criativo e como estruturar estudos de Conversion Lift.",
+  "tags": [
+   "advantage-plus",
+   "shopping-campaigns",
+   "blueprint",
+   "course",
+   "generative-ai",
+   "conversion-lift"
+  ],
+  "related": [
+   "advantage-plus-shopping-campaigns",
+   "testes-incremento",
+   "meta-performance-5-automatizar"
+  ]
+ },
+ "align-ad-creative-to-your-business-goals": {
+  "description": "Curso Blueprint sobre alinhamento de criativo a objetivos de negócio: criativos por etapa do funil, escolha de posicionamentos, e mecanismos de otimização automática (adaptação de anúncios por posicionamento e idioma).",
+  "tags": [
+   "creative",
+   "funnel",
+   "placements",
+   "blueprint",
+   "course"
+  ],
+  "related": [
+   "meta-performance-5-criativo",
+   "posicionamentos-advantage+",
+   "dicas-anuncios"
+  ]
+ },
+ "amostragem-dados": {
+  "description": "Amostragem de dados nos relatórios da Meta: por que métricas podem ser calculadas sobre fração representativa dos dados e o impacto disso na interpretação dos números.",
+  "tags": [
+   "reporting",
+   "data-sampling",
+   "metrics"
+  ],
+  "related": [
+   "metricas-estimativas",
+   "gerenciador-relatorios",
+   "diferenca-entre-contagem-eventos"
+  ]
+ },
+ "anuncios-atrativos": {
+  "description": "Manual de criativos atrativos e captação mobile: princípios de design para imagens e vídeos, enquadramento e foco, e ferramentas de estúdio caseiro/edição para e-commerce.",
+  "tags": [
+   "creative",
+   "design",
+   "mobile",
+   "video",
+   "best-practices"
+  ],
+  "related": [
+   "anuncios-imagens",
+   "anuncios-videos",
+   "dicas-anuncios"
+  ]
+ },
+ "anuncios-colecao": {
+  "description": "Anúncios em coleção e Experiência Instantânea: estrutura da grade de produtos, layout e otimização, boas práticas de catálogo e atualizações de leilão de março/2026.",
+  "tags": [
+   "collection-ads",
+   "instant-experience",
+   "catalog",
+   "ad-formats"
+  ],
+  "related": [
+   "photo-ad-format",
+   "boas-praticas-anuncio-carrossel",
+   "meta-advantage-plus-creative"
+  ]
+ },
+ "anuncios-imagens": {
+  "description": "Boas práticas para anúncios de imagem: diretrizes de mídia da Meta, proporções recomendadas por posicionamento, regras de texto e requisitos técnicos.",
+  "tags": [
+   "image-ads",
+   "ad-formats",
+   "specs",
+   "best-practices"
+  ],
+  "related": [
+   "photo-ad-format",
+   "anuncios-atrativos",
+   "posicionamentos-advantage+"
+  ]
+ },
+ "anuncios-textos": {
+  "description": "Boas práticas de texto de anúncio e otimização com IA: limites para evitar truncamento em mobile, tamanhos oficiais recomendados, sugestões geradas por IA e restrições de IA generativa para setores regulados (HEC/SEIP).",
+  "tags": [
+   "ad-copy",
+   "text",
+   "generative-ai",
+   "best-practices",
+   "special-ad-categories"
+  ],
+  "related": [
+   "anuncios-imagens",
+   "dicas-anuncios",
+   "criativo-advantage+"
+  ]
+ },
+ "anuncios-videos": {
+  "description": "Especificações de duração de vídeo por posicionamento no leilão da Meta: limites mínimos e máximos, compatibilidade e otimização do tempo para conversão.",
+  "tags": [
+   "video-ads",
+   "specs",
+   "placements",
+   "reference"
+  ],
+  "related": [
+   "effective-reels-ads",
+   "anuncios-atrativos",
+   "posicionamentos-advantage+"
+  ]
+ },
+ "artigos": {
+  "title": "Central de Artigos e Insights Meta (Edição 2026)",
+  "description": "Notícias e tendências reportadas pela Meta (edição 2026): preparação para alta temporada de compras, Meta Business Agent (agente de IA para empresas) e pesquisa social como novo ROI da descoberta.",
+  "tags": [
+   "news",
+   "insights",
+   "ai-agent",
+   "trends"
+  ],
+  "related": [
+   "cases",
+   "meta-pixel"
+  ]
+ },
+ "boas-praticas-anuncio-carrossel": {
+  "description": "Boas práticas para anúncios em carrossel: uso de imagens/vídeos com título, descrição, link e CTA próprios por cartão; ordem dos cartões, narrativa e otimização automática.",
+  "tags": [
+   "carousel-ads",
+   "ad-formats",
+   "best-practices"
+  ],
+  "related": [
+   "metricas-anuncio-carrossel",
+   "anuncios-colecao",
+   "anuncios-imagens"
+  ]
+ },
+ "boas-praticas-anuncios-envolventes": {
+  "description": "Boas práticas para tornar anúncios mais envolventes; inclui a atualização de rotulagem em que o rótulo 'Patrocinado' passa a ser 'Anúncio' no Facebook e Instagram.",
+  "tags": [
+   "engagement",
+   "creative",
+   "best-practices",
+   "ad-labeling"
+  ],
+  "related": [
+   "dicas-anuncios",
+   "anuncios-atrativos"
+  ]
+ },
+ "boas-praticas-roas": {
+  "description": "Boas práticas para a meta de ROAS: definição do valor-alvo, cronograma de escala em 3 semanas e comparativo entre Meta de ROAS e Valor Mais Alto.",
+  "tags": [
+   "roas-goal",
+   "bidding",
+   "value-optimization",
+   "scaling",
+   "best-practices"
+  ],
+  "related": [
+   "estrategias-de-lance",
+   "requisitos-maximizar-conversoes",
+   "meta-custo-resultado"
+  ]
+ },
+ "cases": {
+  "title": "Casos de Sucesso da Meta (índice do tópico)",
+  "description": "Página-índice de estudos de caso oficiais de marcas que otimizaram campanhas com Advantage+, API de Conversões, anúncios dinâmicos e testes de incremento, organizados por setor.",
+  "tags": [
+   "case-studies",
+   "index"
+  ],
+  "related": [
+   "cases-api-conversao",
+   "meta-advantage-case",
+   "artigos"
+  ]
+ },
+ "como-alcancar-novos-publicos": {
+  "description": "Como criar públicos e alcançar novos públicos: opções de direcionamento (com limites para menores de 18 anos), posicionamento por dispositivo, públicos semelhantes e exclusões.",
+  "tags": [
+   "audience",
+   "targeting",
+   "lookalike",
+   "exclusions"
+  ],
+  "related": [
+   "advantage-controles-publico",
+   "tamanho-estimado-publico",
+   "advantage-criar-campanha"
+  ]
+ },
+ "configurar-maximizacao-conversoes": {
+  "description": "Como ativar a maximização do valor das conversões na configuração da SKAdNetwork (iOS 14.5+): conjuntos de valores por evento de compra, requisitos de dados e o consumo de pelo menos 4 espaços de eventos no Gerenciador de Eventos.",
+  "tags": [
+   "skadnetwork",
+   "ios",
+   "value-optimization",
+   "app-events",
+   "how-to"
+  ],
+  "related": [
+   "requisitos-maximizar-conversoes",
+   "eventos-app",
+   "relatorio-de-anuncios"
+  ]
+ },
+ "configurar-orcamento-advantage": {
+  "description": "Manual completo do orçamento de campanha Advantage+ (CBO): CBO vs orçamentos por conjunto, passo a passo, requisitos de qualificação, boas práticas, limitações pós-publicação em grandes campanhas e análise de relatórios.",
+  "tags": [
+   "campaign-budget",
+   "cbo",
+   "advantage-plus",
+   "how-to",
+   "best-practices"
+  ],
+  "related": [
+   "meta-advantage-plus-budget",
+   "relatorio-orcamento-campanha",
+   "gerenciador-edicoes-significativas"
+  ]
+ },
+ "controle-publico-posicionamento": {
+  "description": "Como definir controles de público e posicionamento no nível da conta de anúncios (Configurações de publicidade): restrições de idade, localização, exclusões e posicionamentos aplicados a todas as campanhas, com passo a passo. Não se aplica a temas sociais/política nem categorias especiais.",
+  "tags": [
+   "account-controls",
+   "audience",
+   "placements",
+   "how-to"
+  ],
+  "related": [
+   "advantage-controles-publico",
+   "como-alcancar-novos-publicos"
+  ]
+ },
+ "criative-diversification": {
+  "description": "Diversificação criativa e otimização para Reels: fórmula de 3 passos para diversificar por conceito (motivadores), zonas seguras do Reels e impacto na pontuação de oportunidade da conta.",
+  "tags": [
+   "creative",
+   "diversification",
+   "reels",
+   "safe-zones",
+   "opportunity-score"
+  ],
+  "related": [
+   "meta-performance-5-criativo",
+   "effective-reels-ads",
+   "fadiga-criativo"
+  ]
+ },
+ "criativo-advantage+": {
+  "description": "Referência completa do criativo Advantage+: todos os aprimoramentos automáticos de imagem/vídeo/texto (incl. IA generativa), como ativar e desativar cada um, políticas e transparência. Arquivo extenso — buscar por seção.",
+  "tags": [
+   "advantage-plus",
+   "creative",
+   "generative-ai",
+   "reference"
+  ],
+  "related": [
+   "meta-advantage-plus-creative",
+   "anuncios-textos",
+   "fadiga-criativo"
+  ]
+ },
+ "dicas-anuncios": {
+  "description": "Qualidade, custo-benefício e relevância de criativos: como a qualidade afeta o leilão, atributos de baixa qualidade a evitar, onde verificar (diagnóstico de relevância) e produção mobile de baixo custo.",
+  "tags": [
+   "ad-quality",
+   "auction",
+   "relevance",
+   "creative",
+   "best-practices"
+  ],
+  "related": [
+   "veiculacao-anuncio",
+   "anuncios-atrativos",
+   "fadiga-criativo"
+  ]
+ },
+ "effective-reels-ads": {
+  "description": "Guia de anúncios de Reels eficazes: hooks nos 3 primeiros segundos, zonas seguras e liquidez de posicionamento, tipos de histórias nativas e integração não-forçada da marca.",
+  "tags": [
+   "reels",
+   "video-ads",
+   "hooks",
+   "safe-zones",
+   "best-practices"
+  ],
+  "related": [
+   "criative-diversification",
+   "fb-ig-reels-behind-scenes",
+   "anuncios-videos"
+  ]
+ },
+ "fadiga-criativo": {
+  "description": "Monitoramento e combate à fadiga do criativo: critérios objetivos da Meta para classificar fadiga, elegibilidade do monitoramento e remédios recomendados (trocar criativo, diversificar).",
+  "tags": [
+   "creative-fatigue",
+   "monitoring",
+   "diagnostics",
+   "creative"
+  ],
+  "related": [
+   "criative-diversification",
+   "meta-performance-5-criativo",
+   "dicas-anuncios"
+  ]
+ },
+ "fb-ig-reels-behind-scenes": {
+  "description": "Curso Blueprint 'Como criar reels envolventes': bastidores da marca como conteúdo, instruções e dicas por tema, e recursos adicionais para Facebook e Instagram.",
+  "tags": [
+   "reels",
+   "blueprint",
+   "course",
+   "content-creation"
+  ],
+  "related": [
+   "effective-reels-ads",
+   "instagram-attract-customers"
+  ]
+ },
+ "instagram-attract-customers": {
+  "description": "Curso Blueprint sobre relacionamento com clientes no Instagram: formatos de conteúdo e exibição, estratégias de engajamento e ferramentas de comunicação nativas.",
+  "tags": [
+   "instagram",
+   "blueprint",
+   "course",
+   "engagement",
+   "organic"
+  ],
+  "related": [
+   "fb-ig-reels-behind-scenes",
+   "otimizar-campanhas-mensagens"
+  ]
+ },
+ "meta-advantage-case": {
+  "title": "Estudo de caso: Barceló Hotel Group com campanhas de compras Advantage+",
+  "description": "Estudo de caso Barceló Hotel Group: teste A/B de campanhas manuais vs compras Advantage+ para reservas de hotel, resultados e recursos tecnológicos utilizados.",
+  "tags": [
+   "case-studies",
+   "advantage-plus",
+   "shopping-campaigns",
+   "ab-testing",
+   "travel"
+  ],
+  "related": [
+   "advantage-plus-shopping-campaigns",
+   "cases",
+   "testes-incremento"
+  ]
+ },
+ "meta-advantage-plus-budget": {
+  "description": "Orçamento de campanha Advantage+ (CBO): distribuição automática do orçamento entre conjuntos de anúncios, benefícios, boas práticas e casos de sucesso — visão de produto.",
+  "tags": [
+   "campaign-budget",
+   "cbo",
+   "advantage-plus",
+   "overview"
+  ],
+  "related": [
+   "configurar-orcamento-advantage",
+   "relatorio-orcamento-campanha",
+   "gerenciador-edicoes-significativas"
+  ]
+ },
+ "meta-advantage-plus-creative": {
+  "description": "Página de produto do criativo Advantage+: como funciona, benefícios, resultados reais, tutoriais em vídeo, personalização automática por público e perguntas frequentes.",
+  "tags": [
+   "advantage-plus",
+   "creative",
+   "overview",
+   "faq"
+  ],
+  "related": [
+   "criativo-advantage+",
+   "meta-performance-5-criativo",
+   "advantage-plus-shopping-campaigns"
+  ]
+ },
+ "meta-advantage-plus-placements": {
+  "description": "Posicionamentos Advantage+ (visão de produto): veiculação automática em todo o ecossistema Meta, melhoria média de 11,7% no CPA, benefícios e boas práticas.",
+  "tags": [
+   "advantage-plus",
+   "placements",
+   "overview",
+   "cpa"
+  ],
+  "related": [
+   "posicionamentos-advantage+",
+   "meta-performance-5-simplificar",
+   "gerenciador-volume-anuncios"
+  ]
+ },
+ "meta-custo-resultado": {
+  "description": "Estratégia de Meta de Custo por Resultado: como definir o CPA-alvo, playbook de otimização, diretrizes de escala e maturação, e comparativo com Volume Mais Alto.",
+  "tags": [
+   "cost-cap",
+   "bidding",
+   "cpa",
+   "scaling",
+   "strategy"
+  ],
+  "related": [
+   "estrategias-de-lance",
+   "boas-praticas-roas",
+   "meta-desempenho"
+  ]
+ },
+ "meta-desempenho": {
+  "description": "Guia de metas de desempenho e lances: mapeamento de objetivos de marketing para metas disponíveis, configuração de eventos de conversão e relação entre CPA desejado e orçamento mínimo recomendado.",
+  "tags": [
+   "performance-goal",
+   "bidding",
+   "budget",
+   "conversion-events",
+   "reference"
+  ],
+  "related": [
+   "estrategias-de-lance",
+   "meta-custo-resultado",
+   "gerenciador-eventos-otimizacao"
+  ]
+ },
+ "metricas-anuncio-carrossel": {
+  "description": "Como visualizar métricas por cartão em anúncios de carrossel no Gerenciador de Anúncios (detalhamento por cartão do carrossel).",
+  "tags": [
+   "carousel-ads",
+   "metrics",
+   "reporting"
+  ],
+  "related": [
+   "boas-praticas-anuncio-carrossel",
+   "gerenciador-relatorios"
+  ]
+ },
+ "metricas-estimativas": {
+  "description": "Métricas e estimativas baseadas em Contas Meta: definição de Contas Meta, quais métricas são rotuladas como únicas e como interpretar estimativas de alcance.",
+  "tags": [
+   "metrics",
+   "meta-accounts",
+   "reach",
+   "reporting"
+  ],
+  "related": [
+   "tamanho-estimado-publico",
+   "amostragem-dados",
+   "gerenciador-relatorios"
+  ]
+ },
+ "opportunity-score": {
+  "title": "Pontuação de Oportunidade — guia prático",
+  "description": "Guia prático da pontuação de oportunidade: benefícios da otimização, reação a oscilações dinâmicas da pontuação, FAQ e teste de fixação — complementa os artigos formais do tópico.",
+  "tags": [
+   "opportunity-score",
+   "recommendations",
+   "faq"
+  ],
+  "related": [
+   "pontuacao-oportunidade",
+   "gerenciador-pontuacao-oportunidade",
+   "criative-diversification"
+  ]
+ },
+ "photo-ad-format": {
+  "description": "Formato de anúncio de foto (imagem estática): visão geral, quando é a melhor opção e boas práticas para anúncios de foto eficazes no Facebook e Instagram.",
+  "tags": [
+   "photo-ads",
+   "ad-formats",
+   "overview",
+   "best-practices"
+  ],
+  "related": [
+   "anuncios-imagens",
+   "anuncios-colecao",
+   "boas-praticas-anuncio-carrossel"
+  ]
+ },
+ "posicionamentos-advantage+": {
+  "description": "Posicionamentos Meta Advantage+ (aprofundado): eficiência da distribuição automática, o Efeito Breakdown no leilão, taxas de proporção recomendadas por posicionamento e personalização de ativos (PAC).",
+  "tags": [
+   "advantage-plus",
+   "placements",
+   "asset-customization",
+   "aspect-ratios",
+   "auction"
+  ],
+  "related": [
+   "meta-advantage-plus-placements",
+   "anuncios-imagens",
+   "anuncios-videos"
+  ]
+ },
+ "relatorio-orcamento-campanha": {
+  "description": "Como ler o relatório de campanhas com orçamento Advantage+ (CBO): por que comparar custo médio por evento entre conjuntos é erro de análise, e como a distribuição maximiza o volume total (estudo de caso dos US$ 30).",
+  "tags": [
+   "cbo",
+   "campaign-budget",
+   "reporting",
+   "analysis"
+  ],
+  "related": [
+   "configurar-orcamento-advantage",
+   "meta-advantage-plus-budget",
+   "gerenciador-relatorios"
+  ]
+ },
+ "requisitos-maximizar-conversoes": {
+  "description": "Otimização e maximização do valor das conversões: como funciona a otimização de valor, requisitos oficiais para web e app, estratégia valor vs volume e passagem de parâmetros dinâmicos de valor.",
+  "tags": [
+   "value-optimization",
+   "bidding",
+   "requirements",
+   "custom-data"
+  ],
+  "related": [
+   "boas-praticas-roas",
+   "configurar-maximizacao-conversoes",
+   "parameters"
+  ]
+ },
+ "tamanho-estimado-publico": {
+  "description": "Tamanho estimado do público: como as estimativas são calculadas a partir de Contas Meta, fatores que as determinam, limitações/variações e por que diferem de dados censitários.",
+  "tags": [
+   "audience",
+   "estimates",
+   "meta-accounts",
+   "targeting"
+  ],
+  "related": [
+   "metricas-estimativas",
+   "como-alcancar-novos-publicos",
+   "amostragem-dados"
+  ]
+ },
+ "testes-incremento": {
+  "description": "Testes e experimentos da Meta: metodologias (A/B, holdout), validação de relevância estatística, construção de hipóteses e medição de lift incremental de vendas.",
+  "tags": [
+   "ab-testing",
+   "conversion-lift",
+   "incrementality",
+   "experiments",
+   "measurement"
+  ],
+  "related": [
+   "meta-performance-5-resultados",
+   "advantage-plus-shopping-course",
+   "amostragem-dados"
+  ]
+ },
+ "veiculacao-anuncio": {
+  "description": "Mecanismo de veiculação de anúncios: leilão (lance total = lance × taxa de ação estimada + valor para o usuário), loop de aprendizado de máquina e diagnóstico de problemas de veiculação.",
+  "tags": [
+   "ad-auction",
+   "delivery",
+   "machine-learning",
+   "diagnostics"
+  ],
+  "related": [
+   "estrategias-de-lance",
+   "gerenciador-fase-aprendizado",
+   "dicas-anuncios"
+  ]
+ }
+}

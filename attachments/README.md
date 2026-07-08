@@ -17,6 +17,7 @@ Drop zone for material the user hands to the project (brand art, page imagery, b
 | Page/marketing imagery (heroes, product screenshots, illustrations) | `apps/web/public/images/…` next to where the page uses it |
 | Product brief / PRD | `docs/PRODUCT.md` (+ ~10-line summary in the root `CLAUDE.md`) |
 | Reference documents meant for the AI knowledge base | not repo files — ingest via `/admin/knowledge` (chunked + embedded), then delete from here |
+| Meta Ads documentation captures (HTML articles) | `docs/meta_ads/` — maintained corpus with its own pipeline (`_tools/convert.py` → `verify.py` → `build_index.py` → `npm run knowledge:ingest`); see `docs/meta_ads/_tools/README.md` |
 | Fonts | wired via `next/font` in `apps/web` (license permitting), file next to its consumer |
 
 Anything that fits no row: ask the user where it belongs before inventing a location.

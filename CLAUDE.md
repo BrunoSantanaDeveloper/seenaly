@@ -4,6 +4,10 @@ AI Growth Intelligence Platform para tráfego pago e funis de venda: copiloto de
 
 Product language: pt-BR is the default locale (catalogs also ship de/en/es/fr).
 
+## Product (full definition: `docs/PRODUCT.md`)
+
+Decision Intelligence applied to Meta Ads, creatives and sales funnels: the system **analyzes, diagnoses and recommends** — it never operates campaigns for the user. Core principles: the heart is the *product context model* (offer, margin, target CAC, funnel...), not the AI; every recommendation must cite campaign data + product context + platform rules (nothing generic) and follow a fixed structured format (diagnosis / evidence / technical basis / hypothesis / action / risk / confidence / success criterion); knowledge is tiered by trust level 1–5 (official Meta docs → courses/opinions), matching `packages/knowledge`. Five pillars: Meta Ads knowledge base, campaign data sync, funnel/real-sales layer, tagged creative library, diagnostic engine — plus the key differentiator: **experiment memory**. Initial scope: Meta Ads copilot for digital products / self-service offers. The Meta Ads doc corpus lives in `docs/meta_ads/` (own capture pipeline in `_tools/`); `npm run knowledge:ingest` loads it into the global `meta-ads-docs` collection (needs Supabase + `GEMINI_API_KEY`). Roadmap phases in `docs/PRODUCT.md`.
+
 ## Structure
 
 - `apps/web` — Next.js 15 (App Router) + MUI v9 + MUI X Premium + Tailwind 4, deployed on Vercel. See `apps/web/CLAUDE.md`.

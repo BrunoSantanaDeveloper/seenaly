@@ -1,0 +1,857 @@
+{
+ "downloaded": {
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/586165220_1369493408242643_8604537139564087818_n.png": {
+   "file": "explorador-da-graph-api-com-payload-post-para-eventos-e-resp-21bbd3.png",
+   "alt": "Explorador da Graph API com payload POST para eventos e resposta JSON events_received igual a 1",
+   "sources": [
+    "boas-praticas-api-conversao.html",
+    "como-usar-api.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/584405638_1369493194909331_6260232388306826635_n.png": {
+   "file": "aba-test-your-events-server-mostrando-um-evento-view-content-f0471b.png",
+   "alt": "Aba Test Your Events Server mostrando um evento View Content recebido, URL e chaves de dados do usuário",
+   "sources": [
+    "boas-praticas-api-conversao.html",
+    "como-usar-api.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/585895230_1369493101576007_8389423454863825083_n.png": {
+   "file": "aba-visao-geral-do-gerenciador-de-eventos-mostrando-grafico-7aa94b.png",
+   "alt": "Aba Visão geral do Gerenciador de Eventos mostrando gráfico de atividade e lista de eventos com método de conexão e total de eventos",
+   "sources": [
+    "boas-praticas-api-conversao.html",
+    "como-usar-api.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/587283254_1369493298242654_6933103126623895958_n.png": {
+   "file": "evento-pageview-expandido-no-gerenciador-de-eventos-mostrand-85446b.png",
+   "alt": "Evento PageView expandido no Gerenciador de Eventos mostrando atividade de correspondência avançada e detalhes do evento",
+   "sources": [
+    "boas-praticas-api-conversao.html",
+    "como-usar-api.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=335272898611231&version=1780857896&transcode_extension=webp": {
+   "file": "exemplo-de-c-oacute-digo-de-evento-padr-atilde-o-do-pixel-da-70f139.webp",
+   "alt": "Exemplo de c&oacute;digo de evento padr&atilde;o do Pixel da Meta",
+   "sources": [
+    "boas-praticas-configuracao-pixel.html",
+    "eventos-padrao-pixel.html",
+    "eventos-padrao-site.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=451805694531820&version=1728057210&transcode_extension=webp": {
+   "file": "a-woman-wearing-a-white-robe-and-a-white-towel-on-her-head-s-33b09e.webp",
+   "alt": "A woman wearing a white robe and a white towel on her head smiles while holding a PRESS Healthfoods bottle",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=811701897508685&version=1728057210&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-press-healthfoods-be4061.webp",
+   "alt": "A Facebook ad example from PRESS Healthfoods",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=3858980694423308&version=1726781607&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-press-healthfoods-4f100a.webp",
+   "alt": "A Facebook ad example from PRESS Healthfoods",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=520078627388495&version=1726781607&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-press-healthfoods-537605.webp",
+   "alt": "A Facebook ad example from PRESS Healthfoods",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=499151216240933&version=1728057210&transcode_extension=webp": {
+   "file": "a-smiling-man-stands-by-an-open-fridge-filled-with-press-hea-64a1e0.webp",
+   "alt": "A smiling man stands by an open fridge filled with PRESS Healthfoods products and reaches for a juice",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=534648612511290&version=1728581584&transcode_extension=webp": {
+   "file": "two-beige-bottles-of-living-proof-shampoo-and-conditioner-co-76235e.webp",
+   "alt": "Two beige bottles of Living Proof shampoo and conditioner, covered in bubbles",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=492074197146897&version=1728581584&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-living-proof-e49e05.webp",
+   "alt": "A Facebook ad example from Living Proof",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=826197512731748&version=1728581584&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-living-proof-5fc049.webp",
+   "alt": "A Facebook ad example from Living Proof",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=873006878133819&version=1728581584&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-living-proof-b3d223.webp",
+   "alt": "A Facebook ad example from Living Proof",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2449097111954208&version=1728581584&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-living-proof-d3ec01.webp",
+   "alt": "A Facebook ad example from Living Proof",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1731465270997481&version=1728581584&transcode_extension=webp": {
+   "file": "two-silver-bottles-of-living-proof-dry-shampoo-lying-down-on-4a7fb1.webp",
+   "alt": "Two silver bottles of Living Proof dry shampoo lying down on a grey background",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1057078645913545&version=1730303825&transcode_extension=webp": {
+   "file": "a-woman-with-a-ponytail-smiles-while-holding-a-pink-sneaker-79b51d.webp",
+   "alt": "A woman with a ponytail smiles while holding a pink sneaker in Central Department Store",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=3848265072168506&version=1730303825&transcode_extension=webp": {
+   "file": "a-woman-and-man-with-shopping-bags-smiling-and-pointing-whil-bd5585.webp",
+   "alt": "A woman and man with shopping bags smiling and pointing while walking through Central Department Store",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1640348216547312&version=1733430056&transcode_extension=webp": {
+   "file": "a-candy-display-in-a-five-below-store-3e7418.webp",
+   "alt": "A candy display in a Five Below store",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=591964149914817&version=1733430056&transcode_extension=webp": {
+   "file": "young-people-looking-at-products-in-a-five-below-store-4ff889.webp",
+   "alt": "Young people looking at products in a Five Below store",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1632276110714664&version=1734210401&transcode_extension=webp": {
+   "file": "hema-a-facebook-ad-case-study-b27b49.webp",
+   "alt": "HEMA, A Facebook Ad Case Study",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2909124512583792&version=1734210401&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-hema-4f9a41.webp",
+   "alt": "A Facebook ad example from HEMA",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=28323863097229466&version=1734210401&transcode_extension=webp": {
+   "file": "a-facebook-ad-example-from-hema-7ad45e.webp",
+   "alt": "A Facebook ad example from HEMA",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=925220855892120&version=1734210401&transcode_extension=webp": {
+   "file": "hema-a-facebook-ad-case-study-086994.webp",
+   "alt": "HEMA, A Facebook Ad Case Study",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=382225133736434&version=1749050418&transcode_extension=webp": {
+   "file": "principessa-caso-de-sucesso-dos-anuncios-do-facebook-860dc5.webp",
+   "alt": "Principessa, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/85859344_1372409142946704_4843199783772356608_n.png": {
+   "file": "solution-image-64e8e6.webp",
+   "alt": "Solution Image",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=932636877446130&version=1749050418&transcode_extension=webp": {
+   "file": "principessa-caso-de-sucesso-dos-anuncios-do-facebook-89f612.webp",
+   "alt": "Principessa, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=273676048262188&version=1720211095&transcode_extension=webp": {
+   "file": "rosa-azul-kids-caso-de-sucesso-dos-anuncios-do-facebook-2a65f9.webp",
+   "alt": "Rosa Azul Kids, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2045995915583333&version=1720211095&transcode_extension=webp": {
+   "file": "rosa-azul-kids-caso-de-sucesso-dos-anuncios-do-facebook-2b4284.webp",
+   "alt": "Rosa Azul Kids, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/451800943_988624609575591_5855041465499146356_n.jpg": {
+   "file": "stone-caso-de-sucesso-dos-anuncios-do-facebook-326481.webp",
+   "alt": "Stone, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/84680660_2751573224898381_8553505654352904192_n.png": {
+   "file": "solution-image-162254.webp",
+   "alt": "Solution Image",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/441954884_456751870133849_5611943243182727445_n.jpg": {
+   "file": "casas-bahia-caso-de-sucesso-dos-anuncios-do-facebook-da498c.webp",
+   "alt": "Casas Bahia, caso de sucesso dos anúncios do Facebook",
+   "sources": [
+    "cases-api-conversao.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1752756388649074&version=1749589435&transcode_extension=webp": {
+   "file": "pontua-ccedil-atilde-o-de-oportunidade-e-recomenda-ccedil-ot-48609b.webp",
+   "alt": "Pontua&ccedil;&atilde;o de oportunidade e recomenda&ccedil;&otilde;es",
+   "sources": [
+    "pontuacao-oportunidade-2.html"
+   ]
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/68d5ad3d061f1f2b140037a5/large.jpeg": {
+   "file": "meta-performance-5-automatizar-01-0d914d.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/6760afaa3c46085a41a98f71/original.png": {
+   "file": "meta-performance-5-automatizar-02-1a9150.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/6760b30e3c46085a41b6a5ee/extraLarge.png": {
+   "file": "meta-performance-5-automatizar-03-96c640.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "desc": "Captura da criação de campanha no Gerenciador de Anúncios: tipo de compra Leilão e objetivo Vendas selecionado — indicado para Conversões, Vendas de catálogo, Messenger/Instagram/WhatsApp e Chamadas."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/6760b5a13c46085a41b9b9a8/large.png": {
+   "file": "meta-performance-5-automatizar-04-310ba4.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "desc": "Exemplo de anúncio de campanha de app Advantage+ no feed do Facebook: carrossel patrocinado de lançamento de produto com botão 'Install now' para instalação do app."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/6760b7223c46085a41bd43d6/extraLarge.png": {
+   "file": "meta-performance-5-automatizar-05-50fde7.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "desc": "Diagrama de anúncios de catálogo Advantage+: múltiplos ativos de criativo (imagens de produto, foto de modelo) são combinados automaticamente pelo sistema num anúncio personalizado para cada pessoa."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/d20abc96-e54a-4171-9529-48c68bc3800c/facebook-production-273067-pt-BR-3/course/en/assets/6760b9d53c46085a41bfc930/extraLarge.png": {
+   "file": "meta-performance-5-automatizar-06-ea7b7a.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-automatizar.html"
+   ],
+   "desc": "Trecho do scorecard — Automação: aumentar adoção de campanhas de compras Advantage+ >30% (P0); campanhas de app Advantage+ — testar para achar desempenho máximo (P0); anúncios de catálogo Advantage+ — testar (P1)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/c7a1a654-6cd9-4ce7-a013-c4e924d7612a/facebook-production-273068-pt-BR-3/course/en/assets/68d5ad86061f1f2b14008786/large.jpeg": {
+   "file": "meta-performance-5-criativo-01-4efa6f.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-criativo.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/c7a1a654-6cd9-4ce7-a013-c4e924d7612a/facebook-production-273068-pt-BR-3/course/en/assets/6761d79cd5f827496796941e/extraLarge.png": {
+   "file": "meta-performance-5-criativo-02-951a06.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-criativo.html"
+   ],
+   "desc": "Quatro mentalidades de consumidor mapeadas a formatos: 'É exatamente o que preciso' (anúncio de imagem no feed do Facebook), 'Não posso perder essa oferta' (anúncio patrocinado no Instagram com desconto), 'Produto recomendado por criador que confio' (Reels com criador de conteúdo), 'Busco resultados dramáticos' (post com tags de produto e preços)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/c7a1a654-6cd9-4ce7-a013-c4e924d7612a/facebook-production-273068-pt-BR-3/course/en/assets/67621bfad5f82749671ebc08/extraLarge.png": {
+   "file": "meta-performance-5-criativo-03-6be134.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-criativo.html"
+   ],
+   "desc": "Diversificação por conceito: três motivadores/barreiras do cliente ('tenho gostos específicos', 'amo tendências e fast fashion', 'parece caro demais') respondidos por três conceitos de criativo distintos da mesma marca, cada um comunicando um benefício (variedade para todos, tendências de estilistas, preços acessíveis)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/c7a1a654-6cd9-4ce7-a013-c4e924d7612a/facebook-production-273068-pt-BR-3/course/en/assets/67633f308d09e445d61b5ec9/extraLarge.png": {
+   "file": "meta-performance-5-criativo-05-4baf2b.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-criativo.html"
+   ],
+   "desc": "Trecho do scorecard — Diversificação de criativo: equilíbrio saudável de formatos de vídeo >30% (P0); de formatos estáticos (imagem única, carrossel) >30% (P0); opt-in em Reels com essenciais de criativo — vídeo 9:16, com áudio, na zona segura (P0/P1) — testar para achar desempenho máximo."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/68d5adec061f1f2b1400faaf/large.jpeg": {
+   "file": "meta-performance-5-dados-01-c5a0e1.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "desc": "Ilustração de qualidade de correspondência: variações de criativo de produto aprovadas e selo 'Match Quality — Event Match Score 92%'."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/6763528f8d09e445d62b808f/extraLarge.jpeg": {
+   "file": "meta-performance-5-dados-02-29455c.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/676348a38d09e445d6294dda/original.png": {
+   "file": "meta-performance-5-dados-03-0b41d2.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/676364258d09e445d64f94c9/extraLarge.png": {
+   "file": "meta-performance-5-dados-04-caa839.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "desc": "Três pilares de qualidade de catálogo: Match rate (taxa de correspondência entre eventos e itens do catálogo), Product availability (disponibilidade do produto — comprar agora vs avisar), Event quality (qualidade dos eventos por produto)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/676364e08d09e445d652eb84/extraLarge.png": {
+   "file": "meta-performance-5-dados-05-c6f811.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "desc": "Trecho do scorecard — Qualidade dos dados: implementar a API de Conversões junto com o Pixel da Meta — razão servidor/navegador >30% (P0); aumentar a qualidade da correspondência de eventos — verificar o limite mínimo do evento no Gerenciador de Eventos (P0); melhorar a taxa de correspondência do catálogo >90% (P1)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/83d937b9-83d2-447d-893e-02906078d400/facebook-production-273069-pt-BR-3/course/en/assets/6763653d8d09e445d653c6ff/extraLarge.png": {
+   "file": "meta-performance-5-dados-06-3781cf.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-dados.html"
+   ],
+   "desc": "Capturas de ferramentas: à esquerda, Gerenciador de Eventos com Event Match Quality Score 7.4/10 para o evento Purchase e recomendações (enviar Click ID/fbc, IPv6, Facebook Login ID); à direita, Commerce Manager > Catalog > Events mostrando taxa de correspondência do catálogo — verde indica alta qualidade, vermelho indica problemas (ex.: Pixel sem eventos otimizados para iOS 14.5+)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/b42982dc-b11b-48e0-a235-312c0a534787/facebook-production-273065-pt-BR-3/course/en/assets/68d5acb9061f1f2b14ffaadf/large.jpeg": {
+   "file": "meta-performance-5-intro-01-361c88.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-intro.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/b42982dc-b11b-48e0-a235-312c0a534787/facebook-production-273065-pt-BR-3/course/en/assets/672b9072b2012e3c36f3f749/original.png": {
+   "file": "meta-performance-5-intro-02-81c9cb.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-intro.html"
+   ],
+   "desc": "Tabela-resumo (scorecard) do Performance 5 com ações, prioridade e meta recomendada: Simplificação da conta — investimento na fase de aprendizado <20% (P0), consolidar conjuntos com 6+ posicionamentos >90% do investimento (P0), consolidar com públicos Advantage+ (P1); Automação — adoção de campanhas de compras Advantage+ >30% (P0), campanhas de app Advantage+ (P0), anúncios de catálogo Advantage+ (P1); Diversificação de criativo — equilíbrio de formatos de vídeo >30% (P0) e estáticos >30% (P0), opt-in em Reels com essenciais de criativo 9:16 com áudio na zona segura (P0/P1), criativo Advantage+ (P1); Qualidade dos dados — implementar API de Conversões junto com o Pixel com razão servidor/navegador >90% (P0), aumentar EMQ verificando o limite mínimo no Gerenciador de Eventos (P0), taxa de correspondência de catálogo >90% (P1), lead ads (P2), anúncios de clique para mensagem (P2), otimização de valor/ROAS (P2); Validação de resultados — testes A/B mensais ou conforme necessário (P0), Conversion Lift trimestral (P1)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/b42982dc-b11b-48e0-a235-312c0a534787/facebook-production-273065-pt-BR-3/course/en/assets/675785384402727f3e635961/extraLarge.png": {
+   "file": "meta-performance-5-intro-03-71b2be.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-intro.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/bb3e0522-a7a4-4b95-97a2-9a7358d77ad0/facebook-production-273070-pt-BR-3/course/en/assets/68d5ae28061f1f2b140143ee/large.jpeg": {
+   "file": "meta-performance-5-resultados-01-f79e8a.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-resultados.html"
+   ],
+   "desc": "Ilustração de teste A/B: duas versões de anúncio da mesma marca (Test A vs Test B) com barras de desempenho comparadas."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/bb3e0522-a7a4-4b95-97a2-9a7358d77ad0/facebook-production-273070-pt-BR-3/course/en/assets/6763689a8d09e445d658fbd5/original.svg": {
+   "file": "meta-performance-5-resultados-02-6c2cf3.svg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-resultados.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/bb3e0522-a7a4-4b95-97a2-9a7358d77ad0/facebook-production-273070-pt-BR-3/course/en/assets/67636de78d09e445d661f40d/original.svg": {
+   "file": "meta-performance-5-resultados-03-312cf3.svg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-resultados.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/bb3e0522-a7a4-4b95-97a2-9a7358d77ad0/facebook-production-273070-pt-BR-3/course/en/assets/676371b88d09e445d67f47c8/extraLarge.png": {
+   "file": "meta-performance-5-resultados-04-5ed2f4.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-resultados.html"
+   ],
+   "desc": "Captura da ferramenta Experiments da Meta com os três tipos de teste: A/B Test (compara até 5 versões, testes rápidos), Brand Survey (pesquisa de impacto de marca, decisões grandes) e Conversion Lift (impacto incremental em compras/conversões, suporta single-cell)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/bb3e0522-a7a4-4b95-97a2-9a7358d77ad0/facebook-production-273070-pt-BR-3/course/en/assets/676373228d09e445d68181be/extraLarge.png": {
+   "file": "meta-performance-5-resultados-05-18cf56.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-resultados.html"
+   ],
+   "desc": "Trecho do scorecard — Validação de resultados: rodar testes A/B para decisões táticas de otimização — 1+ mês ou conforme necessário (P0); rodar Conversion Lift para medir valor incremental dos anúncios — trimestral (P1)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/68d5ad03061f1f2b14ffee93/large.jpeg": {
+   "file": "meta-performance-5-simplificar-01-9a290a.jpg",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/672d6db9924217a590826988/original.png": {
+   "file": "meta-performance-5-simplificar-02-7141f1.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/672d7156924217a590aa602d/extraLarge.png": {
+   "file": "meta-performance-5-simplificar-03-0fbbdd.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Diagrama comparando estrutura de campanha segmentada vs simplificada: curvas de taxa de conversão esperada por número de conversões ao longo do tempo — na estrutura segmentada a fase de aprendizado é mais longa (menos estável, custos maiores); na simplificada, a curva estabiliza mais cedo (veiculação otimizada mais rápida, custos menores)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/672d720b924217a590aabdb4/original.png": {
+   "file": "meta-performance-5-simplificar-04-871bfc.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/673164196d5006bbfe4b48c9/extraLarge.png": {
+   "file": "meta-performance-5-simplificar-05-3dd918.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Captura do Gerenciador de Anúncios (Visão geral da conta) destacando a métrica 'Percent spent in learning phase' (25%): porcentagem estimada do gasto em anúncios com status Aprendizado ou Aprendizado limitado na coluna Veiculação."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/673166b16d5006bbfe570c21/original.png": {
+   "file": "meta-performance-5-simplificar-06-d43f1b.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Diagrama de consolidação: três estruturas — campanhas separadas por país (fragmentadas), campanha única com conjuntos por grupo de países, e a estrutura recomendada com um único conjunto de anúncios multi-país cujo catálogo tem feed de idioma/país, agregando aprendizado."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/67316b5d6d5006bbfe8215b5/extraLarge.png": {
+   "file": "meta-performance-5-simplificar-07-363882.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Captura da seção Posicionamentos do conjunto de anúncios: opção 'Advantage+ placements (recommended)' selecionada (o sistema aloca o orçamento entre posicionamentos conforme o melhor desempenho) vs 'Manual Placements'."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/67316fa76d5006bbfec89fd7/extraLarge.png": {
+   "file": "meta-performance-5-simplificar-08-bb8b22.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Exemplo de público Advantage+: empresa de bonés define público inicial (homens 18–35, interesses beisebol e corrida, visitantes do site) e a IA descobre compradores prováveis fora dele — mulher 42 (observação de pássaros), homem 50 (jardinagem), mulher 20 (brincar com filhos), mulher 25 (DJ), mulher 32 (doações), homem 50+ (jardinagem)."
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/32835571-a676-4a95-8c77-4ec2df3fdfac/facebook-production-273066-pt-BR-6/course/en/assets/6760bc383c46085a41c38881/extraLarge.png": {
+   "file": "meta-performance-5-simplificar-09-5a4b05.png",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-simplificar.html"
+   ],
+   "desc": "Trecho do scorecard — Simplificação da conta: reduzir investimento na fase de aprendizado <20% (P0); consolidar conjuntos usando 6+ posicionamentos >90% do investimento (P0); consolidar conjuntos com públicos Advantage+ — testar para achar desempenho máximo (P1)."
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=3580023345660027&version=1697230497&transcode_extension=webp": {
+   "file": "interface-do-usuario-de-orcamento-de-anuncio-60ebb8.webp",
+   "alt": "Interface do usuário de orçamento de anúncio.",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=3349632335329406&version=1697230596&transcode_extension=webp": {
+   "file": "interface-do-usuario-de-programacao-de-anuncios-4f4037.webp",
+   "alt": "Interface do usuário de programação de anúncios.",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=461055973208564&version=1719598449&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-com-icones-de-publico-e4fbf1.webp",
+   "alt": "Exemplo de anúncio com ícones de público",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=778258980741521&version=1762940196&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-do-reels-bb428d.webp",
+   "alt": "Exemplo de anúncio do Reels",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1207692183588908&version=1719598840&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-9e1e5b.webp",
+   "alt": "Exemplo de anúncio",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2478280125690525&version=1719598958&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-239d8e.webp",
+   "alt": "Exemplo de anúncio",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=449417161316396&version=1719598998&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-e5e7e0.webp",
+   "alt": "Exemplo de anúncio",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1742440662831132&version=1719599025&transcode_extension=webp": {
+   "file": "exemplo-de-anuncio-dd900d.webp",
+   "alt": "Exemplo de anúncio",
+   "sources": [
+    "advantage-plus-shopping-campaigns.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=438223955063449&version=1666716831&transcode_extension=webp": {
+   "file": "",
+   "alt": "Info",
+   "sources": [
+    "api-conversao.html",
+    "boas-praticas-melhorar-anuncios-api.html",
+    "comparar-opcoes-configuracoes-api.html",
+    "conjunto-dados.html",
+    "conversoes-personalizadas-web.html",
+    "detalhes-eventos-servidor.html",
+    "eventos-padrao-pixel.html",
+    "gerenciador-eventos.html",
+    "metricas-estimativas.html",
+    "monitorar-api-conversao.html",
+    "otimizar-campanhas-mensagens.html",
+    "pontuacao-oportunidade-criacao.html",
+    "pontuacao-oportunidade.html",
+    "tipos-recomendacao-pontuacao-opotunidade.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/146597050_455534749152435_1802453867954835002_n.svg": {
+   "file": "",
+   "alt": "Ícone de Público",
+   "sources": [
+    "api-conversao.html",
+    "controle-publico-posicionamento.html",
+    "criativo-advantage+.html",
+    "detalhes-eventos-servidor.html",
+    "diferenca-entre-contagem-eventos.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/11409185_129641927376470_127965140_n.png": {
+   "file": "diagrama-carrossel-5dad29.webp",
+   "alt": "Diagrama Carrossel",
+   "sources": [
+    "boas-praticas-anuncio-carrossel.html"
+   ]
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=768158552298070&version=1768493417&transcode_extension=webp": {
+   "file": "anuncio-stories-54cad1.webp",
+   "alt": "Anúncio Stories",
+   "sources": [
+    "boas-praticas-anuncios-envolventes.html"
+   ]
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/326115987_563085405688925_5704071538043879656_n.jpg": {
+   "file": "",
+   "alt": "PRESS Healthfoods Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/715950534_1433728088782517_8315366082031073018_n.jpg": {
+   "file": "",
+   "alt": "Living Proof Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/709844052_1419884513520192_7293685631197822894_n.jpg": {
+   "file": "",
+   "alt": "Central Department Store Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/381506514_704781898346522_2695878336044558341_n.jpg": {
+   "file": "",
+   "alt": "Five Below Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/259657132_4442761992440439_7119032319584021865_n.jpg": {
+   "file": "",
+   "alt": "HEMA Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/488969427_997677905826995_2388647399391774762_n.jpg": {
+   "file": "",
+   "alt": "Rosa Azul Kids Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/701785778_1423960059776012_280564231795446049_n.jpg": {
+   "file": "",
+   "alt": "Stone Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.30808-1/733849953_1560401918769751_813409994330693908_n.jpg": {
+   "file": "",
+   "alt": "Casas Bahia Logo",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/74437550_918014931910821_3933519899388805120_n.png": {
+   "file": "",
+   "alt": "Advantage+ sales campaigns Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/468529194_936065018631383_5075338546783303022_n.png": {
+   "file": "",
+   "alt": "Advantage+ creative Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/52045759_292960338084657_5244718271772491776_n.png": {
+   "file": "",
+   "alt": "Photo ads Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/65246841_351436618876917_6584223777171701760_n.png": {
+   "file": "",
+   "alt": "Advantage+ placements Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/51932286_314531556080162_7050466859681841152_n.png": {
+   "file": "",
+   "alt": "Measurement Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1009913321269173&version=1757342186&transcode_extension=webp": {
+   "file": "",
+   "alt": "Omnichannel ads Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/49740212_2292114001060917_2300542899311345664_n.png": {
+   "file": "",
+   "alt": "Video ads Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/49658641_380942869329582_4459504709970952192_n.png": {
+   "file": "",
+   "alt": "Ads in Stories Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/52060787_1141530102684909_5401792991088082944_n.png": {
+   "file": "",
+   "alt": "Instagram Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/49624359_403179937089693_8439100009193930752_n.png": {
+   "file": "",
+   "alt": "Pixel da Meta Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.2365-6/51893787_988305361364594_6872641327998173184_n.png": {
+   "file": "",
+   "alt": "Anúncios de catálogo Advantage+ Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/481272368_621460637358401_8407693151450119314_n.png": {
+   "file": "",
+   "alt": "App WhatsApp Business Icon",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "http://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=1124271668792488&version=1771391301": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2189607951385194&version=1716504911": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "scontent.fgyn22-1.fna.fbcdn.net/v/t39.8562-6/321383695_1761464880891846_7163045669980296910_n.svg": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=514159977391799&version=1666676243&transcode_extension=webp": {
+   "file": "",
+   "alt": "Link permanente",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "static.xx.fbcdn.net/rsrc.php/yZ/r/HKn8jf_T3_F.svg": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2149108708846750&version=1780069777&transcode_extension=webp": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "pontuacao-oportunidade-2.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=688890777116962&version=1780069777&transcode_extension=webp": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "pontuacao-oportunidade-2.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=2859440694258753&version=1780069777&transcode_extension=webp": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "pontuacao-oportunidade-2.html"
+   ],
+   "decorative": true
+  },
+  "static.xx.fbcdn.net/rsrc.php/v4/y4/r/-PAXP-deijE.gif": {
+   "file": "",
+   "alt": "Solution Image",
+   "sources": [
+    "cases-api-conversao.html"
+   ],
+   "decorative": true
+  },
+  "https://static.xx.fbcdn.net/mci_ab/public/cms/?ab_b=e&ab_page=CMS&ab_entry=814226356566295&version=1666676243&transcode_extension=webp": {
+   "file": "",
+   "alt": "Compartilhar",
+   "sources": [
+    "configurar-maximizacao-conversoes.html"
+   ],
+   "decorative": true
+  },
+  "www.facebookblueprint.com/uploads/evolve/exceed-versions/evolve/60a25d19caba235fedc43c5f/c7a1a654-6cd9-4ce7-a013-c4e924d7612a/facebook-production-273068-pt-BR-3/course/en/assets/67622cd6d5f827496720813e/original.gif": {
+   "file": "",
+   "alt": "",
+   "sources": [
+    "meta-performance-5-criativo.html"
+   ],
+   "decorative": true
+  }
+ },
+ "pending": {}
+}
