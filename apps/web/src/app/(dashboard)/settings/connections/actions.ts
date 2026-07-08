@@ -19,6 +19,27 @@ export async function listAvailableConnectors() {
   return listConnectors();
 }
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * SaaS gate: connecting and syncing external data require an active
+ * subscription (same rule as the AI chat route). Mirrors org_entitlements,
+ * which enforces org membership via the user session.
+ */
+async function requireActiveSubscription(supabase: SupabaseServerClient, orgId: string): Promise<ActionResult> {
+  const { data: entitlements, error } = await supabase.rpc("org_entitlements", { target_org: orgId });
+  if (error) return { ok: false, error: error.message };
+  if (!entitlements?.active) {
+    return {
+      ok: false,
+      error: entitlements?.suspended
+        ? "Subscription suspended — contact support."
+        : "No active subscription for this organization.",
+    };
+  }
+  return { ok: true };
+}
+
 /** Test credentials, create the connection (RLS enforces org admin) and store the secret. */
 export async function createConnection(input: {
   orgId: string;
@@ -29,10 +50,13 @@ export async function createConnection(input: {
   const connector = getConnector(input.provider);
   if (!connector) return { ok: false, error: `No connector registered for "${input.provider}".` };
 
+  const supabase = await createClient();
+  const gate = await requireActiveSubscription(supabase, input.orgId);
+  if (!gate.ok) return gate;
+
   const test = await connector.test(input.secret);
   if (!test.ok) return { ok: false, error: test.error ?? "Credential test failed." };
 
-  const supabase = await createClient();
   const { data: created, error } = await supabase
     .from("connections")
     .insert({
@@ -65,9 +89,12 @@ export async function syncConnection(connectionId: string): Promise<ActionResult
     .from("connections")
     .update({ sync_error: null })
     .eq("id", connectionId)
-    .select("id")
+    .select("id, org_id")
     .maybeSingle();
   if (!allowed) return { ok: false, error: "Not allowed to sync this connection." };
+
+  const gate = await requireActiveSubscription(supabase, allowed.org_id as string);
+  if (!gate.ok) return gate;
 
   const queued = await sendEvent("connectors/connection.sync", { connectionId });
   if (queued.sent) return { ok: true };
