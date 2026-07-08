@@ -18,14 +18,35 @@ import {
 } from "@/components/marketing/product-vignettes";
 import StatBand from "@/components/marketing/stat-band";
 import Testimonials from "@/components/marketing/testimonials";
+import { TONE, type Tone } from "@/components/marketing/tone";
 import NiAi from "@/icons/nexture/ni-ai";
 import NiChartLine from "@/icons/nexture/ni-chart-line";
 import NiFlash from "@/icons/nexture/ni-flash";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import { cn } from "@/lib/utils";
 
-function IconChip({ children }: { children: React.ReactNode }) {
+/**
+ * Harmonic hue per feature family (premium bar item 7 / DESIGN.md). Primary
+ * stays reserved for CTAs and the hero; every categorical family below keeps
+ * ONE consistent hue across the whole page and site:
+ *   diagnosis     → the daily recommendation engine + its read-only principle
+ *   creative      → creative fatigue
+ *   funnel        → funnel view + client reports (results delivered)
+ *   connection    → the Meta Ads data pipeline
+ *   intelligence  → the differentiator: experiment memory + AI grounding
+ */
+const FAMILY = {
+  diagnosis: "accent-1",
+  creative: "accent-2",
+  funnel: "accent-3",
+  connection: "accent-4",
+  intelligence: "secondary",
+} as const satisfies Record<string, Tone>;
+
+function IconChip({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  const t = TONE[tone];
   return (
-    <span className="bg-primary/10 text-primary flex h-11 w-11 items-center justify-center rounded-xl">{children}</span>
+    <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", t.softBg, t.text)}>{children}</span>
   );
 }
 
@@ -77,21 +98,24 @@ export default async function Home() {
             title: t("feature-2-title"),
             body: t("feature-2-description"),
             bullets: [1, 2, 3].map((index) => t(`row-1-bullet-${index}`)),
-            media: <DiagnosisVignette />,
+            media: <DiagnosisVignette tone={FAMILY.diagnosis} />,
+            tone: FAMILY.diagnosis,
           },
           {
             eyebrow: t("row-2-eyebrow"),
             title: t("feature-3-title"),
             body: t("feature-3-description"),
             bullets: [1, 2, 3].map((index) => t(`row-2-bullet-${index}`)),
-            media: <FatigueVignette />,
+            media: <FatigueVignette tone={FAMILY.creative} />,
+            tone: FAMILY.creative,
           },
           {
             eyebrow: t("row-3-eyebrow"),
             title: t("feature-4-title"),
             body: t("feature-4-description"),
             bullets: [1, 2, 3].map((index) => t(`row-3-bullet-${index}`)),
-            media: <FunnelVignette />,
+            media: <FunnelVignette tone={FAMILY.funnel} />,
+            tone: FAMILY.funnel,
           },
         ]}
       />
@@ -105,44 +129,49 @@ export default async function Home() {
           {
             title: t("bento-memory-title"),
             body: t("bento-memory-body"),
-            visual: <MemoryVignette />,
+            visual: <MemoryVignette tone={FAMILY.intelligence} />,
             featured: true,
+            tone: FAMILY.intelligence,
           },
           {
             title: t("feature-1-title"),
             body: t("feature-1-description"),
             visual: (
-              <IconChip>
+              <IconChip tone={FAMILY.connection}>
                 <NiFlash />
               </IconChip>
             ),
+            tone: FAMILY.connection,
           },
           {
             title: t("feature-5-title"),
             body: t("feature-5-description"),
             visual: (
-              <IconChip>
+              <IconChip tone={FAMILY.intelligence}>
                 <NiAi />
               </IconChip>
             ),
+            tone: FAMILY.intelligence,
           },
           {
             title: t("feature-6-title"),
             body: t("feature-6-description"),
             visual: (
-              <IconChip>
+              <IconChip tone={FAMILY.funnel}>
                 <NiChartLine />
               </IconChip>
             ),
+            tone: FAMILY.funnel,
           },
           {
             title: t("bento-readonly-title"),
             body: t("bento-readonly-body"),
             visual: (
-              <IconChip>
+              <IconChip tone={FAMILY.diagnosis}>
                 <NiShieldCheck />
               </IconChip>
             ),
+            tone: FAMILY.diagnosis,
           },
         ]}
       />

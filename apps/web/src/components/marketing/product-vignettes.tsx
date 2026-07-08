@@ -1,3 +1,4 @@
+import { TONE, type Tone } from "@/components/marketing/tone";
 import { cn } from "@/lib/utils";
 
 /**
@@ -6,13 +7,23 @@ import { cn } from "@/lib/utils";
  * <DataVizPlaceholder> (hairline borders, primary accents, grey wireframe
  * bars) so hero and feature visuals read as one product. All decorative
  * (aria-hidden): the meaning lives in the row copy next to them.
+ *
+ * Each vignette carries its feature family's harmonic hue (premium bar item
+ * 7): pass the SAME `tone` as the row/cell it illustrates so the accent color
+ * is consistent between the copy and its evidence. The hue is threaded through
+ * a `--vg` CSS variable (defaults to primary, the hero's bold moment).
  * Replace with real screenshots in <ProductFrame> as soon as they exist.
  */
 
-function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
+function toneVar(tone?: Tone): React.CSSProperties {
+  return { ["--vg" as string]: `var(${TONE[tone ?? "primary"].cssVar})` };
+}
+
+function Panel({ tone, className, children }: { tone?: Tone; className?: string; children: React.ReactNode }) {
   return (
     <div
       aria-hidden
+      style={toneVar(tone)}
       className={cn(
         "border-grey-100 bg-background-paper shadow-darker-xs flex aspect-[4/3] w-full flex-col gap-3 rounded-3xl border p-5 sm:p-6",
         className,
@@ -24,19 +35,19 @@ function Panel({ className, children }: { className?: string; children: React.Re
 }
 
 /** Ranked daily recommendation list: one highlighted call with evidence bars, quieter items below. */
-export function DiagnosisVignette() {
+export function DiagnosisVignette({ tone }: { tone?: Tone }) {
   return (
-    <Panel>
+    <Panel tone={tone}>
       {/* Header: title bar + date chip */}
       <div className="flex items-center justify-between">
         <span className="bg-grey-200 h-2.5 w-1/3 rounded-full" />
-        <span className="bg-primary/20 h-5 w-16 rounded-full" />
+        <span className="h-5 w-16 rounded-full bg-[hsl(var(--vg)_/_0.2)]" />
       </div>
 
       {/* Top recommendation — the one saturated focus */}
-      <div className="border-primary/40 bg-primary/5 flex flex-1 flex-col gap-2.5 rounded-2xl border p-4">
+      <div className="flex flex-1 flex-col gap-2.5 rounded-2xl border border-[hsl(var(--vg)_/_0.4)] bg-[hsl(var(--vg)_/_0.06)] p-4">
         <div className="flex items-center gap-2">
-          <span className="bg-primary h-2.5 w-2.5 flex-none rounded-full" />
+          <span className="h-2.5 w-2.5 flex-none rounded-full bg-[hsl(var(--vg))]" />
           <span className="bg-grey-200 h-2.5 w-3/5 rounded-full" />
         </div>
         <span className="bg-grey-100 h-2 w-full rounded-full" />
@@ -46,7 +57,7 @@ export function DiagnosisVignette() {
           {[0.4, 0.55, 0.5, 0.7, 0.62, 0.85, 1].map((height, index) => (
             <span
               key={index}
-              className={index >= 5 ? "bg-primary/60 w-3 rounded-sm" : "bg-grey-100 w-3 rounded-sm"}
+              className={index >= 5 ? "w-3 rounded-sm bg-[hsl(var(--vg)_/_0.6)]" : "bg-grey-100 w-3 rounded-sm"}
               style={{ height: `${height * 100}%` }}
             />
           ))}
@@ -56,7 +67,7 @@ export function DiagnosisVignette() {
       {/* Lower-priority items, quiet */}
       {[0, 1].map((index) => (
         <div key={index} className="border-grey-100 flex items-center gap-2 rounded-2xl border p-3">
-          <span className="bg-accent-1/60 h-2.5 w-2.5 flex-none rounded-full" />
+          <span className="bg-grey-300 h-2.5 w-2.5 flex-none rounded-full" />
           <span className="bg-grey-100 h-2 w-1/2 rounded-full" />
           <span className="bg-grey-50 ml-auto h-4 w-12 rounded-full" />
         </div>
@@ -66,13 +77,13 @@ export function DiagnosisVignette() {
 }
 
 /** Creative fatigue: CTR curve peaking then decaying while frequency climbs; alert ring at the turn. */
-export function FatigueVignette() {
+export function FatigueVignette({ tone }: { tone?: Tone }) {
   return (
-    <Panel>
+    <Panel tone={tone}>
       {/* Legend chips */}
       <div className="flex items-center gap-5">
         <span className="flex items-center gap-1.5">
-          <span className="bg-primary h-2 w-5 rounded-full" />
+          <span className="h-2 w-5 rounded-full bg-[hsl(var(--vg))]" />
           <span className="bg-grey-100 h-2 w-10 rounded-full" />
         </span>
         <span className="flex items-center gap-1.5">
@@ -97,36 +108,36 @@ export function FatigueVignette() {
         <path
           d="M0 96 C 50 78, 110 62, 170 58 C 210 56, 240 62, 268 78 S 350 148, 400 164"
           fill="none"
-          stroke="hsl(var(--primary))"
+          stroke="hsl(var(--vg))"
           strokeWidth="2.5"
           strokeLinecap="round"
         />
         {/* Alert marker where fatigue starts */}
-        <circle cx="252" cy="68" r="10" fill="none" stroke="hsl(var(--primary) / 0.35)" strokeWidth="6" />
-        <circle cx="252" cy="68" r="4" fill="hsl(var(--primary))" />
+        <circle cx="252" cy="68" r="10" fill="none" stroke="hsl(var(--vg) / 0.35)" strokeWidth="6" />
+        <circle cx="252" cy="68" r="4" fill="hsl(var(--vg))" />
         <line
           x1="252"
           x2="252"
           y1="80"
           y2="196"
-          stroke="hsl(var(--primary) / 0.3)"
+          stroke="hsl(var(--vg) / 0.3)"
           strokeWidth="1.5"
           strokeDasharray="4 5"
         />
       </svg>
 
       {/* Alert card */}
-      <div className="border-primary/40 bg-primary/5 flex items-center gap-2.5 rounded-2xl border p-3">
-        <span className="bg-primary h-2.5 w-2.5 flex-none rounded-full" />
+      <div className="flex items-center gap-2.5 rounded-2xl border border-[hsl(var(--vg)_/_0.4)] bg-[hsl(var(--vg)_/_0.06)] p-3">
+        <span className="h-2.5 w-2.5 flex-none rounded-full bg-[hsl(var(--vg))]" />
         <span className="bg-grey-200 h-2 w-2/5 rounded-full" />
-        <span className="bg-primary/20 ml-auto h-4 w-14 rounded-full" />
+        <span className="ml-auto h-4 w-14 rounded-full bg-[hsl(var(--vg)_/_0.2)]" />
       </div>
     </Panel>
   );
 }
 
 /** Funnel: stage bars narrowing toward checkout; the leaking step highlighted with its lost share. */
-export function FunnelVignette() {
+export function FunnelVignette({ tone }: { tone?: Tone }) {
   const stages = [
     { width: "100%", leak: false },
     { width: "72%", leak: false },
@@ -135,7 +146,7 @@ export function FunnelVignette() {
   ];
 
   return (
-    <Panel className="justify-between">
+    <Panel tone={tone} className="justify-between">
       <span className="bg-grey-200 h-2.5 w-1/3 rounded-full" />
 
       <div className="flex flex-1 flex-col justify-center gap-3 py-2">
@@ -146,12 +157,15 @@ export function FunnelVignette() {
               {/* Lost share behind the leaking step */}
               {stage.leak && (
                 <span
-                  className="border-primary/40 absolute inset-y-0 left-0 rounded-xl border border-dashed"
+                  className="absolute inset-y-0 left-0 rounded-xl border border-dashed border-[hsl(var(--vg)_/_0.4)]"
                   style={{ width: "72%" }}
                 />
               )}
               <span
-                className={cn("absolute inset-y-0 left-0 rounded-xl", stage.leak ? "bg-primary/70" : "bg-primary/15")}
+                className={cn(
+                  "absolute inset-y-0 left-0 rounded-xl",
+                  stage.leak ? "bg-[hsl(var(--vg)_/_0.7)]" : "bg-[hsl(var(--vg)_/_0.15)]",
+                )}
                 style={{ width: stage.width }}
               />
             </div>
@@ -161,15 +175,15 @@ export function FunnelVignette() {
 
       {/* Diagnosis note pinned to the leak */}
       <div className="border-grey-100 flex items-center gap-2.5 rounded-2xl border p-3">
-        <span className="bg-primary h-2.5 w-2.5 flex-none rounded-full" />
+        <span className="h-2.5 w-2.5 flex-none rounded-full bg-[hsl(var(--vg))]" />
         <span className="bg-grey-100 h-2 w-3/5 rounded-full" />
       </div>
     </Panel>
   );
 }
 
-/** Experiment memory: a shelf of past test cards, the latest one recalled (primary). Bento-cell sized. */
-export function MemoryVignette() {
+/** Experiment memory: a shelf of past test cards, the latest one recalled (tone). Bento-cell sized. */
+export function MemoryVignette({ tone }: { tone?: Tone }) {
   const cards = [
     { active: false, bar: "w-3/4" },
     { active: false, bar: "w-1/2" },
@@ -178,17 +192,19 @@ export function MemoryVignette() {
   ];
 
   return (
-    <div aria-hidden className="grid h-24 grid-cols-4 gap-2.5">
+    <div aria-hidden style={toneVar(tone)} className="grid h-24 grid-cols-4 gap-2.5">
       {cards.map((card, index) => (
         <div
           key={index}
           className={cn(
             "flex flex-col gap-2 rounded-2xl border p-3",
-            card.active ? "border-primary/40 bg-primary/5" : "border-grey-100",
+            card.active ? "border-[hsl(var(--vg)_/_0.4)] bg-[hsl(var(--vg)_/_0.06)]" : "border-grey-100",
           )}
         >
-          <span className={cn("h-2 w-2 rounded-full", card.active ? "bg-primary" : "bg-grey-200")} />
-          <span className={cn("h-1.5 rounded-full", card.bar, card.active ? "bg-primary/40" : "bg-grey-100")} />
+          <span className={cn("h-2 w-2 rounded-full", card.active ? "bg-[hsl(var(--vg))]" : "bg-grey-200")} />
+          <span
+            className={cn("h-1.5 rounded-full", card.bar, card.active ? "bg-[hsl(var(--vg)_/_0.4)]" : "bg-grey-100")}
+          />
           <span className="bg-grey-50 mt-auto h-1.5 w-full rounded-full" />
         </div>
       ))}
