@@ -1,0 +1,84 @@
+import Reveal from "@/components/marketing/reveal";
+import Section from "@/components/marketing/section";
+import SectionHeader from "@/components/marketing/section-header";
+import { TONE, type Tone, toneAt } from "@/components/marketing/tone";
+import { cn } from "@/lib/utils";
+
+export type ProcessStep = {
+  /** Meaningful icon for this step — the concept at a glance, not decoration. */
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  /** Optional concrete output of the step (e.g. label "Deliverable", value "Report + roadmap"). */
+  deliverableLabel?: string;
+  deliverableValue?: string;
+  /** Harmonic hue for this step. Defaults to a rotation across the palette. */
+  tone?: Tone;
+};
+
+/**
+ * A "how it works" sequence: each step is a card with a ghosted ordinal, a
+ * themed icon and (optionally) its concrete deliverable — so the reader
+ * grasps the flow by scanning icons + numbers, before reading a word.
+ * The ordinal is only decorative order; use benefit-led step titles.
+ */
+export default function ProcessSteps({
+  id,
+  eyebrow,
+  title,
+  subtitle,
+  steps,
+}: {
+  id?: string;
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  steps: ProcessStep[];
+}) {
+  return (
+    <Section id={id} decor="grid">
+      <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
+      <Reveal stagger={0.1} className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {steps.map((step, index) => {
+          const tone = TONE[step.tone ?? toneAt(index)];
+          return (
+            <div
+              key={step.title}
+              className="group border-grey-100 bg-background-paper relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-7"
+              style={{ ["--step-tone" as string]: `var(${tone.cssVar})` }}
+            >
+              {/* Ghosted ordinal — reads as rhythm, not content. */}
+              <span
+                aria-hidden
+                className="font-display pointer-events-none absolute -top-4 right-3 text-[5rem] leading-none font-extrabold opacity-[0.07]"
+                style={{ color: "hsl(var(--step-tone))" }}
+              >
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
+              <span className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", tone.softBg, tone.text)}>
+                {step.icon}
+              </span>
+
+              <div className="flex flex-col gap-2">
+                <h3 className="text-text-primary font-heading text-xl font-bold">{step.title}</h3>
+                <p className="text-text-secondary leading-6">{step.body}</p>
+              </div>
+
+              {step.deliverableValue && (
+                <div className="border-grey-100 mt-auto border-t pt-4">
+                  {step.deliverableLabel && (
+                    <p className={cn("mb-1 text-xs font-semibold tracking-wide uppercase", tone.text)}>
+                      {step.deliverableLabel}
+                    </p>
+                  )}
+                  <p className="text-text-primary text-sm leading-5">{step.deliverableValue}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Reveal>
+    </Section>
+  );
+}

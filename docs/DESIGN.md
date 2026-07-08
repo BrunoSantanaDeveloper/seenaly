@@ -37,6 +37,7 @@ Derived projects: `/init-project` rewrites this file when the brand direction is
 5. One orchestrated motion moment + a runtime scroll pass (no `<Reveal>` left un-fired).
 6. Display typography is the committed display font, not the raw admin font.
 7. Harmonic palette in use: at least two hues beyond primary, purposefully mapped (tiers/families/series), via the `tone` prop — never a 100%-primary page and never hues outside the tokens.
+8. Show, don't tell: text-heavy sections carry a glance-able visual (meaningful icon, figure, chart or conceptual illustration); feature/step cards lead with a meaningful icon in the family hue — no wall of title+paragraph cards.
 
 ## Open items (template baseline)
 

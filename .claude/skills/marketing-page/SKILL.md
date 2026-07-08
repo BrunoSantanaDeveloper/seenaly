@@ -42,6 +42,7 @@ A page can follow every rule below and still look like a beginner site if it is 
 5. **One orchestrated motion moment** (GSAP timeline on the hero: staggered copy + media entrance) instead of uniform scroll-reveals everywhere. Then RUN the page and scroll it end to end: a `<Reveal>` that never fires leaves a permanent hole — every section must actually appear.
 6. **Display typography is not the admin font** (Pass 0.3).
 7. **Harmonic palette, not monochrome** — the theme ships 6 hues designed to combine (`primary`, `secondary`, `accent-1..4`, all with light/dark variants). Primary is reserved for CTAs and the bold moment; categorical elements (plan tiers, feature families, chart series, icon chips) take accent tones via the `tone` prop (`components/marketing/tone.ts`) with a CONSISTENT meaning-mapping across the page and site (the same family keeps the same hue everywhere). A page where every tinted element is primary reads flat and monochrome — it FAILS. Never invent hues outside the token palette.
+8. **Show, don't tell** — the reader scans, they don't read. Every text-heavy section must carry a visual that conveys its meaning AT A GLANCE, so the point lands without reading the body: a MEANINGFUL icon (the concept, not decoration), a figure, a chart, or a conceptual illustration. Feature families and process steps always lead with such an icon in their family hue (`FeatureGrid`, `ProcessSteps`, `BentoGrid`). A wall of cards that are title+paragraph only FAILS.
 
 ## Anti-slop list (never ship these)
 
@@ -70,6 +71,8 @@ Beyond `Section`/`SectionHeader`/`FeatureGrid`/`Testimonials`/`Faq`/`Cta`, the l
 - `<FeatureRows>` — alternating text ↔ visual zig-zag; every claim next to its evidence. Use for the 2–4 features that deserve depth.
 - `<BentoGrid>` — asymmetric grid with `featured` cells; replaces a second equal-card grid.
 - `<StatBand>` — contrast band of oversized real numbers.
+- `<ProcessSteps>` — "how it works" sequence: ghosted ordinal + meaningful themed icon + optional deliverable, one hue per step. The scannable way to explain a flow.
+- `<FeatureGrid>` — benefit-led cards, each leading with a meaningful icon in its family hue.
 - `Section` props `decor` (glow/grid/gradient-edge) and `background="contrast"` — the depth system; vary along the scroll.
 
 ## Conversion structure (the home/landing formula)
@@ -96,7 +99,16 @@ Map every section to a funnel stage; a section that serves no stage gets cut:
 
 ## Imagery
 
+Three distinct asset kinds — do not conflate them:
+
+1. **Product evidence** — real screenshots inside `<ProductFrame>` (or `<DataVizPlaceholder>` for data products). The proof the product exists and works.
+2. **Explanatory iconography** — a meaningful icon per feature/step (`@/icons/nexture/ni-*`), carrying the concept at a glance in the family's hue. Zero-dependency, always on-brand and theme-aware — this is the FIRST choice for "show, don't tell", before reaching for generated art. The icon set has hundreds of glyphs; pick the one that means the thing.
+3. **Conceptual illustration** — a spot illustration/scene that explains an idea (how the flow works, what a concept maps to). This is a first-class asset, not decoration.
+
+Rules:
 - Real product screenshots inside `<ProductFrame>` beat any decorative stock photo. The template ships zero stock photos — placeholders are token-driven (CSS gradients, tinted inline SVG) so they follow every theme.
+- **Conceptual illustrations follow the imagery pipeline**: if the session has an image-generation tool, generate into `public/images/marketing/` (line/flat style matching the page's design direction, referencing the theme's primary + accent token values, light+dark variants, translated `alt`). If NOT, deliver a complete ready-to-paste generation prompt AND leave the section working meanwhile with an icon-composition or token-SVG placeholder — never a blank. Prefer a meaningful icon over a mediocre generated illustration; reach for illustration when a single glyph cannot carry the idea.
+- Do NOT hand-author generic scene illustrations as inline SVG (rockets, mascots, devices) — they look cheap forced-generic. Icons for spot art; the generation pipeline for richer scenes.
 - Static assets: `apps/web/public/images/marketing/`, rendered with `next/image` (explicit `width/height`/`sizes`, translated `alt`). Dark variants via `-dark` suffix + `dark:` class. Hero media budget ~200KB; lazy-load below the fold.
 - One consistent visual treatment per page (single tint/duotone from tokens) — not a collage of styles.
 - AI-generated assets (Higgsfield, MCP image tools, etc.) are a per-project choice: generated files enter through `public/images/marketing/` and follow the exact same conventions.
