@@ -9,5 +9,18 @@
       "PowerShell(npm run prettier:*)",
       "PowerShell(npm run tokens:generate:*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/marketing-guard.mjs"
+          }
+        ]
+      }
+    ]
   }
 }

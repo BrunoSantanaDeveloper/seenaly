@@ -28,7 +28,7 @@ Summarize for the user: new packages, new migrations (`packages/db/migrations/`)
 
 ## 4. Conflict resolution rules
 
-- **Project identity files** (root `CLAUDE.md` header/product summary, `BRAND` in `packages/content`, i18n copy, token palette CSS, `config.ts` defaults, `app.json`): keep the PROJECT's version, hand-incorporating structural additions from the template side (e.g. a new CLAUDE.md section, a new token added to every theme).
+- **Project identity files** (root `CLAUDE.md` header/product summary, `BRAND` in `packages/content`, i18n copy, token palette CSS, `config.ts` defaults, `app.json`, `docs/PRODUCT.md`, `docs/DESIGN.md`): keep the PROJECT's version, hand-incorporating structural additions from the template side (e.g. a new CLAUDE.md section, a new token added to every theme). `docs/DESIGN.md` in particular is the project's committed visual direction — never overwrite it with the template's reference values.
 - **modify/delete on pruned demo content** (UI showcase, docs, sample apps, marketing, mobile — whatever this project pruned at init): keep the deletion (`git rm <path>`). Do not resurrect demo content.
 - **`package-lock.json`**: take either side, then regenerate with `npm install` before committing.
 - Never reintroduce `gogo`/`Gogo` naming from old history.

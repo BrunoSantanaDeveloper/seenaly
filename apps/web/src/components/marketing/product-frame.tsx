@@ -7,12 +7,21 @@ import { cn } from "@/lib/utils";
  * without children it renders a token-driven wireframe placeholder, so the
  * template never ships stock photos.
  */
-export default function ProductFrame({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return (
+export default function ProductFrame({
+  className,
+  glow = false,
+  children,
+}: {
+  className?: string;
+  /** Primary-tinted halo behind the frame — the expensive-product hero treatment. */
+  glow?: boolean;
+  children?: React.ReactNode;
+}) {
+  const frame = (
     <div
       className={cn(
         "border-grey-100 bg-background-paper shadow-darker-xs w-full overflow-hidden rounded-3xl border",
-        className,
+        !glow && className,
       )}
     >
       {/* Chrome bar */}
@@ -24,6 +33,21 @@ export default function ProductFrame({ className, children }: { className?: stri
       </div>
 
       {children ?? <PlaceholderApp />}
+    </div>
+  );
+
+  if (!glow) return frame;
+
+  return (
+    <div className={cn("relative", className)}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-8 -top-10 -bottom-16"
+        style={{
+          background: "radial-gradient(ellipse 60% 55% at 50% 45%, hsl(var(--primary) / 0.18), transparent 70%)",
+        }}
+      />
+      <div className="relative">{frame}</div>
     </div>
   );
 }

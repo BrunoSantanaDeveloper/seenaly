@@ -17,4 +17,12 @@ Building blocks for every public page under `apps/web/src/app/(marketing)/`. Con
 
 `Hero` (attention + value prop, ONE primary CTA) → `LogoCloud`/`Testimonials` (trust) → `FeatureGrid` (desire, benefit-led) → `PricingSection` (action) → `Faq` (objection handling) → `Cta` (recovery, repeats the primary CTA verbatim).
 
-See `.claude/skills/marketing-page/SKILL.md` for the full design/copy playbook.
+## Expressive range (premium archetypes)
+
+- `Hero layout="split"` + `<ProductFrame glow>` — copy left, product evidence right. `<DataVizPlaceholder>` stands in for the screenshot on data products.
+- `<FeatureRows>` — alternating text ↔ visual zig-zag (claims next to evidence).
+- `<BentoGrid>` — asymmetric feature grid with `featured` cells.
+- `<StatBand>` — contrast band of oversized real numbers.
+- `Section` `decor="glow" | "grid" | "gradient-edge"` and `background="contrast"` — token-driven depth; vary the treatment at least twice along a page.
+
+See `.claude/skills/marketing-page/SKILL.md` for the full design/copy playbook (direction engine, premium bar) and its `references/directions.md` for the named design directions with font pairings.
