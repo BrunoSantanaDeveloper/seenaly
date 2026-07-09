@@ -7,4 +7,4 @@ Building blocks for the authenticated app (dashboard/product screens) — the co
 - `ActivationProgress` — completion-drive ring (Gestalt closure). The one research-backed gamification pattern — no points/badges/streaks.
 - `SetupWizard` — multi-step setup shell (progressive disclosure): one decision per screen with a visible progress rail, so long setups don't feel long.
 
-State persistence lives in `@flyee/onboarding` (migration `0009_onboarding.sql`).
+State persistence lives in `@flyee/onboarding` (migration `0011_onboarding.sql`).
