@@ -7,7 +7,7 @@ import Logo from "@/components/logo/logo";
 
 export default function Page() {
   return (
-    <Box className="flex min-h-screen w-full items-center justify-center p-4">
+    <Box className="bg-waves flex min-h-screen w-full items-center justify-center bg-cover bg-center p-4">
       <Paper elevation={3} className="bg-background-paper shadow-darker-xs w-[60rem] max-w-full rounded-4xl py-14">
         <Box className="flex flex-col gap-4 px-8 sm:px-14">
           <Box className="flex flex-col">

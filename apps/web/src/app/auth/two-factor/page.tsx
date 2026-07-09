@@ -7,6 +7,7 @@ import { Alert, Box, Button, FormControl, FormLabel, Input, Paper, Typography } 
 
 import Logo from "@/components/logo/logo";
 import { DEFAULTS } from "@/config";
+import { resolvePostAuthDestination } from "@/lib/onboarding";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
@@ -58,7 +59,11 @@ export default function TwoFactor() {
         return;
       }
       const next = new URLSearchParams(window.location.search).get("next");
-      router.push(next ?? DEFAULTS.appRoot);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const destination = user ? await resolvePostAuthDestination(supabase, user.id) : DEFAULTS.appRoot;
+      router.push(next ?? destination);
       router.refresh();
     } finally {
       setBusy(false);
@@ -73,8 +78,8 @@ export default function TwoFactor() {
   };
 
   return (
-    <Box className="flex min-h-screen w-full items-center justify-center p-4">
-      <Paper elevation={3} className="bg-background-paper shadow-darker-xs w-[32rem] max-w-full rounded-4xl py-14">
+    <Box className="bg-waves flex min-h-screen w-full items-center justify-center bg-cover bg-center p-4">
+      <Paper elevation={3} className="bg-background-paper shadow-darker-xs w-lg max-w-full rounded-4xl py-14">
         <Box className="flex flex-col gap-6 px-8 sm:px-14">
           <Box className="flex justify-center">
             <Logo classNameMobile="hidden" />

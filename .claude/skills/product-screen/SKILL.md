@@ -47,7 +47,9 @@ Distilled from the gamification research — most of it is a WARNING:
 
 ## Reusable building blocks
 
-`apps/web/src/components/product/`: `EmptyState`, `OnboardingChecklist`, `ActivationProgress`, `SetupWizard`. State persistence: `@flyee/onboarding` (`getOnboardingState`, `completeStep`, `computeProgress`) over `onboarding_state` (migration 0009). Step definitions live in the project's code; only state is persisted.
+`apps/web/src/components/product/`: `EmptyState`, `OnboardingChecklist`, `OnboardingChecklistCard`, `ActivationProgress`, `SetupWizard`. State persistence: `@flyee/onboarding` (`getOnboardingState`, `completeStep`, `computeProgress`) over `onboarding_state` (migration 0009). Step definitions live in the project's code; only state is persisted.
+
+**Wiring (already in place):** declare the steps in `apps/web/src/lib/onboarding.ts` (`ONBOARDING_STEPS`; empty ⇒ everything degrades to the app root). The four auth entry points (sign-in, sign-up, `/auth/callback`, `/auth/two-factor`) call `resolvePostAuthDestination`, sending a user with pending onboarding to `/onboarding` (the `SetupWizard`, self-guarding) and everyone else to `DEFAULTS.appRoot`. The app home mounts `OnboardingChecklistCard` for the remaining steps. Do NOT put this check in the middleware — it runs on every request and must stay query-free.
 
 ## Before finishing
 

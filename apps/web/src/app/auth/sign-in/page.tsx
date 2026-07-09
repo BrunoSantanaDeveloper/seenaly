@@ -27,6 +27,8 @@ import { DEFAULTS } from "@/config";
 import NiCrossSquare from "@/icons/nexture/ni-cross-square";
 import NiEyeClose from "@/icons/nexture/ni-eye-close";
 import NiEyeOpen from "@/icons/nexture/ni-eye-open";
+import { resolvePostAuthDestination } from "@/lib/onboarding";
+import { useThemeContext } from "@/theme/theme-provider";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
@@ -58,6 +60,12 @@ export default function Page() {
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Supabase returns one generic error for "no account" AND "wrong password"
+  // (anti-enumeration), so we can't know which. On that error we offer BOTH
+  // recovery paths — reset password and sign up with this email — without
+  // asserting whether the account exists.
+  const [offerSignUp, setOfferSignUp] = useState(false);
+  const { isDarkMode } = useThemeContext();
 
   const formik = useFormik({
     initialValues: {
@@ -67,17 +75,24 @@ export default function Page() {
     validationSchema,
     onSubmit: async (values) => {
       setServerError(null);
+      setOfferSignUp(false);
       if (!isSupabaseConfigured) {
         setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
         return;
       }
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
       if (error) {
-        setServerError(error.message);
+        const invalidCredentials = error.code === "invalid_credentials" || error.status === 400;
+        setServerError(
+          invalidCredentials
+            ? "We couldn't sign you in. Check your password — or if you're new, create an account with this email."
+            : error.message,
+        );
+        setOfferSignUp(invalidCredentials);
         return;
       }
       const next = new URLSearchParams(window.location.search).get("next");
@@ -88,7 +103,9 @@ export default function Page() {
         router.refresh();
         return;
       }
-      router.push(next ?? DEFAULTS.appRoot);
+      // A returning user with pending onboarding still needs the path to value.
+      const destination = data.user ? await resolvePostAuthDestination(supabase, data.user.id) : DEFAULTS.appRoot;
+      router.push(next ?? destination);
       router.refresh();
     },
     validateOnBlur: false,
@@ -151,15 +168,15 @@ export default function Page() {
           fillRule="evenodd"
           clipRule="evenodd"
           d="M10 0.0693359C4.475 0.0693359 0 4.54434 0 10.0693C0 14.4943 2.8625 18.2318 6.8375 19.5568C7.3375 19.6443 7.525 19.3443 7.525 19.0818C7.525 18.8443 7.5125 18.0568 7.5125 17.2193C5 17.6818 4.35 16.6068 4.15 16.0443C4.0375 15.7568 3.55 14.8693 3.125 14.6318C2.775 14.4443 2.275 13.9818 3.1125 13.9693C3.9 13.9568 4.4625 14.6943 4.65 14.9943C5.55 16.5068 6.9875 16.0818 7.5625 15.8193C7.65 15.1693 7.9125 14.7318 8.2 14.4818C5.975 14.2318 3.65 13.3693 3.65 9.54434C3.65 8.45684 4.0375 7.55684 4.675 6.85684C4.575 6.60684 4.225 5.58184 4.775 4.20684C4.775 4.20684 5.6125 3.94434 7.525 5.23184C8.325 5.00684 9.175 4.89434 10.025 4.89434C10.875 4.89434 11.725 5.00684 12.525 5.23184C14.4375 3.93184 15.275 4.20684 15.275 4.20684C15.825 5.58184 15.475 6.60684 15.375 6.85684C16.0125 7.55684 16.4 8.44434 16.4 9.54434C16.4 13.3818 14.0625 14.2318 11.8375 14.4818C12.2 14.7943 12.5125 15.3943 12.5125 16.3318C12.5125 17.6693 12.5 18.7443 12.5 19.0818C12.5 19.3443 12.6875 19.6568 13.1875 19.5568C17.1375 18.2318 20 14.4818 20 10.0693C20 4.54434 15.525 0.0693359 10 0.0693359Z"
-          fill="#1B1F23"
+          fill={isDarkMode ? "#ffffff" : "#1B1F23"}
         />
       </svg>
     );
   };
 
   return (
-    <Box className="flex min-h-screen w-full items-center justify-center p-4">
-      <Paper elevation={3} className="bg-background-paper shadow-darker-xs w-[32rem] max-w-full rounded-4xl py-14">
+    <Box className="bg-waves flex min-h-screen w-full items-center justify-center bg-cover bg-center p-4">
+      <Paper elevation={3} className="bg-background-paper shadow-darker-xs w-lg max-w-full rounded-4xl py-14">
         <Box className="flex flex-col gap-4 px-8 sm:px-14">
           <Box className="flex flex-col">
             <Box className="mb-14 flex justify-center">
@@ -282,6 +299,17 @@ export default function Page() {
                     </Alert>
                   )}
                   <Box className="flex flex-col gap-2">
+                    {offerSignUp && (
+                      <Button
+                        variant="outlined"
+                        color="grey"
+                        className="mb-1"
+                        href={`/auth/sign-up?email=${encodeURIComponent(formik.values.email)}`}
+                        LinkComponent={Link}
+                      >
+                        Create an account with this email
+                      </Button>
+                    )}
                     <Link
                       href="/auth/password-reset"
                       className="link-text-secondary link-underline-hover text-center text-sm font-semibold"
@@ -312,7 +340,7 @@ export default function Page() {
               </Box>
               <Divider className="text-text-secondary my-0 text-sm"></Divider>
               <Box className="flex flex-col">
-                <Typography variant="h5" component="h5">
+                <Typography variant="h6" component="h6">
                   Get Started
                 </Typography>
                 <Typography variant="body1" className="text-text-secondary">

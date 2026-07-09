@@ -1,0 +1,19 @@
+/* --------------------------- */
+/* Page Backgrounds */
+/* --------------------------- */
+
+/*
+  Full-page backdrop for the auth screens ("waves"). Built from theme tokens
+  instead of a bitmap so it follows all 4 color themes × light/dark and adds
+  no asset weight; soft overlapping washes read as waves behind the card.
+*/
+@layer components {
+  .bg-waves {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(70rem 32rem at 12% 112%, hsl(var(--primary) / 0.16), transparent 62%),
+      radial-gradient(56rem 28rem at 88% -12%, hsl(var(--accent-1) / 0.13), transparent 60%),
+      radial-gradient(44rem 24rem at 78% 108%, hsl(var(--secondary) / 0.1), transparent 55%),
+      radial-gradient(38rem 20rem at 30% -8%, hsl(var(--accent-2) / 0.08), transparent 55%);
+  }
+}

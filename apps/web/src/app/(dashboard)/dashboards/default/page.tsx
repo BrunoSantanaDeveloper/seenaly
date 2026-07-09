@@ -20,6 +20,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DateRange, DateRangePicker } from "@mui/x-date-pickers-pro";
 
+import OnboardingChecklistCard from "@/components/product/onboarding-checklist-card";
 import NiCalendar from "@/icons/nexture/ni-calendar";
 import NiCellsPlus from "@/icons/nexture/ni-cells-plus";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
@@ -100,6 +101,11 @@ export default function Page() {
             />
           </Tooltip>
         </Grid>
+      </Grid>
+
+      {/* Activation first: renders only while the user has pending onboarding steps. */}
+      <Grid size={12}>
+        <OnboardingChecklistCard />
       </Grid>
 
       <Grid container size={12}>

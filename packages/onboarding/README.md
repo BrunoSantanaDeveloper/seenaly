@@ -25,9 +25,11 @@ await completeStep(supabase, { userId, orgId, flow: "user-activation" }, "invite
 
 `step.done` (a live predicate) wins over the stored flag, so the checklist reflects reality, not just clicks.
 
-## UI
+## UI + wiring
 
-The React components live in `apps/web/src/components/product/` (they travel with the app): `OnboardingChecklist`, `ActivationProgress`, `EmptyState`, `SetupWizard`. See the `product-screen` skill for when to reach for each.
+The React components live in `apps/web/src/components/product/` (they travel with the app): `OnboardingChecklist`, `OnboardingChecklistCard`, `ActivationProgress`, `EmptyState`, `SetupWizard`. See the `product-screen` skill for when to reach for each.
+
+The flow is declared once in `apps/web/src/lib/onboarding.ts` (`ONBOARDING_STEPS` — empty in the template, so everything degrades to the app root). `resolvePostAuthDestination` is called by sign-in, sign-up, `/auth/callback` and `/auth/two-factor`: a user with pending onboarding lands on `/onboarding` (setup wizard), everyone else on the app root. The app home mounts `OnboardingChecklistCard` for the remaining steps. The check never runs in the middleware (query-free by design).
 
 ## Migration
 
