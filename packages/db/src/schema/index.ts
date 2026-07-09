@@ -5,6 +5,7 @@ export * from "./ai";
 export * from "./knowledge";
 export * from "./connectors";
 export * from "./meta-ads";
+export * from "./product-context";
 export * from "./audit";
 export * from "./documents";
 export * from "./transcriptions";

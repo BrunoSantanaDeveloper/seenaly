@@ -9,19 +9,18 @@ import FeatureRows from "@/components/marketing/feature-row";
 import Hero from "@/components/marketing/hero";
 import LogoCloud from "@/components/marketing/logo-cloud";
 import PricingSection from "@/components/marketing/pricing-section";
+import ProcessSteps from "@/components/marketing/process-steps";
 import ProductFrame from "@/components/marketing/product-frame";
-import {
-  DiagnosisVignette,
-  FatigueVignette,
-  FunnelVignette,
-  MemoryVignette,
-} from "@/components/marketing/product-vignettes";
+import { FatigueVignette, FunnelVignette, MemoryVignette } from "@/components/marketing/product-vignettes";
 import StatBand from "@/components/marketing/stat-band";
 import Testimonials from "@/components/marketing/testimonials";
 import { TONE, type Tone } from "@/components/marketing/tone";
 import NiAi from "@/icons/nexture/ni-ai";
 import NiChartLine from "@/icons/nexture/ni-chart-line";
-import NiFlash from "@/icons/nexture/ni-flash";
+import NiListCheck from "@/icons/nexture/ni-list-check";
+import NiPlug from "@/icons/nexture/ni-plug";
+import NiRefresh from "@/icons/nexture/ni-refresh";
+import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import { cn } from "@/lib/utils";
 
@@ -52,11 +51,11 @@ function IconChip({ tone, children }: { tone: Tone; children: React.ReactNode })
 
 /**
  * Home = conversion funnel: hero (value prop + product evidence) → logos
- * (trust) → stat band (proof) → feature rows (desire, claim next to
- * evidence) → bento (foundation) → testimonials → pricing (action) →
- * FAQ (objections) → CTA (recovery). Background rhythm per DESIGN.md:
- * glow → contrast band → grid → paper. The primary CTA label (cta-primary)
- * repeats verbatim at every action point.
+ * (trust) → stat band (proof) → process (how the daily diagnosis works) →
+ * feature rows (desire, claim next to evidence) → bento (foundation) →
+ * testimonials → pricing (action) → FAQ (objections) → CTA (recovery).
+ * Background rhythm per DESIGN.md: glow → contrast band → grid → paper.
+ * The primary CTA label (cta-primary) repeats verbatim at every action point.
  */
 export default async function Home() {
   const [t, plans] = await Promise.all([getTranslations("marketing"), getDisplayPlans()]);
@@ -86,21 +85,46 @@ export default async function Home() {
         }))}
       />
 
+      {/* How the daily diagnosis works — the flow, scannable by icon + deliverable.
+          Hues follow the family map: sync (connection) → read (intelligence) → recommend (diagnosis). */}
+      <ProcessSteps
+        eyebrow={t("process-eyebrow")}
+        title={t("process-title")}
+        subtitle={t("process-subtitle")}
+        steps={[
+          {
+            icon: <NiRefresh />,
+            title: t("process-1-title"),
+            body: t("process-1-body"),
+            deliverableLabel: t("process-deliverable-label"),
+            deliverableValue: t("process-1-deliverable"),
+            tone: FAMILY.connection,
+          },
+          {
+            icon: <NiSearch />,
+            title: t("process-2-title"),
+            body: t("process-2-body"),
+            deliverableLabel: t("process-deliverable-label"),
+            deliverableValue: t("process-2-deliverable"),
+            tone: FAMILY.intelligence,
+          },
+          {
+            icon: <NiListCheck />,
+            title: t("process-3-title"),
+            body: t("process-3-body"),
+            deliverableLabel: t("process-deliverable-label"),
+            deliverableValue: t("process-3-deliverable"),
+            tone: FAMILY.diagnosis,
+          },
+        ]}
+      />
+
       <FeatureRows
         id="features"
-        decor="grid"
         eyebrow={t("features-eyebrow")}
         title={t("features-title")}
         subtitle={t("features-subtitle")}
         items={[
-          {
-            eyebrow: t("row-1-eyebrow"),
-            title: t("feature-2-title"),
-            body: t("feature-2-description"),
-            bullets: [1, 2, 3].map((index) => t(`row-1-bullet-${index}`)),
-            media: <DiagnosisVignette tone={FAMILY.diagnosis} />,
-            tone: FAMILY.diagnosis,
-          },
           {
             eyebrow: t("row-2-eyebrow"),
             title: t("feature-3-title"),
@@ -138,7 +162,7 @@ export default async function Home() {
             body: t("feature-1-description"),
             visual: (
               <IconChip tone={FAMILY.connection}>
-                <NiFlash />
+                <NiPlug />
               </IconChip>
             ),
             tone: FAMILY.connection,

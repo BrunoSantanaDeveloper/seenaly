@@ -60,6 +60,14 @@ export const leftMenuItems: MenuItem[] = [
     ],
   },
   {
+    id: "products",
+    icon: "NiTag",
+    label: "menu-products",
+    description: "menu-products-description",
+    color: "text-primary",
+    href: "/products",
+  },
+  {
     id: "ui",
     icon: "NiController",
     label: "menu-ui",

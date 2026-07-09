@@ -33,6 +33,12 @@ Ads Manager · automação de tráfego pago · dashboard de marketing · ferrame
    - **Confiança** — baixa / média / alta
    - **Critério de sucesso** — como saber se funcionou
    - **Próxima leitura** — quando reavaliar
+6. **Espectro de maturidade — o valor nunca fica atrás da conexão Meta.** O sistema serve desde o iniciante sem nenhuma campanha (nem conta Meta) até a empresa com histórico rico, degradando graciosamente. É a forma extrema do princípio nº 4:
+   - **Zero dados**: guia do passo 0 usando **contexto do produto + conhecimento oficial** — que evento otimizar, como estruturar a 1ª campanha, que criativo/oferta testar primeiro. Nenhum dado de campanha necessário.
+   - **Campanha nova (conta conectada)**: "ainda não há base para concluir" — fase de aprendizado, volume mínimo.
+   - **Histórico rico**: diagnóstico completo com evidências, rankings de relevância, fadiga, memória de experimentos.
+
+   Consequência de arquitetura: o **contexto do produto (o coração) é o passo 0 e independe de dados**; a conexão Meta é enriquecimento opcional, não pré-requisito. O motor de diagnóstico recebe o que existir (contexto sempre; conhecimento sempre; dados Meta se houver) e nunca exige a conexão.
 
 ## Os cinco pilares + memória
 
@@ -62,14 +68,16 @@ O espaço é fragmentado; nenhuma entrega a combinação: conhecimento técnico 
 
 ## Roadmap por fases
 
+As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O contexto do produto (2) e o motor de diagnóstico (3) entregam valor a um iniciante sem nenhum dado; a conexão Meta (1) enriquece quando existe (ver princípio nº 6). O conector foi construído cedo por causa do app review da Meta (semanas), não porque o resto depende dele.
+
 | Fase | Entrega | Status |
 |---|---|---|
 | 0 | Base de conhecimento: corpus `docs/meta_ads/` + ingestão em `meta-ads-docs` (trust 1) | corpus e script prontos; ingestão pendente de env (Supabase + `GEMINI_API_KEY`) |
-| 1 | Conector Meta Ads (`packages/connectors`): OAuth, sync incremental da Insights API, schema de campanhas/insights. Iniciar app review da Meta (`ads_read`) cedo — leva semanas | não iniciada (aguardando aprovação) |
-| 2 | Modelo de contexto do produto: schema + UI de cadastro profundo de produto/oferta | — |
-| 3 | Motor de diagnóstico: assistente grounded (fases 0+1+2) com `generateStructured` no formato fixo — primeiro produto vendável | — |
-| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores | — |
-| 5 | Memória de experimentos | — |
+| 1 | Conector Meta Ads: schema `meta_*` (`0009`), cliente Graph API, sync incremental + cron, gate de assinatura. **Opcional para o usuário** (enriquecimento, não portão) | núcleo implementado (trilha A: system-user token); falta validar com token real, OAuth/app review (trilha B) e tela de conferência |
+| 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado. É o passo 0 do iniciante | em andamento |
+| 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | — |
+| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | — |
+| 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | — |
 | 6 | Camada de funil/vendas reais | — |
 
 ### Mapa produto → infraestrutura do template
