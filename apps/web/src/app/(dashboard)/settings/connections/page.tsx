@@ -4,6 +4,7 @@ import SettingsMenu from "../components/settings-menu";
 import { useOrganization } from "../organization/components/use-organization";
 import ConnectionsCard from "./components/connections-card";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import {
@@ -24,6 +25,7 @@ import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiListCircle from "@/icons/nexture/ni-list-circle";
 
 export default function ConnectionsSettings() {
+  const t = useTranslations("connections");
   const [openDrawer, setOpenDrawer] = useState(false);
   const { configured, loading, orgs, currentOrg, setCurrentOrgId } = useOrganization();
 
@@ -40,16 +42,16 @@ export default function ConnectionsSettings() {
         <Grid size={12} spacing={2.5} container>
           <Grid size={{ xs: 12, md: "grow" }}>
             <Typography variant="h1" component="h1" className="mb-0">
-              Connections
+              {t("title")}
             </Typography>
             <Breadcrumbs>
-              <Link color="inherit" href="/dashboards/default">
-                Home
+              <Link color="inherit" href="/home">
+                {t("crumb-home")}
               </Link>
               <Link color="inherit" href="/settings">
-                Settings
+                {t("crumb-settings")}
               </Link>
-              <Typography variant="body2">Connections</Typography>
+              <Typography variant="body2">{t("title")}</Typography>
             </Breadcrumbs>
           </Grid>
           {orgs.length > 1 && currentOrg && (
@@ -88,8 +90,7 @@ export default function ConnectionsSettings() {
         {!configured && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
-              Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable
-              connections.
+              {t("not-configured")}
             </Alert>
           </Grid>
         )}
@@ -97,7 +98,7 @@ export default function ConnectionsSettings() {
         {configured && !loading && orgs.length === 0 && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
-              You do not belong to any organization yet. Create one in Settings &gt; Organization first.
+              {t("no-org")}
             </Alert>
           </Grid>
         )}

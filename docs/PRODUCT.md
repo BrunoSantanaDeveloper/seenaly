@@ -74,7 +74,8 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 |---|---|---|
 | 0 | Base de conhecimento: corpus `docs/meta_ads/` + ingestão em `meta-ads-docs` (trust 1) | corpus e script prontos; ingestão pendente de env (Supabase + `GEMINI_API_KEY`) |
 | 1 | Conector Meta Ads: schema `meta_*` (`0009`), cliente Graph API, sync incremental + cron, gate de assinatura. **Opcional para o usuário** (enriquecimento, não portão) | núcleo implementado (trilha A: system-user token); falta validar com token real, OAuth/app review (trilha B) e tela de conferência |
-| 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado. É o passo 0 do iniciante | em andamento |
+| 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado (`SetupWizard`) | schema + UI prontos |
+| 2.5 | **Home do Seenaly** (`/home`, o `appRoot` pós-login): tela goal-first que responde "o que faço agora?" — checklist de ativação, saúde do contexto do produto, estado dos dados da Meta e o destino (diagnóstico). Substitui o dashboard demo do template como landing | em andamento |
 | 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | — |
 | 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | — |
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | — |

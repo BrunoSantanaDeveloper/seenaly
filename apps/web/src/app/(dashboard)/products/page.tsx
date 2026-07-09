@@ -21,10 +21,18 @@ import {
   Typography,
 } from "@mui/material";
 
+import ActivationChecklist from "@/components/activation/activation-checklist";
+import EmptyState from "@/components/product/empty-state";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiPlus from "@/icons/nexture/ni-plus";
 import NiTag from "@/icons/nexture/ni-tag";
 import { createClient } from "@flyee/auth/client";
+
+/**
+ * Job: "which offer am I working on?" — for most users that is one product,
+ * so this is a pick-and-enter view (not a management table). A brand-new user
+ * sees the activation path instead of an empty grid.
+ */
 
 type ProductRow = {
   id: string;
@@ -43,7 +51,7 @@ const STATUS_COLOR: Record<string, "default" | "success" | "warning"> = {
 export default function ProductsPage() {
   const t = useTranslations("products");
   const router = useRouter();
-  const { configured, loading, orgs, currentOrg, setCurrentOrgId } = useOrganization();
+  const { configured, loading, userId, orgs, currentOrg, setCurrentOrgId } = useOrganization();
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -62,6 +70,8 @@ export default function ProductsPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const isEmpty = Boolean(currentOrg) && loaded && rows.length === 0;
 
   return (
     <Grid container spacing={5} className="items-start">
@@ -88,14 +98,17 @@ export default function ProductsPage() {
                   </Select>
                 </FormControl>
               )}
-              <Button
-                variant="contained"
-                startIcon={<NiPlus size="small" />}
-                disabled={!currentOrg}
-                onClick={() => router.push("/products/new")}
-              >
-                {t("new-product")}
-              </Button>
+              {/* No "new" button on the empty view — the EmptyState owns that nudge. */}
+              {!isEmpty && (
+                <Button
+                  variant="contained"
+                  startIcon={<NiPlus size="small" />}
+                  disabled={!currentOrg}
+                  onClick={() => router.push("/products/new")}
+                >
+                  {t("new-product")}
+                </Button>
+              )}
             </Box>
           }
         />
@@ -116,26 +129,18 @@ export default function ProductsPage() {
           </Grid>
         )}
 
-        {currentOrg && loaded && rows.length === 0 && (
+        {/* The path to value: visible from the very first visit.
+            Renders its own grid slot, or nothing once dismissed/complete. */}
+        {currentOrg && userId && <ActivationChecklist orgId={currentOrg.id} userId={userId} />}
+
+        {isEmpty && (
           <Grid size={12}>
-            <Card>
-              <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-                <NiTag size={36} className="text-primary" />
-                <Typography variant="h5" component="h2">
-                  {t("empty-title")}
-                </Typography>
-                <Typography variant="body1" className="text-text-secondary max-w-md">
-                  {t("empty-body")}
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<NiPlus size="small" />}
-                  onClick={() => router.push("/products/new")}
-                >
-                  {t("empty-cta")}
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<NiTag />}
+              title={t("empty-title")}
+              description={t("empty-body")}
+              action={{ label: t("empty-cta"), href: "/products/new" }}
+            />
           </Grid>
         )}
 

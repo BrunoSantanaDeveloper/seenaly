@@ -2,8 +2,16 @@ import { MenuItem } from "@/types";
 
 export const leftMenuItems: MenuItem[] = [
   {
-    id: "dashboards",
+    id: "home",
     icon: "NiHome",
+    label: "menu-home",
+    description: "menu-home-description",
+    color: "text-primary",
+    href: "/home",
+  },
+  {
+    id: "dashboards",
+    icon: "NiChartPie",
     label: "menu-dashboards",
     description: "menu-dashboards-description",
     color: "text-primary",
@@ -62,8 +70,10 @@ export const leftMenuItems: MenuItem[] = [
   {
     id: "products",
     icon: "NiTag",
-    label: "menu-products",
-    description: "menu-products-description",
+    // Not "menu-products": the template already uses that key for the
+    // e-commerce demo menu, and duplicate JSON keys silently collide.
+    label: "menu-product-context",
+    description: "menu-product-context-description",
     color: "text-primary",
     href: "/products",
   },

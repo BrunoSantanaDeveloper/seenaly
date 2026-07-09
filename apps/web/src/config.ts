@@ -3,7 +3,8 @@ import { ContentType, MenuType } from "./types";
 import { ModeVariant, ThemeVariant } from "@/constants";
 
 export const DEFAULTS = {
-  appRoot: "/dashboards/default",
+  // Post-login landing: Seenaly's goal-first home, not the template's demo dashboard.
+  appRoot: "/home",
   locale: "pt-BR",
   themeColor: "theme-orange" as ThemeVariant,
   themeMode: "system" as ModeVariant,

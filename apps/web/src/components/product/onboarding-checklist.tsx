@@ -20,12 +20,15 @@ import { computeProgress, type OnboardingStateRow, type OnboardingStep } from "@
  */
 export default function OnboardingChecklist({
   title = "Get set up",
+  description = "A few steps to your first result.",
   steps,
   state,
   onDismiss,
   className,
 }: {
   title?: string;
+  /** One-line promise under the title. Pass a translated string. */
+  description?: string;
   steps: OnboardingStep[];
   state: OnboardingStateRow;
   onDismiss?: () => void;
@@ -45,7 +48,7 @@ export default function OnboardingChecklist({
               {title}
             </Typography>
             <Typography variant="body2" className="text-text-secondary">
-              A few steps to your first result.
+              {description}
             </Typography>
           </Box>
           <Box className="flex flex-row items-center gap-2">

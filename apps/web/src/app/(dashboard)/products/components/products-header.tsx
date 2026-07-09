@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Breadcrumbs, Grid, Typography } from "@mui/material";
 
@@ -14,6 +15,8 @@ export default function ProductsHeader({
   crumb: string;
   action?: React.ReactNode;
 }) {
+  const t = useTranslations("home");
+
   return (
     <Grid size={12} spacing={2.5} container className="items-center">
       <Grid size={{ xs: 12, md: "grow" }}>
@@ -21,8 +24,8 @@ export default function ProductsHeader({
           {title}
         </Typography>
         <Breadcrumbs>
-          <Link color="inherit" href="/dashboards/default">
-            Home
+          <Link color="inherit" href="/home">
+            {t("crumb-home")}
           </Link>
           <Link color="inherit" href="/products">
             {crumb}

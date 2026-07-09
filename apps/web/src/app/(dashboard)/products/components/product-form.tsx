@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiPlus from "@/icons/nexture/ni-plus";
@@ -122,7 +123,24 @@ function toInput(values: FormValues, orgId: string, id?: string): ProductInput {
   };
 }
 
-export default function ProductForm({ orgId, product }: { orgId: string; product?: ProductWithChildren }) {
+/**
+ * Capture the product context — the heart of the product (docs/PRODUCT.md).
+ *
+ * `variant="wizard"` (first-run creation): progressive disclosure, one block
+ * per screen with a progress rail, so a long context capture never feels long.
+ * `variant="sections"` (editing): everything at once plus the completeness
+ * meter — competence feedback on how much context the engine has to reason with.
+ * The two never stack progress mechanics.
+ */
+export default function ProductForm({
+  orgId,
+  product,
+  variant = "sections",
+}: {
+  orgId: string;
+  product?: ProductWithChildren;
+  variant?: "sections" | "wizard";
+}) {
   const t = useTranslations("products");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -209,21 +227,162 @@ export default function ProductForm({ orgId, product }: { orgId: string; product
     );
   };
 
-  const section = (title: string, children: React.ReactNode) => (
-    <Card component="section" className="mb-5">
-      <CardContent>
-        <Typography variant="h6" component="h2" className="card-title mb-3">
-          {title}
-        </Typography>
-        {children}
-      </CardContent>
-    </Card>
+  // ---- Content blocks, shared by both variants ----
+
+  const identityBlock = (
+    <>
+      {text("name", t("field-name"))}
+      {text("description", t("field-description"), { multiline: true })}
+      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+        <FormLabel component="label">{t("field-status")}</FormLabel>
+        <Select
+          name="status"
+          value={formik.values.status}
+          variant="standard"
+          IconComponent={NiChevronDownSmall}
+          onChange={formik.handleChange}
+        >
+          <MenuItem value="draft">{t("status-draft")}</MenuItem>
+          <MenuItem value="active">{t("status-active")}</MenuItem>
+          <MenuItem value="archived">{t("status-archived")}</MenuItem>
+        </Select>
+      </FormControl>
+    </>
   );
 
+  const economicsBlock = (
+    <>
+      {text("currency", t("field-currency"))}
+      {text("price", t("field-price"), { type: "number" })}
+      {text("unitCost", t("field-unitCost"), { type: "number" })}
+      {text("marginPct", t("field-marginPct"), { type: "number" })}
+      {text("avgTicket", t("field-avgTicket"), { type: "number" })}
+      {text("ltv", t("field-ltv"), { type: "number" })}
+      {text("targetCac", t("field-targetCac"), { type: "number" })}
+      {text("monthlyBudget", t("field-monthlyBudget"), { type: "number" })}
+    </>
+  );
+
+  const positioningBlock = (
+    <>
+      {text("mainPromise", t("field-mainPromise"), { multiline: true })}
+      {text("audience", t("field-audience"), { multiline: true })}
+      <ListEditor
+        label={t("field-objections")}
+        addLabel={t("add-objection")}
+        items={formik.values.objections}
+        onChange={(next) => formik.setFieldValue("objections", next)}
+        render={(value, onChange) => <Input fullWidth value={value} onChange={(e) => onChange(e.target.value)} />}
+        empty={() => ""}
+      />
+      <Box className="mt-3">
+        <ListEditor
+          label={t("field-proofs")}
+          addLabel={t("add-proof")}
+          items={formik.values.proofs}
+          onChange={(next) => formik.setFieldValue("proofs", next)}
+          render={(value, onChange) => (
+            <Box className="flex grow flex-col gap-1 sm:flex-row">
+              <Input
+                className="sm:w-40"
+                placeholder={t("field-proof-kind")}
+                value={value.kind}
+                onChange={(e) => onChange({ ...value, kind: e.target.value })}
+              />
+              <Input
+                fullWidth
+                placeholder={t("field-proof-content")}
+                value={value.content}
+                onChange={(e) => onChange({ ...value, content: e.target.value })}
+              />
+            </Box>
+          )}
+          empty={() => ({ kind: "", content: "" })}
+        />
+      </Box>
+    </>
+  );
+
+  const funnelBlock = (
+    <>
+      {text("conversionType", t("field-conversionType"))}
+      {text("funnelStage", t("field-funnelStage"))}
+      {text("landingPageUrl", t("field-landingPageUrl"))}
+      {text("landingConversionRate", t("field-landingConversionRate"), { type: "number" })}
+      {text("optimizationEvent", t("field-optimizationEvent"))}
+      {text("notes", t("field-notes"), { multiline: true })}
+    </>
+  );
+
+  const metaBlock = (
+    <FormControl className="outlined" variant="standard" size="small" fullWidth>
+      <FormLabel component="label">{t("field-connection")}</FormLabel>
+      <Select
+        name="connectionId"
+        value={formik.values.connectionId}
+        variant="standard"
+        displayEmpty
+        IconComponent={NiChevronDownSmall}
+        onChange={formik.handleChange}
+      >
+        <MenuItem value="">{t("connection-none")}</MenuItem>
+        {connections.map((connection) => (
+          <MenuItem key={connection.id} value={connection.id}>
+            {connection.name}
+          </MenuItem>
+        ))}
+      </Select>
+      {connections.length === 0 && (
+        <Typography variant="body2" className="text-text-secondary mt-1">
+          {t("connection-hint")}
+        </Typography>
+      )}
+    </FormControl>
+  );
+
+  const blocks = [
+    { key: "identity", title: t("section-identity"), hint: t("hint-identity"), content: identityBlock },
+    { key: "economics", title: t("section-economics"), hint: t("hint-economics"), content: economicsBlock },
+    { key: "positioning", title: t("section-positioning"), hint: t("hint-positioning"), content: positioningBlock },
+    { key: "funnel", title: t("section-funnel"), hint: t("hint-funnel"), content: funnelBlock },
+    { key: "meta", title: t("section-meta"), hint: t("hint-meta"), content: metaBlock },
+  ];
+
+  const errorAlert = error && (
+    <Alert severity="error" className="neutral bg-background-paper/60! mb-4">
+      {error}
+    </Alert>
+  );
+
+  // ---- Wizard: one decision block per screen, visible progress rail ----
+  if (variant === "wizard") {
+    const nameValid = formik.values.name.trim().length > 0;
+    const steps: WizardStep[] = blocks.map((block, index) => ({
+      title: block.title,
+      hint: block.hint,
+      content: block.content,
+      canAdvance: index === 0 ? nameValid : true,
+    }));
+
+    return (
+      <FormikProvider value={formik}>
+        {errorAlert}
+        <SetupWizard
+          steps={steps}
+          onComplete={() => formik.submitForm()}
+          completeLabel={formik.isSubmitting ? t("saving") : t("wizard-finish")}
+          backLabel={t("wizard-back")}
+          continueLabel={t("wizard-continue")}
+          stepLabel={(current, total) => t("wizard-step", { current, total })}
+        />
+      </FormikProvider>
+    );
+  }
+
+  // ---- Sections: full context at once + completeness (competence feedback) ----
   return (
     <FormikProvider value={formik}>
       <Box component="form" onSubmit={formik.handleSubmit} className="flex flex-col">
-        {/* Completeness — the guide-from-step-0 signal */}
         <Card className="mb-5">
           <CardContent className="flex flex-col gap-2">
             <Box className="flex flex-row items-center gap-3">
@@ -243,127 +402,18 @@ export default function ProductForm({ orgId, product }: { orgId: string; product
           </CardContent>
         </Card>
 
-        {section(
-          t("section-identity"),
-          <>
-            {text("name", t("field-name"))}
-            {text("description", t("field-description"), { multiline: true })}
-            <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
-              <FormLabel component="label">{t("field-status")}</FormLabel>
-              <Select
-                name="status"
-                value={formik.values.status}
-                variant="standard"
-                IconComponent={NiChevronDownSmall}
-                onChange={formik.handleChange}
-              >
-                <MenuItem value="draft">{t("status-draft")}</MenuItem>
-                <MenuItem value="active">{t("status-active")}</MenuItem>
-                <MenuItem value="archived">{t("status-archived")}</MenuItem>
-              </Select>
-            </FormControl>
-          </>,
-        )}
-
-        {section(
-          t("section-economics"),
-          <>
-            {text("currency", t("field-currency"))}
-            {text("price", t("field-price"), { type: "number" })}
-            {text("unitCost", t("field-unitCost"), { type: "number" })}
-            {text("marginPct", t("field-marginPct"), { type: "number" })}
-            {text("avgTicket", t("field-avgTicket"), { type: "number" })}
-            {text("ltv", t("field-ltv"), { type: "number" })}
-            {text("targetCac", t("field-targetCac"), { type: "number" })}
-            {text("monthlyBudget", t("field-monthlyBudget"), { type: "number" })}
-          </>,
-        )}
-
-        {section(
-          t("section-positioning"),
-          <>
-            {text("mainPromise", t("field-mainPromise"), { multiline: true })}
-            {text("audience", t("field-audience"), { multiline: true })}
-            <ListEditor
-              label={t("field-objections")}
-              addLabel={t("add-objection")}
-              items={formik.values.objections}
-              onChange={(next) => formik.setFieldValue("objections", next)}
-              render={(value, onChange) => <Input fullWidth value={value} onChange={(e) => onChange(e.target.value)} />}
-              empty={() => ""}
-            />
-            <Box className="mt-3">
-              <ListEditor
-                label={t("field-proofs")}
-                addLabel={t("add-proof")}
-                items={formik.values.proofs}
-                onChange={(next) => formik.setFieldValue("proofs", next)}
-                render={(value, onChange) => (
-                  <Box className="flex grow flex-col gap-1 sm:flex-row">
-                    <Input
-                      className="sm:w-40"
-                      placeholder={t("field-proof-kind")}
-                      value={value.kind}
-                      onChange={(e) => onChange({ ...value, kind: e.target.value })}
-                    />
-                    <Input
-                      fullWidth
-                      placeholder={t("field-proof-content")}
-                      value={value.content}
-                      onChange={(e) => onChange({ ...value, content: e.target.value })}
-                    />
-                  </Box>
-                )}
-                empty={() => ({ kind: "", content: "" })}
-              />
-            </Box>
-          </>,
-        )}
-
-        {section(
-          t("section-funnel"),
-          <>
-            {text("conversionType", t("field-conversionType"))}
-            {text("funnelStage", t("field-funnelStage"))}
-            {text("landingPageUrl", t("field-landingPageUrl"))}
-            {text("landingConversionRate", t("field-landingConversionRate"), { type: "number" })}
-            {text("optimizationEvent", t("field-optimizationEvent"))}
-            {text("notes", t("field-notes"), { multiline: true })}
-          </>,
-        )}
-
-        {section(
-          t("section-meta"),
-          <FormControl className="outlined" variant="standard" size="small" fullWidth>
-            <FormLabel component="label">{t("field-connection")}</FormLabel>
-            <Select
-              name="connectionId"
-              value={formik.values.connectionId}
-              variant="standard"
-              displayEmpty
-              IconComponent={NiChevronDownSmall}
-              onChange={formik.handleChange}
-            >
-              <MenuItem value="">{t("connection-none")}</MenuItem>
-              {connections.map((connection) => (
-                <MenuItem key={connection.id} value={connection.id}>
-                  {connection.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {connections.length === 0 && (
-              <Typography variant="body2" className="text-text-secondary mt-1">
-                {t("connection-hint")}
+        {blocks.map((block) => (
+          <Card key={block.key} component="section" className="mb-5">
+            <CardContent>
+              <Typography variant="h6" component="h2" className="card-title mb-3">
+                {block.title}
               </Typography>
-            )}
-          </FormControl>,
-        )}
+              {block.content}
+            </CardContent>
+          </Card>
+        ))}
 
-        {error && (
-          <Alert severity="error" className="neutral bg-background-paper/60! mb-4">
-            {error}
-          </Alert>
-        )}
+        {errorAlert}
 
         <Box className="flex flex-row gap-2">
           <Button type="submit" variant="contained" disabled={formik.isSubmitting}>

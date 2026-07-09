@@ -3,6 +3,7 @@
 import { deleteProduct } from "../actions";
 import ProductForm from "../components/product-form";
 import ProductsHeader from "../components/products-header";
+import { mapProductRow } from "../lib/map";
 import type { ProductWithChildren } from "../types";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,8 +13,6 @@ import { Alert, Box, Button, Grid } from "@mui/material";
 
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import { createClient } from "@flyee/auth/client";
-
-const n = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
 
 export default function EditProductPage() {
   const t = useTranslations("products");
@@ -35,33 +34,7 @@ export default function EditProductPage() {
       setNotFound(true);
       return;
     }
-    setProduct({
-      id: row.id,
-      orgId: row.org_id,
-      name: row.name ?? "",
-      status: row.status,
-      description: row.description ?? "",
-      currency: row.currency ?? "",
-      price: n(row.price),
-      unitCost: n(row.unit_cost),
-      marginPct: n(row.margin_pct),
-      avgTicket: n(row.avg_ticket),
-      ltv: n(row.ltv),
-      targetCac: n(row.target_cac),
-      monthlyBudget: n(row.monthly_budget),
-      conversionType: row.conversion_type ?? "",
-      funnelStage: row.funnel_stage ?? "",
-      audience: row.audience ?? "",
-      mainPromise: row.main_promise ?? "",
-      landingPageUrl: row.landing_page_url ?? "",
-      landingConversionRate: n(row.landing_conversion_rate),
-      optimizationEvent: row.optimization_event ?? "",
-      notes: row.notes ?? "",
-      connectionId: row.connection_id ?? null,
-      metaAccountId: row.meta_account_id ?? "",
-      objections: (objections ?? []).map((item) => item.content as string),
-      proofs: (proofs ?? []).map((item) => ({ kind: (item.kind as string) ?? "", content: item.content as string })),
-    });
+    setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [] }));
   }, [id]);
 
   useEffect(() => {

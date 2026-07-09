@@ -34,7 +34,8 @@ export default function NewProductPage() {
 
         {currentOrg && (
           <Grid size={12}>
-            <ProductForm orgId={currentOrg.id} />
+            {/* First-run capture: progressive disclosure, not a wall of fields. */}
+            <ProductForm orgId={currentOrg.id} variant="wizard" />
           </Grid>
         )}
       </Grid>

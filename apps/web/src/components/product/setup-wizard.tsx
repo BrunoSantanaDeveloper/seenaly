@@ -28,11 +28,18 @@ export default function SetupWizard({
   steps,
   onComplete,
   completeLabel = "Finish",
+  backLabel = "Back",
+  continueLabel = "Continue",
+  stepLabel = (current, total) => `Step ${current} of ${total}`,
   className,
 }: {
   steps: WizardStep[];
   onComplete: () => void;
   completeLabel?: string;
+  /** Pass translated strings for these — the defaults are English fallbacks. */
+  backLabel?: string;
+  continueLabel?: string;
+  stepLabel?: (current: number, total: number) => string;
   className?: string;
 }) {
   const [index, setIndex] = useState(0);
@@ -58,7 +65,7 @@ export default function SetupWizard({
 
         <Box className="flex flex-col gap-1">
           <Typography variant="body2" className="text-text-secondary">
-            Step {index + 1} of {steps.length}
+            {stepLabel(index + 1, steps.length)}
           </Typography>
           <Typography variant="h4" component="h2" className="text-text-primary">
             {step.title}
@@ -79,7 +86,7 @@ export default function SetupWizard({
             disabled={index === 0}
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
           >
-            Back
+            {backLabel}
           </Button>
           {isLast ? (
             <Button
@@ -99,7 +106,7 @@ export default function SetupWizard({
               endIcon={<NiArrowRight size="medium" />}
               onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}
             >
-              Continue
+              {continueLabel}
             </Button>
           )}
         </Box>
