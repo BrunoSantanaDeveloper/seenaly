@@ -21,6 +21,7 @@ const nextConfig = {
     "@flyee/documents",
     "@flyee/transcribe",
     "@flyee/whatsapp",
+    "@flyee/onboarding",
   ],
   images: {
     formats: ["image/webp", "image/avif"],

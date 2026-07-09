@@ -1,0 +1,13 @@
+{
+  "name": "@flyee/onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Activation mechanism for onboarding checklists and setup wizards: persists which steps a user completed (step definitions stay in the project). Powers completion-drive UX — the gamification pattern that reliably works.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.0"
+  }
+}

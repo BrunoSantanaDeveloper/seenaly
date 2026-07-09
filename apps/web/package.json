@@ -27,6 +27,7 @@
     "@flyee/email": "*",
     "@flyee/jobs": "*",
     "@flyee/knowledge": "*",
+    "@flyee/onboarding": "*",
     "@flyee/transcribe": "*",
     "@flyee/whatsapp": "*",
     "@gsap/react": "^2.1.2",

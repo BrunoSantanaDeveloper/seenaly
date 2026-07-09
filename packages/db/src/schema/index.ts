@@ -10,3 +10,4 @@ export * from "./audit";
 export * from "./documents";
 export * from "./transcriptions";
 export * from "./whatsapp";
+export * from "./onboarding";
