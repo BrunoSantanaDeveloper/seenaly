@@ -240,18 +240,24 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
 
   // 5. Ground in the knowledge base: official Meta docs (trust 1) + the
   // authored growth playbook (CRO/checkout/offer/creative, per-doc trust).
+  // Retrieved PER COLLECTION: the search RPC ranks by similarity + a trust
+  // bonus ((5 - trust) * 0.03), so the large trust-1 Meta corpus produces
+  // walls of mid-similarity chunks that crowd the trust-4/5 playbook out of
+  // any combined window on platform-vocabulary queries. A per-collection
+  // budget guarantees the brief carries both platform rules and playbook.
   const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
     ?.knowledge;
-  const collectionIds = await resolveCollectionIds(
-    supabase,
-    knowledgeConfig?.collections ?? ["meta-ads-docs", "growth-playbook"],
-  );
-  let excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+  const collectionSlugs = knowledgeConfig?.collections ?? ["meta-ads-docs", "growth-playbook"];
+  const matchCount = knowledgeConfig?.matchCount ?? 8;
+  const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
+  const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
   try {
-    excerpts = await searchKnowledge(supabase, retrievalQuery(product, summary), {
-      collectionIds,
-      matchCount: knowledgeConfig?.matchCount ?? 8,
-    });
+    const query = retrievalQuery(product, summary);
+    for (const slug of collectionSlugs) {
+      const collectionIds = await resolveCollectionIds(supabase, [slug]);
+      if (collectionIds.length === 0) continue;
+      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+    }
   } catch (error) {
     return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
   }

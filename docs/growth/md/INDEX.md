@@ -31,6 +31,13 @@ que acontece **depois do clique** e **antes da campanha** (página, checkout, of
 - [Copy que converte: headline, frameworks e nível de consciência](copy-frameworks-headline.md) (trust 4): A headline carrega a maior parte do peso; frameworks (PAS/AIDA/BAB) são andaimes; e a mensagem precisa casar com o nível de consciência do público (Schwartz). Como diagnosticar copy genérica e o que reescrever primeiro.
 - [Público, segmentação e fit ângulo–mercado](publico-segmentacao-angulo.md) (trust 4): Na entrega por IA da Meta (público amplo/Advantage+) o criativo é a segmentação; a mesma oferta exige ângulos diferentes por segmento. Como não confundir "público errado" com "ângulo errado para este público" e separar fadiga de saturação.
 
+## Arquitetura de funil e escala
+
+- [Tipos de funil e critérios de escolha](tipos-funil-escolha.md) (trust 4): Mapa dos funis de aquisição (página+checkout low ticket, VSL, quiz diagnóstico→low ticket→webinário, webinário, lançamento) e os critérios — ticket, consciência, autoridade, complexidade da promessa — mais a régua de níveis de escala: criativo → oferta → funil.
+- [Funil perpétuo para público frio: teto de ticket e teto de nicho](funil-perpetuo-ticket-frio.md) (trust 5): Heurísticas de praticante BR — ticket ouro ~R$297 para frio (acima exige autoridade e outro funil), VSL pelo tempo de tela, ticket define o mix de pagamento, e o nicho tem teto de faturamento que define o funil inteiro.
+- [Esteira de oferta: order bump, upsell, downsell e recuperação](esteira-upsell-recuperacao.md) (trust 5): O ticket médio é o que desbloqueia escala — order bump/upsell 1-click puxam o AOV, downsell recupera 5–15% das recusas, recuperar upsell rende mais que carrinho abandonado, e PIX/boleto pendente não é abandono.
+- [Teste, validação e escala de campanhas: heurísticas de operação](teste-escala-orcamento.md) (trust 5): O ciclo testar→validar→escalar com papéis separados — régua de validação por criativo, degraus de orçamento lendo o pós-aumento, campanha de escala intocável, duplicação com limite de custo — e os anti-padrões day trade e "esperar otimizar".
+
 ## Mensuração e funil
 
 - [Mensuração de funil: o que medir para o diagnóstico fechar](mensuracao-funil-metricas.md) (trust 4): As métricas mínimas do funil (visitas, checkout iniciado, compra, pagamento pendente, reembolso, receita líquida, margem) e qual taxa separa cada hipótese concorrente — página vs. checkout vs. preço. É o mapa do que o motor pede em `missing_data`.

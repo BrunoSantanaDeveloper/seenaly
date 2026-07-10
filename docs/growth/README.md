@@ -40,6 +40,10 @@ origem: princípios e fatos não são protegidos; a expressão deles é.
    taxonomia de etiquetagem da biblioteca de criativos (pilar 4), creative testing.
    As recomendações **oficiais** da Meta sobre criativos continuam no corpus
    `meta-ads-docs` (trust 1); aqui entra o ofício (craft) que a Meta não documenta.
+5. **Arquitetura de funil e escala** — tipos de funil (VSL, quiz, webinário, lançamento),
+   tetos de ticket/nicho para público frio, esteira (order bump/upsell/downsell/
+   recuperação) e heurísticas de teste→escala. Fortemente baseado em praticantes BR
+   (trust 4–5): sempre com atribuição nominal e nunca apresentado como regra da Meta.
 
 ## Formato dos cards
 

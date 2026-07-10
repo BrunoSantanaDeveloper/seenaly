@@ -76,6 +76,9 @@ Leitura em cascata, camada por camada:
 
 1. **Varie uma camada por vez**, começando pela mais barata: novos ganchos sobre o mesmo
    corpo de vídeo antes de produzir peças novas.
+   Sobre duração: **não existe criativo longo — existe criativo chato** (heurística de
+   praticante BR): longos performam quando sustentam retenção, mas exigem ofício; para
+   quem ainda não validou um longo, formatos curtos (~15–30s) são a aposta mais segura.
 2. **Teste ângulos como hipóteses, não estéticas**: cada ângulo etiquetado ataca uma dor
    ou objeção específica do `product_context`; criativo vencedor confirma a hipótese
    psicológica, não só a peça.

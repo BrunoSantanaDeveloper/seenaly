@@ -74,7 +74,14 @@ Em ordem de alavancagem típica para infoprodutos:
 4. **Reduza tempo e esforço percebidos** — reposicione a entrega em torno do primeiro
    resultado rápido (quick win), não do volume de conteúdo.
 5. Só depois disso considere mexer no preço — e prefira **reancorar** (comparação, parcelamento)
-   a descontar.
+   a descontar (ver [pricing-ancoragem-decisao](pricing-ancoragem-decisao.md)).
+
+Quando o diagnóstico pede **reconstrução** (não ajuste), o processo do próprio Hormozi em
+cinco passos: (1) defina o resultado sonhado como promessa específica; (2) liste **todos**
+os problemas/crenças que impedem o comprador de alcançá-lo; (3) converta cada problema em
+uma solução; (4) faça brainstorm de entregáveis por solução sem filtrar por viabilidade;
+(5) enxugue pela matriz **custo de entrega × valor percebido** — mantenha o barato-de-entregar
+e alto-em-valor-percebido, corte o resto. O stack final nasce das soluções que sobraram.
 
 ## Riscos e limites
 
