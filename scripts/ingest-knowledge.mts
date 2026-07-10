@@ -1,8 +1,10 @@
 /**
- * Bulk-ingest the Meta Ads documentation corpus (docs/meta_ads/md) into the
- * global `meta-ads-docs` knowledge collection at trust level 1.
+ * Bulk-ingest the documentation corpora under docs/ into global knowledge
+ * collections. Each corpus maps a markdown directory to one collection with a
+ * default trust level; individual documents can override it via a `trust:`
+ * frontmatter field.
  *
- * Usage:  npm run knowledge:ingest [-- --dry-run]
+ * Usage:  npm run knowledge:ingest [-- --corpus=<slug>] [-- --dry-run]
  *
  * Requires in apps/web/.env (or the environment):
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
@@ -19,14 +21,38 @@ import { createClient } from "@supabase/supabase-js";
 import { processDocument } from "@flyee/knowledge";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const CORPUS_DIR = path.join(ROOT, "docs", "meta_ads", "md");
-const COLLECTION_SLUG = "meta-ads-docs";
-const COLLECTION_NAME = "Documentação Meta Ads";
-const COLLECTION_DESCRIPTION =
-  "Documentação oficial da Meta (Central de Ajuda, Blueprint, políticas) capturada em docs/meta_ads/ — nível de confiança 1.";
-const TRUST_LEVEL = 1;
+
+interface Corpus {
+  slug: string;
+  name: string;
+  description: string;
+  /** Directory of .md documents, relative to the repo root. */
+  dir: string;
+  /** Trust level applied when a document has no `trust:` frontmatter field. */
+  defaultTrust: 1 | 2 | 3 | 4 | 5;
+}
+
+const CORPORA: Corpus[] = [
+  {
+    slug: "meta-ads-docs",
+    name: "Documentação Meta Ads",
+    description:
+      "Documentação oficial da Meta (Central de Ajuda, Blueprint, políticas) capturada em docs/meta_ads/ — nível de confiança 1.",
+    dir: "docs/meta_ads/md",
+    defaultTrust: 1,
+  },
+  {
+    slug: "growth-playbook",
+    name: "Playbook de Growth (CRO, checkout, oferta)",
+    description:
+      "Corpus autoral em docs/growth/: princípios de CRO, checkout, oferta e funil sintetizados de pesquisa publicada e frameworks de mercado, com atribuição de fontes. Trust por documento (2 = pesquisa quantitativa publicada, 4 = playbook sintetizado).",
+    dir: "docs/growth/md",
+    defaultTrust: 4,
+  },
+];
 
 const DRY_RUN = process.argv.includes("--dry-run");
+const corpusArg = process.argv.find((arg) => arg.startsWith("--corpus="))?.slice("--corpus=".length);
 
 /** Minimal .env loader — never overrides variables already set in the environment. */
 async function loadEnv(file: string) {
@@ -44,12 +70,14 @@ interface Frontmatter {
   description?: string;
   tags: string[];
   related: string[];
+  sources: string[];
   captured?: string;
+  trust?: number;
 }
 
 /** Parses the corpus' flat YAML frontmatter (scalars + inline [a, b] lists). */
 function parseFrontmatter(markdown: string): { front: Frontmatter; body: string } {
-  const front: Frontmatter = { tags: [], related: [] };
+  const front: Frontmatter = { tags: [], related: [], sources: [] };
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(markdown);
   if (!match) return { front, body: markdown };
 
@@ -65,57 +93,52 @@ function parseFrontmatter(markdown: string): { front: Frontmatter; body: string 
         .filter(Boolean);
       if (key === "tags") front.tags = items;
       if (key === "related") front.related = items;
+      if (key === "sources") front.sources = items;
       continue;
     }
     const value = rawValue.replace(/^["']|["']$/g, "").trim();
     if (key === "title") front.title = value;
     if (key === "description") front.description = value;
     if (key === "captured") front.captured = value;
+    if (key === "trust") front.trust = Number(value);
   }
   return { front, body: markdown.slice(match[0].length) };
 }
 
-/** Drops the human-only navigation line; keeps everything else (image alt text is content). */
-function cleanBody(body: string): string {
-  return body.replace(/^\[← Voltar ao índice\]\(INDEX\.md\)\s*/m, "").trim();
+function resolveTrust(front: Frontmatter, corpus: Corpus, file: string): 1 | 2 | 3 | 4 | 5 {
+  if (front.trust === undefined) return corpus.defaultTrust;
+  if (![1, 2, 3, 4, 5].includes(front.trust)) {
+    throw new Error(`${file}: invalid frontmatter trust "${front.trust}" (expected 1-5)`);
+  }
+  return front.trust as 1 | 2 | 3 | 4 | 5;
 }
 
-async function main() {
-  await loadEnv(path.join(ROOT, "apps", "web", ".env"));
+/** Drops the human-only navigation line; keeps everything else (image alt text is content). */
+function cleanBody(body: string): string {
+  return body.replace(/^\[← Voltar[^\]]*\]\(INDEX\.md\)\s*/im, "").trim();
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const missing = [
-    !url && "NEXT_PUBLIC_SUPABASE_URL",
-    !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
-    !process.env.GEMINI_API_KEY && "GEMINI_API_KEY",
-  ].filter(Boolean);
-  if (missing.length > 0 && !DRY_RUN) {
-    console.error(`Missing env vars (apps/web/.env): ${missing.join(", ")}`);
-    console.error("Configure Supabase + Gemini, apply migration 0003_knowledge.sql, then rerun.");
-    process.exit(1);
-  }
-
-  const files = (await readdir(CORPUS_DIR)).filter((file) => file.endsWith(".md") && file !== "INDEX.md").sort();
-  console.log(`${files.length} documents in ${path.relative(ROOT, CORPUS_DIR)}${DRY_RUN ? " (dry run)" : ""}`);
+async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: Corpus) {
+  const corpusDir = path.join(ROOT, corpus.dir);
+  const files = (await readdir(corpusDir)).filter((file) => file.endsWith(".md") && file !== "INDEX.md").sort();
+  console.log(`\n[${corpus.slug}] ${files.length} documents in ${corpus.dir}${DRY_RUN ? " (dry run)" : ""}`);
 
   if (DRY_RUN) {
     for (const file of files) {
-      const { front, body } = parseFrontmatter(await readFile(path.join(CORPUS_DIR, file), "utf8"));
+      const { front, body } = parseFrontmatter(await readFile(path.join(corpusDir, file), "utf8"));
       const title = front.title ?? file.replace(/\.md$/, "");
-      console.log(`- ${file}: "${title}" (${cleanBody(body).length} chars, tags: ${front.tags.join(", ") || "—"})`);
+      const trust = resolveTrust(front, corpus, file);
+      console.log(`- ${file}: "${title}" (trust ${trust}, ${cleanBody(body).length} chars, tags: ${front.tags.join(", ") || "—"})`);
     }
-    return;
+    return { ingested: 0, skipped: 0, failed: 0 };
   }
-
-  const supabase = createClient(url!, serviceKey!, { auth: { persistSession: false } });
 
   // Global collection (org_id null) — service role bypasses RLS.
   const { data: existingCollection, error: collectionError } = await supabase
     .from("knowledge_collections")
     .select("id")
     .is("org_id", null)
-    .eq("slug", COLLECTION_SLUG)
+    .eq("slug", corpus.slug)
     .maybeSingle();
   if (collectionError) throw new Error(`Collection lookup failed: ${collectionError.message}`);
 
@@ -123,12 +146,12 @@ async function main() {
   if (!collectionId) {
     const { data: created, error: createError } = await supabase
       .from("knowledge_collections")
-      .insert({ org_id: null, slug: COLLECTION_SLUG, name: COLLECTION_NAME, description: COLLECTION_DESCRIPTION })
+      .insert({ org_id: null, slug: corpus.slug, name: corpus.name, description: corpus.description })
       .select("id")
       .single();
     if (createError) throw new Error(`Collection creation failed: ${createError.message}`);
-    collectionId = created.id;
-    console.log(`Created global collection "${COLLECTION_SLUG}"`);
+    collectionId = created.id as string;
+    console.log(`Created global collection "${corpus.slug}"`);
   }
 
   let ingested = 0;
@@ -137,20 +160,22 @@ async function main() {
 
   for (const file of files) {
     const slug = file.replace(/\.md$/, "");
-    const { front, body } = parseFrontmatter(await readFile(path.join(CORPUS_DIR, file), "utf8"));
+    const { front, body } = parseFrontmatter(await readFile(path.join(corpusDir, file), "utf8"));
     const content = cleanBody(body);
     const title = front.title ?? slug;
+    const trust = resolveTrust(front, corpus, file);
     const metadata = {
       slug,
       description: front.description ?? null,
       tags: front.tags,
       related: front.related,
+      sources: front.sources,
       captured: front.captured ?? null,
     };
 
     const { data: existing, error: lookupError } = await supabase
       .from("knowledge_documents")
-      .select("id, content, status")
+      .select("id, content, status, trust_level")
       .eq("collection_id", collectionId)
       .eq("metadata->>slug", slug)
       .maybeSingle();
@@ -160,7 +185,7 @@ async function main() {
       continue;
     }
 
-    if (existing && existing.content === content && existing.status === "ready") {
+    if (existing && existing.content === content && existing.trust_level === trust && existing.status === "ready") {
       skipped += 1;
       continue;
     }
@@ -169,7 +194,7 @@ async function main() {
     if (documentId) {
       const { error } = await supabase
         .from("knowledge_documents")
-        .update({ title, content, metadata, trust_level: TRUST_LEVEL, source: `docs/meta_ads/md/${file}`, status: "pending" })
+        .update({ title, content, metadata, trust_level: trust, source: `${corpus.dir}/${file}`, status: "pending" })
         .eq("id", documentId);
       if (error) {
         console.error(`✗ ${file}: update failed — ${error.message}`);
@@ -184,8 +209,8 @@ async function main() {
           title,
           content,
           metadata,
-          trust_level: TRUST_LEVEL,
-          source: `docs/meta_ads/md/${file}`,
+          trust_level: trust,
+          source: `${corpus.dir}/${file}`,
         })
         .select("id")
         .single();
@@ -194,7 +219,7 @@ async function main() {
         failed += 1;
         continue;
       }
-      documentId = created.id;
+      documentId = created.id as string;
     }
 
     const result = await processDocument(supabase, documentId!);
@@ -207,7 +232,44 @@ async function main() {
     }
   }
 
-  console.log(`\nDone: ${ingested} ingested, ${skipped} unchanged, ${failed} failed.`);
+  return { ingested, skipped, failed };
+}
+
+async function main() {
+  await loadEnv(path.join(ROOT, "apps", "web", ".env"));
+
+  const corpora = corpusArg ? CORPORA.filter((corpus) => corpus.slug === corpusArg) : CORPORA;
+  if (corpora.length === 0) {
+    console.error(`Unknown corpus "${corpusArg}". Available: ${CORPORA.map((c) => c.slug).join(", ")}`);
+    process.exit(1);
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const missing = [
+    !url && "NEXT_PUBLIC_SUPABASE_URL",
+    !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
+    !process.env.GEMINI_API_KEY && "GEMINI_API_KEY",
+  ].filter(Boolean);
+  if (missing.length > 0 && !DRY_RUN) {
+    console.error(`Missing env vars (apps/web/.env): ${missing.join(", ")}`);
+    console.error("Configure Supabase + Gemini, apply migration 0003_knowledge.sql, then rerun.");
+    process.exit(1);
+  }
+
+  const supabase = DRY_RUN ? (null as never) : createClient(url!, serviceKey!, { auth: { persistSession: false } });
+
+  let ingested = 0;
+  let skipped = 0;
+  let failed = 0;
+  for (const corpus of corpora) {
+    const result = await ingestCorpus(supabase, corpus);
+    ingested += result.ingested;
+    skipped += result.skipped;
+    failed += result.failed;
+  }
+
+  if (!DRY_RUN) console.log(`\nDone: ${ingested} ingested, ${skipped} unchanged, ${failed} failed.`);
   if (failed > 0) process.exit(1);
 }
 
