@@ -42,7 +42,7 @@ Ads Manager · automação de tráfego pago · dashboard de marketing · ferrame
 
 ## Os cinco pilares + memória
 
-1. **Base de conhecimento Meta Ads** (nível 1): documentação oficial, políticas, cursos Blueprint, glossário, regras de aprendizado, pixel/CAPI, Advantage+, diagnósticos de relevância, limitações da API. O corpus vive em `docs/meta_ads/` (pipeline próprio em `docs/meta_ads/_tools/`) e é ingerido na coleção global `meta-ads-docs` da knowledge base (`scripts/ingest-meta-ads.ts`).
+1. **Base de conhecimento Meta Ads** (nível 1): documentação oficial, políticas, cursos Blueprint, glossário, regras de aprendizado, pixel/CAPI, Advantage+, diagnósticos de relevância, limitações da API. O corpus vive em `docs/meta_ads/` (pipeline próprio em `docs/meta_ads/_tools/`) e é ingerido na coleção global `meta-ads-docs` da knowledge base (`scripts/ingest-knowledge.mts`). Para o conhecimento **fora da Meta** (CRO, checkout, oferta, funil) existe o corpus autoral `docs/growth/` → coleção `growth-playbook`, sintetizado com atribuição de fontes e trust por documento (modelo editorial em `docs/growth/README.md`).
 2. **Camada de dados das campanhas**: sync via Marketing/Ads Insights API por campanha/conjunto/anúncio/criativo/período/posicionamento — gasto, impressões, alcance, frequência, CPM, CTR, CPC, conversões, CPA, valor, ROAS, eventos de pixel/CAPI. Respeitando restrições de compatibilidade entre métricas e breakdowns.
 3. **Camada de funil e vendas reais** (o que a Meta não vê): visitas, taxa de conversão da página, checkout iniciado, compra, Pix/boleto pendente, reembolso, upsell, receita líquida, margem, origem real da venda.
 4. **Biblioteca de criativos etiquetada**: cada criativo com ângulo, promessa, dor, desejo, objeção, formato, gancho, CTA, estilo visual, duração, primeira cena, tipo de prova, emoção, público presumido, etapa do funil e resultado. O objetivo é saber **por que** um criativo performou, não só qual performou.
@@ -53,6 +53,10 @@ Ads Manager · automação de tráfego pago · dashboard de marketing · ferrame
 ## Recorte inicial
 
 **Copiloto especialista em Meta Ads para produtos digitais e ofertas self-service.** Não competir de frente com Madgicx/Smartly/Motion. Foco: leitura da conta Meta Ads, cadastro profundo do produto/oferta, análise de criativos, diagnóstico de gargalo, recomendação com evidências, geração de experimentos, memória do que foi testado, base de conhecimento oficial, saída sempre contextual.
+
+Recorte de funil no lançamento: **páginas e checkout próprios** (desenvolvimento proprietário do cliente), não plataformas de infoproduto. Plataformas como Hotmart/Kiwify/Eduzz entram depois — há público que depende delas — e o corpus `docs/growth/` já reserva o espaço (cards de trust 1 a partir da documentação oficial de cada plataforma quando chegar a hora).
+
+> **Meta Ads é a porta de entrada, não a fronteira do diagnóstico.** A recomendação nunca se limita a operar o Gerenciador de Anúncios. O motor localiza o gargalo **antes do clique** (criativo, gancho, público, promessa do anúncio) ou **depois do clique** (página, oferta, preço, checkout) — usando a decomposição `CPA = CPC ÷ taxa de conversão pós-clique` — e recomenda a mudança onde ela de fato está: na oferta, na página, no checkout, no criativo ou na campanha. Quando o gargalo está fora da plataforma, o motor diz isso com todas as letras, ancora a evidência em `product_context` e **não força** uma regra da documentação da Meta que não se aplica (`technical_basis` fica vazio). O que ele *não enxerga* hoje (visitas, checkout iniciado, reembolso, abandono) ele **pede** via `missing_data` em vez de supor — esses dados chegam na Fase 6.
 
 ### Mercado (benchmarks, não concorrentes diretos)
 
@@ -72,11 +76,11 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 
 | Fase | Entrega | Status |
 |---|---|---|
-| 0 | Base de conhecimento: corpus `docs/meta_ads/` + ingestão em `meta-ads-docs` (trust 1) | corpus e script prontos; ingestão pendente de env (Supabase + `GEMINI_API_KEY`) |
+| 0 | Base de conhecimento: corpus `docs/meta_ads/` + ingestão em `meta-ads-docs` (trust 1) | **concluída** — 108 documentos / 424 chunks ingeridos; busca semântica verificada (`gemini-embedding-001`, 768 dims) |
 | 1 | Conector Meta Ads: schema `meta_*` (`0009`), cliente Graph API, sync incremental + cron, gate de assinatura. **Opcional para o usuário** (enriquecimento, não portão) | núcleo implementado (trilha A: system-user token); falta validar com token real, OAuth/app review (trilha B) e tela de conferência |
 | 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado (`SetupWizard`) | schema + UI prontos |
 | 2.5 | **Home do Seenaly** (`/home`, o `appRoot` pós-login): tela goal-first que responde "o que faço agora?" — checklist de ativação, saúde do contexto do produto, estado dos dados da Meta e o destino (diagnóstico). Substitui o dashboard demo do template como landing | em andamento |
-| 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | — |
+| 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | **implementado** (Gemini `gemini-2.5-flash`, nível de produto, 5 créditos); migration `0012` pendente de aplicação |
 | 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | — |
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | — |
 | 6 | Camada de funil/vendas reais | — |

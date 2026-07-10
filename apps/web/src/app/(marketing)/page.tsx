@@ -78,11 +78,16 @@ export default async function Home() {
 
       <LogoCloud label={t("logos-label")} items={[1, 2, 3, 4, 5].map((index) => ({ name: t(`logo-${index}`) }))} />
 
+      {/* Proof band. Each number takes its family hue (premium bar item 7) —
+          the read-only guarantee ("0 alterações") belongs to the diagnosis
+          family, same as the bento cell that states the principle. */}
       <StatBand
-        stats={[1, 2, 3, 4].map((index) => ({
-          value: t(`stat-${index}-value`),
-          label: t(`stat-${index}-label`),
-        }))}
+        stats={[
+          { value: t("stat-1-value"), label: t("stat-1-label"), tone: FAMILY.diagnosis },
+          { value: t("stat-2-value"), label: t("stat-2-label"), tone: FAMILY.connection },
+          { value: t("stat-3-value"), label: t("stat-3-label"), tone: FAMILY.intelligence },
+          { value: t("stat-4-value"), label: t("stat-4-label"), tone: FAMILY.diagnosis },
+        ]}
       />
 
       {/* How the daily diagnosis works — the flow, scannable by icon + deliverable.

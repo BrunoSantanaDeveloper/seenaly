@@ -249,16 +249,27 @@ export default function HomePage() {
                 <span className="bg-primary/10 text-primary flex h-12 w-12 flex-none items-center justify-center rounded-2xl">
                   <NiPulse size="medium" />
                 </span>
-                <Box className="flex flex-col gap-1">
+                <Box className="flex flex-col items-start gap-1">
                   <Typography variant="h5" component="h2" className="card-title">
                     {t("diagnosis-title")}
                   </Typography>
                   <Typography variant="body1" className="text-text-secondary max-w-3xl leading-6">
                     {t("diagnosis-body")}
                   </Typography>
-                  <Typography variant="body2" className="text-text-secondary mt-1 italic">
-                    {t("diagnosis-soon")}
-                  </Typography>
+                  <Button
+                    variant="contained"
+                    className="mt-3"
+                    LinkComponent={Link}
+                    href="/diagnosis"
+                    disabled={!product}
+                  >
+                    {t("diagnosis-cta")}
+                  </Button>
+                  {!product && (
+                    <Typography variant="body2" className="text-text-secondary mt-1">
+                      {t("diagnosis-needs-product")}
+                    </Typography>
+                  )}
                 </Box>
               </CardContent>
             </Card>

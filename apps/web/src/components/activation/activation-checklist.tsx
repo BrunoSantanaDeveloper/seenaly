@@ -22,6 +22,7 @@ interface LiveState {
   hasProduct: boolean;
   hasDepth: boolean;
   hasMetaConnection: boolean;
+  hasDiagnosis: boolean;
 }
 
 /**
@@ -32,6 +33,12 @@ interface LiveState {
  * Maturity-spectrum invariant (docs/PRODUCT.md #6): connecting Meta Ads is
  * `required: false` — it enriches the diagnosis, it never gates value. The
  * required path is context -> diagnosis, which a zero-data beginner can walk.
+ *
+ * This intentionally supersedes the template's generic onboarding scaffold
+ * (`@/lib/onboarding` + OnboardingChecklistCard): that one is user-scoped and
+ * click-based, whereas Seenaly's activation is org-scoped and reflects real
+ * state. `ONBOARDING_STEPS` is kept empty so the two never both render — see
+ * the note in `@/lib/onboarding`.
  */
 export default function ActivationChecklist({ orgId, userId }: { orgId: string; userId: string }) {
   const t = useTranslations("activation");
@@ -42,7 +49,7 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [persisted, { data: products }, { data: connections }] = await Promise.all([
+    const [persisted, { data: products }, { data: connections }, { count: diagnoses }] = await Promise.all([
       getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
       supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
       supabase
@@ -51,6 +58,7 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
         .eq("org_id", orgId)
         .eq("provider", "meta-ads")
         .eq("status", "connected"),
+      supabase.from("diagnoses").select("id", { count: "exact", head: true }).eq("org_id", orgId),
     ]);
     setState(persisted);
     setLive({
@@ -58,6 +66,8 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       // "Enough context to reason with": a promise and a CAC guardrail.
       hasDepth: (products ?? []).some((p) => p.main_promise && p.target_cac !== null),
       hasMetaConnection: (connections ?? []).length > 0,
+      // The activation moment: the org has received a real diagnosis.
+      hasDiagnosis: (diagnoses ?? 0) > 0,
     });
   }, [orgId, userId]);
 
@@ -83,8 +93,8 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       // Never a prerequisite for value — only an enrichment.
       required: false,
     },
-    // Becomes actionable when the diagnostic engine ships (roadmap phase 3).
-    { key: "first-diagnosis", title: t("step-diagnosis"), done: false },
+    // The activation moment (completed_at is stamped once every required step is done).
+    { key: "first-diagnosis", title: t("step-diagnosis"), href: "/diagnosis", done: live.hasDiagnosis },
   ];
 
   // Decide visibility here (same rule as OnboardingChecklist) so callers never

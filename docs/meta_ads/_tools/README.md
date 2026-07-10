@@ -29,7 +29,7 @@ python _tools/verify.py        # prova que nenhum texto foi perdido (deve termin
 # adicionar entrada do novo arquivo em _tools/metadata.json (description, tags, related)
 # adicionar o stem ao grupo adequado em _tools/build_index.py
 python _tools/build_index.py   # regenera md/INDEX.md
-npm run knowledge:ingest       # (raiz do repo) ingere md/ na knowledge base (coleção meta-ads-docs, trust 1)
+npm run knowledge:ingest -- --corpus=meta-ads-docs  # (raiz do repo) ingere md/ na knowledge base (trust 1)
 ```
 
 Ou simplesmente peça à IA: "processe os novos arquivos de docs/meta_ads" — ela roda o

@@ -6,15 +6,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Onboarding declaration point for THIS project (the template ships none —
  * see packages/onboarding/README.md and the `product-screen` skill).
  *
- * Fill ONBOARDING_STEPS with the few steps that take a brand-new user to
- * their first real result. Everything degrades gracefully while it is
- * empty: post-auth lands on the app root and no checklist is rendered.
- *
- * Example:
- *   export const ONBOARDING_STEPS: OnboardingStep[] = [
- *     { key: "connect-source", title: "Connect your data source", href: "/settings/connections" },
- *     { key: "first-report", title: "Open your first report", href: "/reports" },
- *   ];
+ * SEENALY CHOICE — keep ONBOARDING_STEPS EMPTY on purpose. Seenaly's
+ * activation is org-scoped and state-driven (does the org have product
+ * context? a Meta connection?), which the template's static, user-scoped
+ * ONBOARDING_STEPS can't express. So the real activation surface is
+ * `components/activation/activation-checklist.tsx` (flow "activation",
+ * org-scoped, live done-predicates, i18n), rendered on `/home` and
+ * `/products`. Leaving this empty makes `resolvePostAuthDestination` send new
+ * users straight to the app root (`/home`), where that checklist greets them.
+ * Do NOT fill this array — it would spin up a second, inferior checklist
+ * (user-scoped, click-based) via the template's OnboardingChecklistCard.
  */
 export const ONBOARDING_FLOW = "user-activation";
 

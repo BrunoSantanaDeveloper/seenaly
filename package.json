@@ -14,7 +14,7 @@
     "lint:fix": "npm run lint:fix -w @flyee/web",
     "prettier": "npm run prettier -w @flyee/web",
     "tokens:generate": "npm run generate -w @flyee/design-tokens",
-    "knowledge:ingest": "tsx scripts/ingest-meta-ads.mts",
+    "knowledge:ingest": "tsx scripts/ingest-knowledge.mts",
     "prepare": "husky",
     "pre-commit": "lint-staged",
     "typecheck": "npm run typecheck -w @flyee/web"

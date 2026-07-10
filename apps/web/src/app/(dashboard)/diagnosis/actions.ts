@@ -1,0 +1,326 @@
+"use server";
+
+import { mapProductRow } from "../products/lib/map";
+import type { ProductWithChildren } from "../products/types";
+
+import { DIAGNOSIS_JSON_SCHEMA, DIAGNOSIS_SCHEMA_NAME, isDiagnosisOutput } from "@/lib/diagnosis/schema";
+import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
+import { createClient } from "@flyee/auth/server";
+import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
+
+export type GenerateResult = { ok: true; id: string } | { ok: false; error: string };
+
+const ASSISTANT_SLUG = "diagnosis-engine";
+/** Trailing window summarized for the engine when campaign data exists. */
+const CAMPAIGN_WINDOW_DAYS = 30;
+/** Guard against pulling an unbounded ad x day result set into memory. */
+const MAX_INSIGHT_ROWS = 5000;
+
+interface CampaignSummary {
+  windowStart: string;
+  windowEnd: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  linkClicks: number;
+  purchases: number;
+  purchaseValue: number;
+  ctr: number | null;
+  cpc: number | null;
+  cpa: number | null;
+  roas: number | null;
+  frequency: number | null;
+  adsWithSpend: number;
+}
+
+const shiftDays = (days: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Aggregate the trailing window of ad x day insights for the product's
+ * connection. Returns null when there is no connection or no rows — the
+ * cold-start path, which is a valid diagnosis input, not an error.
+ */
+async function summarizeCampaignData(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  connectionId: string,
+): Promise<CampaignSummary | null> {
+  const windowStart = shiftDays(-CAMPAIGN_WINDOW_DAYS);
+  const windowEnd = shiftDays(0);
+
+  const { data } = await supabase
+    .from("meta_insights_daily")
+    .select("spend, impressions, clicks, inline_link_clicks, purchases, purchase_value, frequency, ad_id")
+    .eq("connection_id", connectionId)
+    .gte("date", windowStart)
+    .lte("date", windowEnd)
+    .limit(MAX_INSIGHT_ROWS);
+
+  if (!data?.length) return null;
+
+  const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
+  const adsWithSpend = new Set<string>();
+  let spend = 0,
+    impressions = 0,
+    clicks = 0,
+    linkClicks = 0,
+    purchases = 0,
+    purchaseValue = 0,
+    frequencySum = 0,
+    frequencyCount = 0;
+
+  for (const row of data) {
+    const rowSpend = num(row.spend);
+    spend += rowSpend;
+    impressions += num(row.impressions);
+    clicks += num(row.clicks);
+    linkClicks += num(row.inline_link_clicks);
+    purchases += num(row.purchases);
+    purchaseValue += num(row.purchase_value);
+    if (row.frequency !== null && row.frequency !== undefined) {
+      frequencySum += num(row.frequency);
+      frequencyCount += 1;
+    }
+    if (rowSpend > 0 && row.ad_id) adsWithSpend.add(String(row.ad_id));
+  }
+
+  return {
+    windowStart,
+    windowEnd,
+    spend,
+    impressions,
+    clicks,
+    linkClicks,
+    purchases,
+    purchaseValue,
+    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
+    cpc: clicks > 0 ? spend / clicks : null,
+    cpa: purchases > 0 ? spend / purchases : null,
+    roas: spend > 0 ? purchaseValue / spend : null,
+    frequency: frequencyCount > 0 ? frequencySum / frequencyCount : null,
+    adsWithSpend: adsWithSpend.size,
+  };
+}
+
+const line = (label: string, value: unknown): string | null =>
+  value === null || value === undefined || value === "" ? null : `- ${label}: ${value}`;
+
+/** The product context block — always present, the heart of every diagnosis. */
+function productContextBlock(product: ProductWithChildren): string {
+  const rows = [
+    line("Produto", product.name),
+    line("Descrição", product.description),
+    line("Moeda", product.currency),
+    line("Preço", product.price),
+    line("Custo unitário", product.unitCost),
+    line("Margem (%)", product.marginPct),
+    line("Ticket médio", product.avgTicket),
+    line("LTV", product.ltv),
+    line("CAC máximo aceitável", product.targetCac),
+    line("Orçamento mensal", product.monthlyBudget),
+    line("Tipo de conversão desejada", product.conversionType),
+    line("Etapa do funil", product.funnelStage),
+    line("Público-alvo", product.audience),
+    line("Promessa principal", product.mainPromise),
+    line("Página de destino", product.landingPageUrl),
+    line("Taxa de conversão da página (%)", product.landingConversionRate),
+    line("Evento de otimização", product.optimizationEvent),
+    line("Observações", product.notes),
+  ].filter(Boolean);
+
+  if (product.objections.length > 0) {
+    rows.push(`- Objeções: ${product.objections.join("; ")}`);
+  }
+  if (product.proofs.length > 0) {
+    rows.push(
+      `- Provas disponíveis: ${product.proofs.map((p) => (p.kind ? `${p.kind}: ${p.content}` : p.content)).join("; ")}`,
+    );
+  }
+  return rows.join("\n");
+}
+
+function campaignBlock(summary: CampaignSummary | null): string {
+  if (!summary) {
+    return [
+      "NÃO HÁ DADOS DE CAMPANHA.",
+      "Nenhuma conta Meta conectada, ou nenhum dado sincronizado ainda.",
+      "Isto NÃO impede o diagnóstico: oriente a partir do passo 0 usando o contexto do produto e a documentação oficial.",
+      "Marque insufficient_data=true e explique qual volume mínimo buscar antes de concluir qualquer coisa.",
+    ].join("\n");
+  }
+  const round = (v: number | null, digits = 2) => (v === null ? "n/d" : v.toFixed(digits));
+  return [
+    `Janela: ${summary.windowStart} a ${summary.windowEnd} (últimos ${CAMPAIGN_WINDOW_DAYS} dias)`,
+    `- Anúncios com veiculação: ${summary.adsWithSpend}`,
+    `- Gasto: ${round(summary.spend)}`,
+    `- Impressões: ${summary.impressions}`,
+    `- Cliques: ${summary.clicks} (cliques no link: ${summary.linkClicks})`,
+    `- CTR: ${round(summary.ctr)}%`,
+    `- CPC: ${round(summary.cpc)}`,
+    `- Frequência média: ${round(summary.frequency)}`,
+    `- Compras: ${summary.purchases}`,
+    `- Valor de conversão: ${round(summary.purchaseValue)}`,
+    `- CPA: ${round(summary.cpa)}`,
+    `- ROAS: ${round(summary.roas)}`,
+  ].join("\n");
+}
+
+/**
+ * What we ask the knowledge base, shaped by whether campaign data exists.
+ * Deliberately spans BOTH sides of the click: pre-click signals (creative,
+ * hook, audience) and post-click ones (conversion rate ranking, optimization
+ * event, pixel/CAPI), because the bottleneck is often not in the ads manager.
+ */
+function retrievalQuery(product: ProductWithChildren, summary: CampaignSummary | null): string {
+  const base = [product.conversionType, product.funnelStage, product.optimizationEvent].filter(Boolean).join(" ");
+  const postClick =
+    "taxa de conversão pós-clique, conversion rate ranking, qualidade da página de destino, evento de otimização correto, pixel e API de Conversões";
+  return summary
+    ? `diagnóstico de gargalo em campanha de ${base}: fase de aprendizado, fadiga de criativo, CTR CPC e CPA, estratégia de lance, diagnóstico de relevância (quality, engagement, conversion rate ranking), ${postClick}`
+    : `como estruturar a primeira campanha de ${base}: qual evento de otimização escolher, fase de aprendizado e volume mínimo de eventos, estrutura de conta, diversificação de criativo, ${postClick}`;
+}
+
+/**
+ * Generate one structured diagnosis for a product.
+ *
+ * Degrades gracefully across the maturity spectrum (docs/PRODUCT.md #6):
+ * product context and official Meta docs always ground the answer; campaign
+ * data enriches it when a connection has synced. A beginner with zero
+ * campaigns gets cold-start guidance, not an error.
+ */
+export async function generateDiagnosis(productId: string): Promise<GenerateResult> {
+  const supabase = await createClient();
+
+  // 1. Product context (RLS scopes this to the caller's orgs).
+  const [{ data: row }, { data: objections }, { data: proofs }] = await Promise.all([
+    supabase.from("products").select("*").eq("id", productId).maybeSingle(),
+    supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
+    supabase.from("product_proofs").select("kind, content").eq("product_id", productId).order("created_at"),
+  ]);
+  if (!row) return { ok: false, error: "Produto não encontrado." };
+  const product = mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [] });
+
+  // 2. SaaS gate: active subscription, then debit credits (same rule as the chat route).
+  const { data: entitlements, error: entitlementsError } = await supabase.rpc("org_entitlements", {
+    target_org: product.orgId,
+  });
+  if (entitlementsError) return { ok: false, error: entitlementsError.message };
+  if (!entitlements?.active) {
+    return {
+      ok: false,
+      error: entitlements?.suspended
+        ? "Assinatura suspensa — fale com o suporte."
+        : "Nenhuma assinatura ativa para esta organização.",
+    };
+  }
+
+  // 3. The engine is an editable assistant row (instructions tuned in /admin/ai).
+  const { data: assistant } = await supabase
+    .from("assistants")
+    .select("slug, provider, model, system_prompt, temperature, max_tokens, credits_per_message, config")
+    .eq("slug", ASSISTANT_SLUG)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!assistant) return { ok: false, error: `Assistente "${ASSISTANT_SLUG}" não encontrado ou inativo.` };
+
+  if (assistant.credits_per_message > 0) {
+    const { error: creditError } = await supabase.rpc("consume_credits", {
+      target_org: product.orgId,
+      amount: assistant.credits_per_message,
+      reason: `Diagnóstico — ${product.name}`,
+    });
+    if (creditError) return { ok: false, error: "Créditos insuficientes para gerar um diagnóstico." };
+  }
+
+  // 4. Campaign data, when the product is bridged to a synced connection.
+  const summary = product.connectionId ? await summarizeCampaignData(supabase, product.connectionId) : null;
+
+  // 5. Ground in the knowledge base: official Meta docs (trust 1) + the
+  // authored growth playbook (CRO/checkout/offer/creative, per-doc trust).
+  const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
+    ?.knowledge;
+  const collectionIds = await resolveCollectionIds(
+    supabase,
+    knowledgeConfig?.collections ?? ["meta-ads-docs", "growth-playbook"],
+  );
+  let excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+  try {
+    excerpts = await searchKnowledge(supabase, retrievalQuery(product, summary), {
+      collectionIds,
+      matchCount: knowledgeConfig?.matchCount ?? 8,
+    });
+  } catch (error) {
+    return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
+  }
+
+  // 6. The brief.
+  const brief = [
+    "## Contexto do produto",
+    productContextBlock(product),
+    "",
+    "## Dados de campanha",
+    campaignBlock(summary),
+    buildKnowledgeContext(excerpts),
+    "",
+    "## Tarefa",
+    "Diagnostique o gargalo mais provável desta oferta e proponha o próximo experimento.",
+    "Ancore cada evidência em product_context, campaign_data, meta_docs ou growth_playbook. Nunca invente números.",
+  ].join("\n");
+
+  const config: AssistantConfig = {
+    provider: assistant.provider as AiProviderName,
+    model: assistant.model,
+    systemPrompt: assistant.system_prompt,
+    temperature: Number(assistant.temperature),
+    maxTokens: assistant.max_tokens,
+  };
+
+  let output: unknown;
+  try {
+    output = await getChatProvider(config.provider).generateStructured(config, [{ role: "user", content: brief }], {
+      name: DIAGNOSIS_SCHEMA_NAME,
+      description: "Diagnóstico estruturado no formato fixo do Seenaly.",
+      schema: DIAGNOSIS_JSON_SCHEMA,
+    });
+  } catch (error) {
+    return { ok: false, error: `O motor falhou ao gerar o diagnóstico: ${(error as Error).message}` };
+  }
+
+  if (!isDiagnosisOutput(output)) {
+    return { ok: false, error: "O motor devolveu um diagnóstico fora do formato exigido." };
+  }
+
+  // 7. Persist — a diagnosis you cannot revisit teaches nothing (phase 5 seed).
+  const { data: user } = await supabase.auth.getUser();
+  const { data: created, error: insertError } = await supabase
+    .from("diagnoses")
+    .insert({
+      org_id: product.orgId,
+      product_id: product.id,
+      connection_id: product.connectionId,
+      scope: "product",
+      assistant_slug: assistant.slug,
+      model: assistant.model,
+      output,
+      confidence: output.confidence,
+      insufficient_data: output.insufficient_data,
+      had_campaign_data: Boolean(summary),
+      data_window_start: summary?.windowStart ?? null,
+      data_window_end: summary?.windowEnd ?? null,
+      knowledge_refs: excerpts.map((excerpt) => ({
+        title: excerpt.title,
+        source: excerpt.source,
+        trust_level: excerpt.trust_level,
+        similarity: excerpt.similarity,
+      })),
+      created_by: user.user?.id ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) return { ok: false, error: insertError?.message ?? "Falha ao salvar o diagnóstico." };
+
+  return { ok: true, id: created.id };
+}
