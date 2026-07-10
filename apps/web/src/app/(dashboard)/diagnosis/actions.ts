@@ -15,6 +15,19 @@ const ASSISTANT_SLUG = "diagnosis-engine";
 const CAMPAIGN_WINDOW_DAYS = 30;
 /** Guard against pulling an unbounded ad x day result set into memory. */
 const MAX_INSIGHT_ROWS = 5000;
+/** Most recent tagged creatives summarized for the engine. */
+const MAX_CREATIVES = 20;
+
+interface CreativeSummaryRow {
+  name: string;
+  status: string;
+  format: string | null;
+  angle: string | null;
+  hook: string | null;
+  proof_type: string | null;
+  emotion: string | null;
+  result_summary: string | null;
+}
 
 interface CampaignSummary {
   windowStart: string;
@@ -169,6 +182,31 @@ function campaignBlock(summary: CampaignSummary | null): string {
 }
 
 /**
+ * The tagged creative library (pillar 4) — lets the engine reason about WHY
+ * winners won and spot patterns, instead of "test new angles" in the abstract.
+ */
+function creativesBlock(creatives: CreativeSummaryRow[]): string {
+  if (creatives.length === 0) {
+    return "Nenhum criativo cadastrado na biblioteca. Se recomendar criativos, oriente a etiquetar (gancho, ângulo, prova) desde o primeiro teste para virar aprendizado reutilizável.";
+  }
+  return creatives
+    .map((c) => {
+      const tags = [
+        c.format && `formato ${c.format}`,
+        c.angle && `ângulo: ${c.angle}`,
+        c.hook && `gancho: ${c.hook}`,
+        c.proof_type && `prova: ${c.proof_type}`,
+        c.emotion && `emoção: ${c.emotion}`,
+        c.result_summary && `resultado: ${c.result_summary}`,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      return `- [${c.status}] ${c.name}${tags ? ` — ${tags}` : ""}`;
+    })
+    .join("\n");
+}
+
+/**
  * What we ask the knowledge base, shaped by whether campaign data exists.
  * Deliberately spans BOTH sides of the click: pre-click signals (creative,
  * hook, audience) and post-click ones (conversion rate ranking, optimization
@@ -194,11 +232,18 @@ function retrievalQuery(product: ProductWithChildren, summary: CampaignSummary |
 export async function generateDiagnosis(productId: string): Promise<GenerateResult> {
   const supabase = await createClient();
 
-  // 1. Product context (RLS scopes this to the caller's orgs).
-  const [{ data: row }, { data: objections }, { data: proofs }] = await Promise.all([
+  // 1. Product context + tagged creative library (RLS scopes to the caller's orgs).
+  const [{ data: row }, { data: objections }, { data: proofs }, { data: creativeRows }] = await Promise.all([
     supabase.from("products").select("*").eq("id", productId).maybeSingle(),
     supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
     supabase.from("product_proofs").select("kind, content").eq("product_id", productId).order("created_at"),
+    supabase
+      .from("creatives")
+      .select("name, status, format, angle, hook, proof_type, emotion, result_summary")
+      .eq("product_id", productId)
+      .neq("status", "archived")
+      .order("updated_at", { ascending: false })
+      .limit(MAX_CREATIVES),
   ]);
   if (!row) return { ok: false, error: "Produto não encontrado." };
   const product = mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [] });
@@ -266,6 +311,9 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
   const brief = [
     "## Contexto do produto",
     productContextBlock(product),
+    "",
+    "## Biblioteca de criativos",
+    creativesBlock((creativeRows as CreativeSummaryRow[]) ?? []),
     "",
     "## Dados de campanha",
     campaignBlock(summary),

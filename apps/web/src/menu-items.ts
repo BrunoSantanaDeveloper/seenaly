@@ -78,6 +78,14 @@ export const leftMenuItems: MenuItem[] = [
     href: "/products",
   },
   {
+    id: "creatives",
+    icon: "NiCamera",
+    label: "menu-creatives",
+    description: "menu-creatives-description",
+    color: "text-primary",
+    href: "/creatives",
+  },
+  {
     id: "diagnosis",
     icon: "NiPulse",
     label: "menu-diagnosis",

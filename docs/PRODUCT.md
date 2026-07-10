@@ -81,7 +81,7 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 | 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado (`SetupWizard`) | schema + UI prontos |
 | 2.5 | **Home do Seenaly** (`/home`, o `appRoot` pós-login): tela goal-first que responde "o que faço agora?" — checklist de ativação, saúde do contexto do produto, estado dos dados da Meta e o destino (diagnóstico). Substitui o dashboard demo do template como landing | em andamento |
 | 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | **implementado** (Gemini `gemini-2.5-flash`, nível de produto, 5 créditos); migration `0012` pendente de aplicação |
-| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | — |
+| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | **biblioteca implementada** (migration `0013`, UI `/creatives` agrupada por etapa do teste, taxonomia gancho/ângulo/prova, integrada ao briefing do diagnóstico); análise tag×performance com dados Meta pendente |
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | — |
 | 6 | Camada de funil/vendas reais | — |
 
