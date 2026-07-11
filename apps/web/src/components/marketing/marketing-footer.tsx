@@ -19,6 +19,8 @@ const COLUMNS = [
     links: [
       { key: "nav-about", href: "/about" },
       { key: "nav-contact", href: "/contact" },
+      { key: "footer-help", href: "/help" },
+      { key: "footer-blog", href: "/blog" },
     ],
   },
   {

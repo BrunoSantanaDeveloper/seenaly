@@ -56,7 +56,9 @@ function lint(filePath, content) {
     if (TW_DEFAULT_PALETTE.test(line))
       violations.push(`[raw-color] ${at}: Tailwind default-palette class — use the token classes (primary/secondary/accent-1..4/grey-*).`);
     const arb = line.match(ARBITRARY_UTILITY);
-    if (arb && !ARBITRARY_ALLOWED.test(arb[1]))
+    // Any arbitrary value that RESOLVES THROUGH A TOKEN — bg-[hsl(var(--vg)/0.2)],
+    // w-[calc(var(--x)*2)] — is the sanctioned escape hatch, not a bypass.
+    if (arb && !ARBITRARY_ALLOWED.test(arb[1]) && !arb[1].includes("var(--"))
       violations.push(`[arbitrary-value] ${at}: "${arb[0].trim()}" — spacing/size/type come from the marketing tokens or the fluid display scale (text-display-*), never per-page arbitrary values.`);
     if (ICON_LIB_IMPORT.test(line))
       violations.push(`[icon-import] ${at}: direct icon-library import — marketing imports icons only via @/icons/nexture/ni-* (see .claude/rules/icons.md).`);

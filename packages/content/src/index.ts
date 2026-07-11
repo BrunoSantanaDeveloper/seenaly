@@ -15,4 +15,15 @@ export const BRAND = {
     light: "/favicon/light.png",
     dark: "/favicon/dark.png",
   },
+  /**
+   * Quick-support channels for the floating widget (web marketing +
+   * dashboard). Leave a channel empty ("") to hide it; leave all empty
+   * and the widget renders nothing. whatsapp is digits only, with the
+   * country code (e.g. "5511999999999" → wa.me deep link).
+   */
+  support: {
+    whatsapp: "",
+    email: "",
+    helpCenter: "/help",
+  },
 } as const;

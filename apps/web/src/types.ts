@@ -29,6 +29,8 @@ export type MenuItem = {
   canAccess?: Viewer[];
   isExternalLink?: boolean;
   content?: React.ReactNode;
+  /** Rendered only for platform superadmins (see useIsSuperadmin). */
+  superadminOnly?: boolean;
 };
 
 export enum ContentType {

@@ -1,10 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
-import TabContext from "@mui/lab/TabContext";
-import TabList from "@mui/lab/TabList";
-import TabPanel from "@mui/lab/TabPanel";
 import {
   Avatar,
   Badge,
@@ -12,7 +12,6 @@ import {
   Button,
   Card,
   CardActions,
-  Chip,
   ClickAwayListener,
   Fade,
   List,
@@ -20,264 +19,129 @@ import {
   ListItemAvatar,
   ListItemButton,
   ListItemText,
-  Menu,
-  MenuItem,
-  MenuList,
-  PopoverVirtualElement,
   Popper,
-  Tab,
   Tooltip,
   Typography,
 } from "@mui/material";
 
 import NiBell from "@/icons/nexture/ni-bell";
 import NiBellInactive from "@/icons/nexture/ni-bell-inactive";
-import NiEllipsisHorizontal from "@/icons/nexture/ni-ellipsis-horizontal";
+import NiMoney from "@/icons/nexture/ni-money";
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiSettings from "@/icons/nexture/ni-settings";
-import NiStructure from "@/icons/nexture/ni-structure";
 import NiUsers from "@/icons/nexture/ni-users";
-import NextureIcons, { IconName } from "@/icons/nexture-icons";
 import { cn } from "@/lib/utils";
+import { isSupabaseConfigured } from "@flyee/auth";
+import { createClient } from "@flyee/auth/client";
 
-type ChipData = {
+type NotificationRow = {
   id: string;
-  label?: string;
-  image?: string;
+  type: string;
+  title: string;
+  body: string | null;
+  href: string | null;
+  readAt: string | null;
+  createdAt: string;
 };
 
-type ActionData = {
-  id: string;
-  label?: string;
-  type?: "positive" | "negative";
+/** Icon + tint per notification family; projects extend the map. */
+const TYPE_STYLE: Record<string, { icon: React.ReactNode; className: string }> = {
+  system: { icon: <NiScreen size="medium" />, className: "bg-accent-1-light/10 text-accent-1" },
+  team: { icon: <NiUsers size="medium" />, className: "bg-accent-2-light/10 text-accent-2" },
+  billing: { icon: <NiMoney size="medium" />, className: "bg-accent-3-light/10 text-accent-3" },
 };
+const DEFAULT_STYLE = { icon: <NiBell size="medium" />, className: "bg-primary/10 text-primary" };
 
-type NotificationData = {
-  id: string;
-  labelBold: string;
-  labelRegular: string;
-  type: "system" | "user";
-  avatarImage?: string;
-  avatarIcon?: string;
-  avatarColorMain?: string;
-  avatarColorBackground?: string;
-  chips?: ChipData[];
-  actions?: ActionData[];
-  href?: string;
-  time: string;
-  temporaryUnread: boolean;
-  markedUnread: boolean;
-};
+function timeAgo(iso: string, locale: string) {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  if (seconds < 60) return format.format(-seconds, "second");
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return format.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return format.format(-hours, "hour");
+  const days = Math.round(hours / 24);
+  if (days < 30) return format.format(-days, "day");
+  return new Date(iso).toLocaleDateString(locale);
+}
 
+/**
+ * Header bell backed by the notifications table (migration 0012). Rows are
+ * created by server code (lib/notifications.ts) or DB triggers; here the
+ * user reads them, opens their destination and marks them read.
+ */
 export default function Notifications() {
-  const [notificationData, setNotificationData] = useState<NotificationData[]>([
-    {
-      id: "100",
-      labelBold: "Laura Ellis",
-      labelRegular: "added a product with an image.",
-      type: "user",
-      time: "2 minutes ago",
-      href: "/pages/ecommerce/product-detail",
-      avatarImage: "/images/avatars/avatar-1.jpg",
-      temporaryUnread: true,
-      markedUnread: false,
-      chips: [{ label: "product-1.jpg", image: "/images/products/product-1.jpg", id: "1001" }],
-    },
-    {
-      id: "101",
-      labelBold: "Zoila Vittorino",
-      labelRegular: "added an issue.",
-      type: "user",
-      time: "14 minutes ago",
-      href: "/pages/support/issue-detail",
-      avatarImage: "/images/avatars/avatar-2.jpg",
-      temporaryUnread: true,
-      markedUnread: false,
-      chips: [
-        { label: "Products", id: "1011" },
-        { label: "Electronics", id: "1012" },
-      ],
-    },
-    {
-      id: "102",
-      labelBold: "Travis Howard",
-      labelRegular: "requested editor access.",
-      type: "user",
-      time: "20 minutes ago",
-      avatarImage: "/images/avatars/avatar-3.jpg",
-      temporaryUnread: false,
-      markedUnread: false,
-      actions: [
-        { type: "positive", id: "1021", label: "Approve" },
-        { type: "negative", id: "1022", label: "Decline" },
-      ],
-    },
-    {
-      id: "103",
-      labelBold: "Cindy Baker",
-      labelRegular: "added a post.",
-      type: "user",
-      time: "2 hours ago",
-      href: "/pages/user/social",
-      avatarImage: "/images/avatars/avatar-4.jpg",
-      temporaryUnread: false,
-      markedUnread: false,
-    },
-    {
-      id: "104",
-      labelBold: "New Version!",
-      labelRegular: "Introducing v2 with lots of new features.",
-      type: "system",
-      time: "4 hours ago",
-      href: "/pages/miscellaneous/article",
-      avatarColorBackground: "bg-accent-3-light/10",
-      avatarColorMain: "text-accent-3",
-      avatarIcon: "NiFire",
-      temporaryUnread: false,
-      markedUnread: false,
-    },
-    {
-      id: "105",
-      labelBold: "Tip:",
-      labelRegular: "Something is wrong? Create an issue.",
-      type: "system",
-      time: "4 hours ago",
-      href: "/pages/support/add-issue",
-      avatarColorBackground: "bg-accent-1-light/10",
-      avatarColorMain: "text-accent-1",
-      avatarIcon: "NiBulbOn",
-      temporaryUnread: false,
-      markedUnread: false,
-    },
-    {
-      id: "106",
-      labelBold: "Stuck somewhere?",
-      labelRegular: "Use Knowledge Base to get help.",
-      type: "system",
-      time: "6 hours ago",
-      href: "/pages/miscellaneous/knowledge-base",
-      avatarColorBackground: "bg-accent-2-light/10",
-      avatarColorMain: "text-accent-2",
-      avatarIcon: "NiQuestionHexagon",
-      temporaryUnread: false,
-      markedUnread: false,
-    },
-  ]);
-
+  const t = useTranslations("dashboard");
+  const locale = useLocale();
   const router = useRouter();
 
-  const [count, setCount] = React.useState(0);
-  const [seenTemporary, setSeenTemporary] = React.useState(false);
-
-  const [tooltipShow, setTooltipShow] = React.useState(false);
-
-  const [open, setOpen] = React.useState(false);
+  const [items, setItems] = useState<NotificationRow[]>([]);
+  const [open, setOpen] = useState(false);
+  const [tooltipShow, setTooltipShow] = useState(false);
   const anchorRef = React.useRef<HTMLButtonElement>(null);
 
+  const refresh = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, href, read_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    setItems(
+      (data ?? []).map((row) => ({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        body: row.body,
+        href: row.href,
+        readAt: row.read_at,
+        createdAt: row.created_at,
+      })),
+    );
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const unreadCount = items.filter((item) => !item.readAt).length;
+
   const handleToggle = () => {
-    calculateCountMarkedUnread();
+    if (!open) refresh();
     setOpen((prevOpen) => !prevOpen);
   };
 
-  const handleClose = (event: any) => {
+  const handleClose = (event: Event | React.SyntheticEvent) => {
     if (anchorRef.current && anchorRef.current.contains(event.target as HTMLElement)) {
       return;
     }
-    markAllTemporaryRead();
     setOpen(false);
   };
 
-  const [tabValue, setTabValue] = React.useState("1");
-
-  const handleTabValueChange = (event: React.SyntheticEvent, newValue: string) => {
-    setTabValue(newValue);
+  const markRead = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const readAt = new Date().toISOString();
+    setItems((current) => current.map((item) => (ids.includes(item.id) ? { ...item, readAt } : item)));
+    const supabase = createClient();
+    await supabase.from("notifications").update({ read_at: readAt }).in("id", ids).is("read_at", null);
   };
 
-  const [notificationOn, setNotificationOn] = React.useState(true);
-
-  useEffect(() => {
-    // calculateCount();
-    setCount(0);
-    if (seenTemporary) {
-      notificationData.map((notification) => {
-        if (notification.markedUnread) {
-          setCount((prev) => prev + 1);
-        }
-      });
-    } else {
-      notificationData.map((notification) => {
-        if (notification.temporaryUnread || notification.markedUnread) {
-          setCount((prev) => prev + 1);
-        }
-      });
-    }
-    setSeenTemporary(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notificationData]);
-
-  const calculateCountMarkedUnread = () => {
-    setCount(0);
-    notificationData.map((notification) => {
-      if (notification.markedUnread) {
-        setCount((prev) => prev + 1);
-      }
-    });
-  };
-
-  const markAllTemporaryRead = () => {
-    const newNotificationData = notificationData.map((notification) => {
-      if (notification.temporaryUnread) {
-        return {
-          ...notification,
-          temporaryUnread: false,
-        };
-      } else {
-        return notification;
-      }
-    });
-    setNotificationData(newNotificationData);
-  };
-
-  const handleMarkAsRead = (id: string) => {
-    const newNotificationData = notificationData.map((notification) => {
-      if (id === notification.id) {
-        return {
-          ...notification,
-          markedUnread: false,
-        };
-      } else {
-        return notification;
-      }
-    });
-    setNotificationData(newNotificationData);
-  };
-
-  const handleMarkAsUnread = (id: string) => {
-    const newNotificationData = notificationData.map((notification) => {
-      if (id === notification.id) {
-        return {
-          ...notification,
-          markedUnread: true,
-        };
-      } else {
-        return notification;
-      }
-    });
-    setNotificationData(newNotificationData);
-  };
-
-  const handleClick = (href: string | undefined, event: any) => {
-    if (href) {
-      router.push(href);
-    }
+  const handleItemClick = (item: NotificationRow, event: React.SyntheticEvent) => {
+    markRead([item.id]);
+    if (item.href) router.push(item.href);
     handleClose(event);
   };
 
   return (
     <>
-      <Tooltip title="Notifications" placement="bottom" arrow open={!open && tooltipShow}>
+      <Tooltip title={t("notifications-title")} placement="bottom" arrow open={!open && tooltipShow}>
         <Badge
-          badgeContent={count}
+          badgeContent={unreadCount}
           color="primary"
           slotProps={{
             badge: { className: "right-2 top-2 pointer-events-none" },
@@ -295,13 +159,7 @@ export default function Notifications() {
             onMouseEnter={() => setTooltipShow(true)}
             onMouseLeave={() => setTooltipShow(false)}
             ref={anchorRef}
-            startIcon={
-              notificationOn ? (
-                <NiBell size="large" variant={open ? "contained" : "outlined"} />
-              ) : (
-                <NiBellInactive size="large" variant={open ? "contained" : "outlined"} />
-              )
-            }
+            startIcon={<NiBell size="large" variant={open ? "contained" : "outlined"} />}
           />
         </Badge>
       </Tooltip>
@@ -320,302 +178,91 @@ export default function Notifications() {
                 <Card className="shadow-darker-sm! w-xs md:w-sm">
                   <Box className="flex flex-1 flex-row items-start justify-between pr-4">
                     <Typography variant="h5" component="h5" className="card-title px-4 pt-4">
-                      Notifications
+                      {t("notifications-title")}
                     </Typography>
-                    <Box className="flex flex-row">
-                      <Tooltip title={notificationOn ? "Turn off" : "Turn on"} arrow>
-                        {notificationOn ? (
-                          <Button
-                            className="icon-only mt-3"
-                            size="small"
-                            color="grey"
-                            variant="text"
-                            startIcon={<NiBell size={"small"} />}
-                            onClick={() => {
-                              setNotificationOn((prevValue) => !prevValue);
-                            }}
-                          />
-                        ) : (
-                          <Button
-                            className="icon-only mt-3"
-                            size="small"
-                            color="grey"
-                            variant="text"
-                            startIcon={<NiBellInactive size={"small"} />}
-                            onClick={() => {
-                              setNotificationOn((prevValue) => !prevValue);
-                            }}
-                          />
-                        )}
-                      </Tooltip>
-                      <Button
-                        className="icon-only mt-3"
-                        size="small"
-                        color="grey"
-                        variant="text"
-                        startIcon={<NiSettings size={"small"} />}
-                        href="/settings"
-                        component={Link}
-                      />
-                    </Box>
+                    <Button
+                      className="icon-only mt-3"
+                      size="small"
+                      color="grey"
+                      variant="text"
+                      startIcon={<NiSettings size={"small"} />}
+                      href="/settings"
+                      component={Link}
+                    />
                   </Box>
-                  <TabContext value={tabValue}>
-                    <TabList className="mb-5 px-4" onChange={handleTabValueChange}>
-                      <Tab
-                        icon={<NiStructure size="tiny" />}
-                        iconPosition="start"
-                        label="All"
-                        className="tiny"
-                        value="1"
-                      />
-                      <Tab
-                        icon={<NiScreen size="tiny" />}
-                        iconPosition="start"
-                        label="System"
-                        className="tiny"
-                        value="2"
-                      />
-                      <Tab
-                        icon={<NiUsers size="tiny" />}
-                        iconPosition="start"
-                        label="User"
-                        className="tiny"
-                        value="3"
-                      />
-                    </TabList>
-                    <TabPanel value="1" className="mb-4 p-0">
-                      <List className="max-h-96 overflow-auto">
-                        {notificationData.map((notification: NotificationData) => {
-                          return (
-                            <NotificationItem
-                              key={notification.id}
-                              {...notification}
-                              onMarkAsRead={() => {
-                                handleMarkAsRead(notification.id);
-                              }}
-                              onMarkAsUnread={() => {
-                                handleMarkAsUnread(notification.id);
-                              }}
-                              onClick={(event) => {
-                                handleClick(notification.href, event);
-                              }}
-                            />
-                          );
-                        })}
-                      </List>
-                    </TabPanel>
-                    <TabPanel value="2" className="mb-4 p-0">
-                      <List className="max-h-96 overflow-auto">
-                        {notificationData
-                          .filter((notification) => notification.type === "system")
-                          .map((notification: NotificationData) => {
-                            return (
-                              <NotificationItem
-                                key={notification.id}
-                                {...notification}
-                                onMarkAsRead={() => {
-                                  handleMarkAsRead(notification.id);
-                                }}
-                                onMarkAsUnread={() => {
-                                  handleMarkAsUnread(notification.id);
-                                }}
-                                onClick={(event) => {
-                                  handleClick(notification.href, event);
-                                }}
-                              />
-                            );
-                          })}
-                      </List>
-                    </TabPanel>
-                    <TabPanel value="3" className="mb-4 p-0">
-                      <List className="max-h-96 overflow-auto">
-                        {notificationData
-                          .filter((notification) => notification.type === "user")
-                          .map((notification: NotificationData) => {
-                            return (
-                              <NotificationItem
-                                key={notification.id}
-                                {...notification}
-                                onMarkAsRead={() => {
-                                  handleMarkAsRead(notification.id);
-                                }}
-                                onMarkAsUnread={() => {
-                                  handleMarkAsUnread(notification.id);
-                                }}
-                                onClick={(event) => {
-                                  handleClick(notification.href, event);
-                                }}
-                              />
-                            );
-                          })}
-                      </List>
-                    </TabPanel>
-                  </TabContext>
 
-                  <CardActions disableSpacing>
-                    <Button variant="outlined" size="tiny" color="grey" className="w-full">
-                      View All
-                    </Button>
-                  </CardActions>
+                  {items.length === 0 ? (
+                    <Box className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                      <span className="bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-2xl">
+                        <NiBellInactive size="medium" />
+                      </span>
+                      <Typography variant="subtitle2">{t("notifications-empty")}</Typography>
+                      <Typography variant="body2" className="text-text-secondary">
+                        {t("notifications-empty-hint")}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List className="my-2 max-h-96 overflow-auto">
+                      {items.map((item) => {
+                        const style = TYPE_STYLE[item.type] ?? DEFAULT_STYLE;
+                        return (
+                          <ListItem key={item.id} className="px-4 py-0">
+                            <ListItemButton
+                              onClick={(event) => {
+                                event.preventDefault();
+                                handleItemClick(item, event);
+                              }}
+                              classes={{ root: cn("w-full items-start", !item.readAt && "bg-primary-dark/5") }}
+                              LinkComponent={item.href ? Link : Box}
+                              href={item.href ?? "#"}
+                            >
+                              <ListItemAvatar>
+                                <Avatar className={cn("medium mr-3", style.className)}>{style.icon}</Avatar>
+                              </ListItemAvatar>
+                              <ListItemText
+                                primary={
+                                  <Typography component="span" className="leading-4">
+                                    <Typography component="span" variant="subtitle1" className="leading-4">
+                                      {item.title}
+                                    </Typography>
+                                    {item.body && (
+                                      <>
+                                        {" "}
+                                        <Typography component="span" variant="body1" className="leading-4">
+                                          {item.body}
+                                        </Typography>
+                                      </>
+                                    )}
+                                  </Typography>
+                                }
+                                secondary={timeAgo(item.createdAt, locale)}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  )}
+
+                  {unreadCount > 0 && (
+                    <CardActions disableSpacing>
+                      <Button
+                        variant="outlined"
+                        size="tiny"
+                        color="grey"
+                        className="w-full"
+                        onClick={() => markRead(items.filter((item) => !item.readAt).map((item) => item.id))}
+                      >
+                        {t("notifications-mark-all-read")}
+                      </Button>
+                    </CardActions>
+                  )}
                 </Card>
               </ClickAwayListener>
             </Box>
           </Fade>
         )}
       </Popper>
-    </>
-  );
-}
-
-function NotificationItem({
-  id,
-  labelBold,
-  labelRegular,
-  type,
-  avatarImage,
-  avatarIcon,
-  avatarColorMain,
-  avatarColorBackground,
-  href,
-  time,
-  temporaryUnread,
-  markedUnread,
-  chips,
-  actions,
-  onMarkAsRead,
-  onMarkAsUnread,
-  onClick,
-}: NotificationData & {
-  onMarkAsRead: () => void;
-  onMarkAsUnread: () => void;
-  onClick: (event: any) => void;
-}) {
-  const [anchorElEllipsis, setAnchorElEllipsis] = React.useState<EventTarget | Element | PopoverVirtualElement | null>(
-    null,
-  );
-  const open = Boolean(anchorElEllipsis);
-
-  const handleClickEllipsis = (event: Event | React.SyntheticEvent) => {
-    setAnchorElEllipsis(event.currentTarget);
-  };
-
-  const handleCloseEllipsis = () => {
-    setAnchorElEllipsis(null);
-  };
-
-  const handleMarkAsRead = () => {
-    handleCloseEllipsis();
-    onMarkAsRead();
-  };
-
-  const handleMarkAsUnread = () => {
-    handleCloseEllipsis();
-    onMarkAsUnread();
-  };
-
-  return (
-    <>
-      <Menu
-        anchorEl={anchorElEllipsis as Element}
-        open={open}
-        onClose={handleCloseEllipsis}
-        className="mt-1"
-        slots={{
-          transition: Fade,
-        }}
-      >
-        <MenuList dense>
-          {markedUnread && <MenuItem onClick={handleMarkAsRead}>Mark as Read</MenuItem>}
-          {!markedUnread && <MenuItem onClick={handleMarkAsUnread}>Mark as Unread</MenuItem>}
-        </MenuList>
-      </Menu>
-      <ListItem key={id} className="group relative px-4 py-0">
-        <ListItemButton
-          onClick={(event) => {
-            event.preventDefault();
-            onClick(event);
-          }}
-          classes={{ root: cn("w-full items-start", (temporaryUnread || markedUnread) && "bg-primary-dark/5") }}
-          LinkComponent={href ? Link : Box}
-          href={href ? href : "#"}
-        >
-          <ListItemAvatar>
-            {type === "user" ? (
-              <Avatar alt="notificaiton avatar" src={avatarImage} className="mr-3" />
-            ) : (
-              <Avatar className={cn("medium mr-3", avatarColorBackground)}>
-                <NextureIcons icon={avatarIcon as IconName} className={avatarColorMain} />
-              </Avatar>
-            )}
-          </ListItemAvatar>
-          <Box className="flex flex-col items-start gap-2">
-            <ListItemText
-              className="pr-8"
-              primary={
-                <Typography component="span" className="leading-4">
-                  <Typography component="span" variant="subtitle1" className="leading-4">
-                    {labelBold}
-                  </Typography>{" "}
-                  <Typography component="span" variant="body1" className="leading-4">
-                    {labelRegular}
-                  </Typography>
-                </Typography>
-              }
-              secondary={time}
-            />
-            {chips && (
-              <Box className="flex flex-row gap-1">
-                {chips.map((chip) => {
-                  if (chip.image) {
-                    return (
-                      <Chip
-                        size="small"
-                        avatar={<Avatar alt="product" src={chip.image} />}
-                        label={chip.label}
-                        variant="outlined"
-                        key={chip.id}
-                      />
-                    );
-                  } else {
-                    return <Chip variant="outlined" label={chip.label} size="small" key={chip.id} />;
-                  }
-                })}
-              </Box>
-            )}
-
-            {actions && (
-              <Box className="flex flex-row gap-1">
-                {actions.map((action) => {
-                  if (action.type === "positive") {
-                    return (
-                      <Button size="tiny" color="primary" variant="contained" key={action.id}>
-                        {action.label}
-                      </Button>
-                    );
-                  } else {
-                    return (
-                      <Button size="tiny" color="primary" variant="text" key={action.id}>
-                        {action.label}
-                      </Button>
-                    );
-                  }
-                })}
-              </Box>
-            )}
-          </Box>
-        </ListItemButton>
-        <Button
-          className={cn(
-            "icon-only hover:text-text-primary hover:bg-grey-100 absolute top-2 right-6 flex-none opacity-0 group-hover:opacity-100",
-            anchorElEllipsis && "bg-grey-100 text-text-primary opacity-100",
-          )}
-          size="tiny"
-          color="grey"
-          variant="text"
-          startIcon={<NiEllipsisHorizontal size={"small"} />}
-          onClick={handleClickEllipsis}
-        />
-      </ListItem>
     </>
   );
 }

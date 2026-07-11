@@ -12,6 +12,7 @@ import { useLayoutContext } from "@/components/layout/layout-context";
 import { PrimaryItem } from "@/components/layout/menu/primary-item";
 import { SecondaryItem } from "@/components/layout/menu/secondary-item";
 import { DEFAULTS } from "@/config";
+import { useIsSuperadmin } from "@/hooks/use-is-superadmin";
 import IllustrationLaunch from "@/icons/illustrations/illustration-launch";
 import { cn, isPathMatch } from "@/lib/utils";
 import { leftMenuBottomItems, leftMenuItems } from "@/menu-items";
@@ -42,8 +43,14 @@ export default function LeftMenu() {
   const [activeItem, setActiveItem] = useState<MenuItem | undefined>(undefined);
   const [openedAccordions, setOpenedAccordions] = useState<OpenedAccordion[]>([]);
 
+  const isSuperadmin = useIsSuperadmin();
+  const visibleMenuItems = useMemo(
+    () => leftMenuItems.filter((item) => !item.superadminOnly || isSuperadmin),
+    [isSuperadmin],
+  );
+
   useEffect(() => {
-    let selectedMenu = leftMenuItems.find((item) => item.href && isPathMatch(pathname, item.href));
+    let selectedMenu = visibleMenuItems.find((item) => item.href && isPathMatch(pathname, item.href));
     if (!selectedMenu && leftMenuBottomItems) {
       selectedMenu = leftMenuBottomItems.find((item) => item.href && isPathMatch(pathname, item.href));
     }
@@ -51,7 +58,7 @@ export default function LeftMenu() {
     setActiveItem(selectedMenu);
     resetLeftMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, visibleMenuItems]);
 
   useEffect(() => {
     if (selectedPrimary.current?.id !== activeItem?.id && !leftShowBackdrop) {
@@ -145,7 +152,7 @@ export default function LeftMenu() {
           }}
         >
           <Box className={cn("flex flex-1 flex-col gap-0.5")}>
-            {leftMenuItems.map((item) =>
+            {visibleMenuItems.map((item) =>
               leftMenuType !== MenuType.SingleLayer ? (
                 <PrimaryItem
                   className={cn(leftShowBackdrop && "z-20")}

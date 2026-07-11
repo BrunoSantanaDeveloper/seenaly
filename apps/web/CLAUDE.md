@@ -14,11 +14,18 @@ Next.js 15 (App Router) + React 19 — Seenaly's web app (admin + public marketi
 
 ## Marketing layer (public site)
 
-- Routes live in `src/app/(marketing)/` (home `/`, `/pricing`, `/about`, `/contact`, `/legal/*`) with their own chrome — no admin layout. Each new public route must be added to `PUBLIC_PREFIXES` (`src/middleware.ts`) and `src/app/sitemap.ts`.
+- Routes live in `src/app/(marketing)/` (home `/`, `/pricing`, `/about`, `/contact`, `/help`, `/blog`, `/legal/*`) with their own chrome — no admin layout. Each new public route must be added to `PUBLIC_PREFIXES` (`src/middleware.ts`) and `src/app/sitemap.ts`.
+- `/help` and `/blog` render DB-managed content (superadmin writes it in `/admin/help` and `/admin/blog`) through `src/lib/public-content.ts` (anon client, published rows only, locale with EN fallback); the sitemap includes their published slugs and degrades to the static list without Supabase env. Markdown renders via `components/marketing/markdown-prose.tsx` (react-markdown, raw HTML ignored).
 - Pages compose the primitives in `src/components/marketing/` (`Section`/`Container`/`SectionHeader`; sections like Hero, FeatureGrid, PricingSection) — never hand-tuned spacing/widths. See that folder's README and the `marketing-page` skill (load it before building/editing public pages).
 - Display typography: `font-display text-display-{2xl,xl,lg,md}` (fluid clamp scale from `@flyee/design-tokens/css/marketing.css`).
 - Motion: GSAP only inside marketing client components via `<Reveal>`/`useGSAP` (transforms + `autoAlpha`, honors `prefers-reduced-motion`); never in admin code.
 - Public pricing reads plans through `@flyee/billing/public` (`listPublicPlans`, service-role, read-only) with i18n placeholder fallback; the contact form sends via `@flyee/email` (`CONTACT_FORM_TO`) with a graceful not-configured hint.
+
+## Platform admin & account
+
+- Superadmin area at `src/app/(dashboard)/admin`: `layout.tsx` is a server gate on `profiles.is_superadmin` (RLS remains the real defense); the Admin menu group renders only for superadmins (`hooks/use-is-superadmin.ts`). Consoles: `/admin` (metrics via `admin_metrics()`), `/admin/organizations` (tenants + users; ban/unban and auth info need `SUPABASE_SERVICE_ROLE_KEY`), `/admin/billing`, `/admin/ai`, `/admin/knowledge`, `/admin/audit` (audit_events + wa_messages), `/admin/announcements`, `/admin/help`, `/admin/blog`. Admin console UI is intentionally EN-only (platform operator surface); everything user-facing stays i18n.
+- Real account plumbing: header bell reads the `notifications` table (create rows server-side with `lib/notifications.ts` or DB triggers — see migration 0012); announcements banner in the dashboard layout (per-user dismissal); `/settings` edits the real profile (display name + avatar → `avatars` bucket, migration 0013) and credentials (email/password); the user menu shows the real session and signs out for real.
+- Floating quick-support widget (`components/support/support-widget.tsx`, mounted in both layouts) reads `BRAND.support` from `@flyee/content` — configure WhatsApp/email there; it renders nothing until a human channel is set.
 
 ## Commands (run from the monorepo root)
 

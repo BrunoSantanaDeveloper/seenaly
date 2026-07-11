@@ -5,6 +5,7 @@ import { BRAND } from "@/brand";
 import JsonLd from "@/components/marketing/json-ld";
 import MarketingFooter from "@/components/marketing/marketing-footer";
 import MarketingHeader from "@/components/marketing/marketing-header";
+import SupportWidget from "@/components/support/support-widget";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("marketing");
@@ -51,6 +52,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <MarketingHeader />
       <main className="flex flex-1 flex-col">{children}</main>
       <MarketingFooter />
+      <SupportWidget />
     </div>
   );
 }

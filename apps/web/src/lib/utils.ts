@@ -6,7 +6,8 @@ import { extendTailwindMerge } from "tailwind-merge";
  * defined in tailwind.config + @flyee/design-tokens/css/marketing.css).
  * Without this it classifies `text-display-2xl` as a TEXT COLOR, sees it
  * conflict with a real color like `text-primary`, and silently DROPS the size —
- * which is why token-sized headings inside cn() rendered at base size.
+ * so any token-sized heading built through cn() (StatBand numbers, tone-colored
+ * headings) renders at base size. Keep this list in sync with the scale.
  */
 const twMerge = extendTailwindMerge({
   extend: {

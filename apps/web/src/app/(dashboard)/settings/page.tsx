@@ -1,16 +1,21 @@
 "use client";
 
+import AccountCard from "./components/account-card";
+import ProfileCard from "./components/profile-card";
 import SettingsMenu from "./components/settings-menu";
-import SettingsContact from "./examples/settings-contact";
-import SettingsPublicInfo from "./examples/settings-public-info";
-import SettingsWork from "./examples/settings-work";
 import Link from "next/link";
 import { useState } from "react";
 
-import { Box, Breadcrumbs, Button, Drawer, Grid, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Breadcrumbs, Button, Drawer, Grid, Tooltip, Typography } from "@mui/material";
 
 import NiListCircle from "@/icons/nexture/ni-list-circle";
+import { isSupabaseConfigured } from "@flyee/auth";
 
+/**
+ * The user's own account: who they are (name, photo) and how they sign in
+ * (email, password). Organization, connections, billing and 2FA have their
+ * own pages in the settings menu.
+ */
 export default function Settings() {
   const [openDrawer, setOpenDrawer] = useState(false);
 
@@ -53,9 +58,21 @@ export default function Settings() {
           </Grid>
         </Grid>
 
-        <SettingsPublicInfo />
-        <SettingsContact />
-        <SettingsWork />
+        {!isSupabaseConfigured && (
+          <Grid size={12}>
+            <Alert severity="info" className="neutral bg-background-paper/60!">
+              Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable
+              profile settings.
+            </Alert>
+          </Grid>
+        )}
+
+        {isSupabaseConfigured && (
+          <>
+            <ProfileCard />
+            <AccountCard />
+          </>
+        )}
 
         <Drawer open={openDrawer} anchor="right" onClose={toggleDrawer(false)}>
           <Box className="min-w-80 p-7">

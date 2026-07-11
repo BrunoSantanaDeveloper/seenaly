@@ -14,6 +14,8 @@ const PUBLIC_PREFIXES = [
   "/about",
   "/contact",
   "/legal",
+  "/help",
+  "/blog",
   // SEO surfaces crawlers hit anonymously.
   "/sitemap.xml",
   "/robots.txt",

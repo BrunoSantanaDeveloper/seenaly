@@ -53,6 +53,25 @@ await browser.close();
 
 Extra passes when relevant: `page.emulateMedia({ reducedMotion: "reduce" })` (everything must render static AND visible) and a second color theme — set the persisted preference before load (`page.addInitScript` writing the `*-theme-color` localStorage key; see `LS_KEYS`/`DEFAULTS` in `src/constants.ts` + `src/config.ts`), since the ThemeProvider owns the `<html>` classes.
 
+## 2b. MEASURE before you judge (a class can be silently dropped)
+
+Eyeballing a full-page thumbnail hides the most damaging failure: a token class that **never reached the DOM**. Real case: `cn()` runs tailwind-merge, which did not know the custom `text-display-*` scale, classified it as a text COLOR, saw it conflict with `text-primary`, and dropped the size — so "oversized" stat numbers rendered at base size and the whole page read flat while every checklist item still "passed".
+
+So assert the computed values, don't trust the classes:
+
+```js
+const sizes = await page.evaluate(() =>
+  [...document.querySelectorAll('[class*="text-display-"]')].map((el) => ({
+    cls: [...el.classList].find((c) => c.startsWith("text-display-")),
+    px: parseFloat(getComputedStyle(el).fontSize),
+    font: getComputedStyle(el).fontFamily.split(",")[0],
+  })),
+);
+```
+- Every `text-display-*` element must be **well above body size** (at 1440: `display-2xl` ≈ 84px, `display-xl` ≈ 64px, `display-lg` ≈ 45px). Anything landing near 16px means the class was dropped — fix the merge config, not the markup.
+- `font` must be the committed display face, not the admin font.
+- Count the elements you expect: if the selector finds fewer than the page's headings + stat numbers, a class was stripped somewhere.
+
 ## 3. Judge (Read every screenshot — actually look)
 
 Verdict each item PASS/FAIL with the screenshot as evidence:
@@ -65,6 +84,8 @@ Verdict each item PASS/FAIL with the screenshot as evidence:
 6. **Display typography** — headings are clearly the committed display font, not the admin font.
 7. **Harmonic palette** — at least two hues beyond primary, consistently mapped; dark shots stay legible (borders, muted text).
 8. **Mobile (375)** — no horizontal scroll, no overlapping/clipped text, media scales.
+
+9. **Nothing is a stock component with new text.** The failure this skill exists to catch: the page passes every item above and still looks like the template, because the mid/lower sections reused generic components while only the hero got real craft. Ask of every section: is the visual here *specific to this product*, or would it appear unchanged on any SaaS page? A section whose only visual is a small lonely icon in a tall empty card FAILS — give it real evidence (a domain visual, an oversized number) or merge it away.
 
 ## 4. Close the loop
 
