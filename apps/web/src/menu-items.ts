@@ -94,6 +94,22 @@ export const leftMenuItems: MenuItem[] = [
     href: "/diagnosis",
   },
   {
+    id: "funnel",
+    icon: "NiChartFunnel",
+    label: "menu-funnel",
+    description: "menu-funnel-description",
+    color: "text-primary",
+    href: "/funnel",
+  },
+  {
+    id: "experiments",
+    icon: "NiFlask",
+    label: "menu-experiments",
+    description: "menu-experiments-description",
+    color: "text-primary",
+    href: "/experiments",
+  },
+  {
     id: "ui",
     icon: "NiController",
     label: "menu-ui",

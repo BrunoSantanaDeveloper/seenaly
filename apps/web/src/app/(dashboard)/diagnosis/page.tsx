@@ -1,15 +1,18 @@
 "use client";
 
+import { registerExperimentFromDiagnosis } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
 import { generateDiagnosis } from "./actions";
 import DiagnosisCard, { type DiagnosisMeta } from "./components/diagnosis-card";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { Alert, Box, Breadcrumbs, Button, Grid, Skeleton, Typography } from "@mui/material";
+import { Alert, Box, Breadcrumbs, Button, Grid, MenuItem, Skeleton, TextField, Typography } from "@mui/material";
 
 import EmptyState from "@/components/product/empty-state";
+import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
@@ -37,55 +40,74 @@ type ProductRow = { id: string; name: string };
 
 export default function DiagnosisPage() {
   const t = useTranslations("diagnosis");
+  const router = useRouter();
   const { configured, loading, orgs, currentOrg } = useOrganization();
 
-  const [product, setProduct] = useState<ProductRow | null>(null);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [rows, setRows] = useState<DiagnosisRow[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const product = products.find((p) => p.id === selectedProductId) ?? null;
+  const ready = productsLoaded && loaded;
+
+  // The org's products drive the selector; the most recently updated is the
+  // default so a single-product user never has to choose.
+  const loadProducts = useCallback(async () => {
     if (!currentOrg) return;
     const supabase = createClient();
-    const { data: latestProduct } = await supabase
+    const { data } = await supabase
       .from("products")
       .select("id, name")
       .eq("org_id", currentOrg.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setProduct((latestProduct as ProductRow) ?? null);
-
-    if (latestProduct) {
-      const { data } = await supabase
-        .from("diagnoses")
-        .select("id, output, created_at, had_campaign_data, knowledge_refs")
-        .eq("product_id", latestProduct.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      setRows((data as DiagnosisRow[]) ?? []);
-    } else {
-      setRows([]);
-    }
-    setLoaded(true);
+      .order("updated_at", { ascending: false });
+    const list = (data as ProductRow[]) ?? [];
+    setProducts(list);
+    setSelectedProductId((prev) => (prev && list.some((p) => p.id === prev) ? prev : (list[0]?.id ?? null)));
+    setProductsLoaded(true);
   }, [currentOrg]);
 
+  const loadDiagnoses = useCallback(async () => {
+    if (!selectedProductId) {
+      setRows([]);
+      setLoaded(true);
+      return;
+    }
+    setLoaded(false);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("diagnoses")
+      .select("id, output, created_at, had_campaign_data, knowledge_refs")
+      .eq("product_id", selectedProductId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setRows((data as DiagnosisRow[]) ?? []);
+    setLoaded(true);
+  }, [selectedProductId]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    loadDiagnoses();
+  }, [loadDiagnoses]);
 
   const generate = async () => {
-    if (!product) return;
+    if (!selectedProductId) return;
     setError(null);
     setBusy(true);
     try {
-      const result = await generateDiagnosis(product.id);
+      const result = await generateDiagnosis(selectedProductId);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      await load();
+      await loadDiagnoses();
     } finally {
       setBusy(false);
     }
@@ -115,7 +137,25 @@ export default function DiagnosisPage() {
               <Typography variant="body2">{t("title")}</Typography>
             </Breadcrumbs>
           </Grid>
-          {product && loaded && rows.length > 0 && <Grid size={{ xs: 12, md: "auto" }}>{generateButton}</Grid>}
+          {products.length > 1 && ready && (
+            <Grid size={{ xs: 12, md: "auto" }}>
+              <TextField
+                select
+                size="small"
+                label={t("select-product")}
+                value={selectedProductId ?? ""}
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                className="min-w-56"
+              >
+                {products.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          )}
+          {product && ready && rows.length > 0 && <Grid size={{ xs: 12, md: "auto" }}>{generateButton}</Grid>}
         </Grid>
 
         {!configured && (
@@ -134,14 +174,14 @@ export default function DiagnosisPage() {
           </Grid>
         )}
 
-        {currentOrg && !loaded && (
+        {currentOrg && !ready && (
           <Grid size={12}>
             <Skeleton variant="rounded" height={280} />
           </Grid>
         )}
 
         {/* No product context yet: the diagnosis has nothing to reason with. */}
-        {currentOrg && loaded && !product && (
+        {currentOrg && ready && !product && (
           <Grid size={12}>
             <EmptyState
               icon={<NiTag />}
@@ -153,7 +193,7 @@ export default function DiagnosisPage() {
         )}
 
         {/* Context exists, no diagnosis yet: the ONE action is to generate it. */}
-        {currentOrg && loaded && product && rows.length === 0 && (
+        {currentOrg && ready && product && rows.length === 0 && (
           <Grid size={12}>
             <EmptyState
               icon={<NiPulse />}
@@ -184,6 +224,24 @@ export default function DiagnosisPage() {
                 } satisfies DiagnosisMeta
               }
             />
+            {/* Close the loop: turn the recommendation into a tracked experiment. */}
+            <Box className="mt-3">
+              <Button
+                variant="outlined"
+                color="grey"
+                startIcon={<NiFlask size="small" />}
+                disabled={registering}
+                onClick={async () => {
+                  setRegistering(true);
+                  const result = await registerExperimentFromDiagnosis(latest.id);
+                  setRegistering(false);
+                  if (result.ok) router.push(`/experiments/${result.id}`);
+                  else setError(result.error);
+                }}
+              >
+                {registering ? t("registering-experiment") : t("register-experiment")}
+              </Button>
+            </Box>
           </Grid>
         )}
 

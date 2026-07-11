@@ -120,6 +120,7 @@ export function isDiagnosisOutput(value: unknown): value is DiagnosisOutput {
     (output.confidence === "baixa" || output.confidence === "media" || output.confidence === "alta") &&
     typeof output.success_criterion === "string" &&
     typeof output.next_review === "string" &&
-    typeof output.insufficient_data === "boolean"
+    typeof output.insufficient_data === "boolean" &&
+    typeof output.missing_data === "string"
   );
 }

@@ -82,8 +82,8 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 | 2.5 | **Home do Seenaly** (`/home`, o `appRoot` pós-login): tela goal-first que responde "o que faço agora?" — checklist de ativação, saúde do contexto do produto, estado dos dados da Meta e o destino (diagnóstico). Substitui o dashboard demo do template como landing | em andamento |
 | 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | **implementado** (Gemini `gemini-2.5-flash`, nível de produto, 5 créditos); migration `0012` pendente de aplicação |
 | 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | **biblioteca implementada** (migration `0013`, UI `/creatives` agrupada por etapa do teste, taxonomia gancho/ângulo/prova, integrada ao briefing do diagnóstico); análise tag×performance com dados Meta pendente |
-| 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | — |
-| 6 | Camada de funil/vendas reais | — |
+| 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | **implementada** (migration `0014`, UI `/experiments` journal por status, "registrar diagnóstico como experimento", experimentos concluídos injetados no briefing do motor — loop de aprendizado verificado: não re-testa o refutado) |
+| 6 | Camada de funil/vendas reais | **implementada** (migration `0015`, snapshots manuais por produto/período, UI `/funnel` com breakdown por estágio, injetada no briefing do motor — verificado que discrimina página × checkout × oferta pelas taxas). Integrações de plataforma (Hotmart/Kiwify/webhooks) ficam como enriquecimento futuro na mesma tabela |
 
 ### Mapa produto → infraestrutura do template
 

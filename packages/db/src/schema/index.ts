@@ -8,6 +8,8 @@ export * from "./meta-ads";
 export * from "./product-context";
 export * from "./diagnoses";
 export * from "./creatives";
+export * from "./experiments";
+export * from "./funnel";
 export * from "./audit";
 export * from "./documents";
 export * from "./transcriptions";
