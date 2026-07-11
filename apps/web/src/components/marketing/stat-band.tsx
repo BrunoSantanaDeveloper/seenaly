@@ -12,36 +12,37 @@ export type Stat = {
 };
 
 /**
- * Full-width contrast band of 3–4 oversized numbers — proof at a glance.
- * Only real, defensible numbers: an invented stat is worse than no band.
- *
- * The number is the section's whole payload: display-lg, tabular, extrabold
- * (data credibility per DESIGN.md) against a quiet label — it stays one step
- * below the hero's display-xl, which owns the page's bold moment. Hairline
- * dividers give the band structure instead of leaving the numbers floating in
- * dead space. Callers pass a `tone` per stat so the band reads in the page's
- * family hues rather than a flat wall of primary.
+ * Full-width contrast band of OVERSIZED numbers — the page's data-credibility
+ * proof (committed "Sala de Controle" direction). The number is the payload:
+ * display-2xl, extrabold, tabular, left-aligned over the technical grid, each
+ * under a mono index and above a tone gauge bar so the band reads like an
+ * instrument panel, not a timid centered row. Real numbers only — an invented
+ * stat is worse than no band. Callers pass a `tone` per stat so the families
+ * keep their hue.
  */
 export default function StatBand({ stats }: { stats: Stat[] }) {
   return (
-    <Section spacing="compact" background="contrast" decor="gradient-edge">
-      <Reveal
-        stagger={0.1}
-        className="md:divide-grey-100 grid grid-cols-2 gap-y-12 md:grid-cols-4 md:gap-y-0 md:divide-x"
-      >
-        {stats.map((stat) => (
-          <div key={stat.label} className="flex flex-col items-center gap-3 px-4 text-center">
-            <span
-              className={cn(
-                "font-display text-display-lg font-extrabold tabular-nums",
-                TONE[stat.tone ?? "primary"].text,
-              )}
-            >
-              {stat.value}
-            </span>
-            <span className="text-text-secondary max-w-56 text-sm leading-5 text-balance">{stat.label}</span>
-          </div>
-        ))}
+    <Section background="contrast" decor="grid">
+      <Reveal stagger={0.1} className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4">
+        {stats.map((stat, index) => {
+          const tone = TONE[stat.tone ?? "primary"];
+          return (
+            <div key={stat.label} className="flex flex-col gap-4">
+              <span className="text-text-muted font-mono text-xs tracking-widest">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className={cn("font-display text-display-2xl leading-none font-extrabold tabular-nums", tone.text)}>
+                {stat.value}
+              </span>
+              <span
+                aria-hidden
+                className="h-1 w-16 rounded-full"
+                style={{ backgroundColor: `hsl(var(${tone.cssVar}))` }}
+              />
+              <span className="text-text-secondary max-w-56 text-sm leading-5">{stat.label}</span>
+            </div>
+          );
+        })}
       </Reveal>
     </Section>
   );

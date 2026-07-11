@@ -182,32 +182,63 @@ export function FunnelVignette({ tone }: { tone?: Tone }) {
   );
 }
 
-/** Experiment memory: a shelf of past test cards, the latest one recalled (tone). Bento-cell sized. */
+/**
+ * Experiment memory: the journal of past tests — each row a hypothesis with its
+ * verdict chip (refuted entries read quiet/greyed), the latest one recalled in
+ * the family hue. Panel-sized so it carries the same visual weight as the other
+ * vignettes in a FeatureRows media slot.
+ */
 export function MemoryVignette({ tone }: { tone?: Tone }) {
-  const cards = [
-    { active: false, bar: "w-3/4" },
-    { active: false, bar: "w-1/2" },
-    { active: false, bar: "w-2/3" },
-    { active: true, bar: "w-3/4" },
+  const entries = [
+    { active: false, refuted: true },
+    { active: false, refuted: false },
+    { active: false, refuted: true },
+    { active: true, refuted: false },
   ];
 
   return (
-    <div aria-hidden style={toneVar(tone)} className="grid h-24 grid-cols-4 gap-2.5">
-      {cards.map((card, index) => (
-        <div
-          key={index}
-          className={cn(
-            "flex flex-col gap-2 rounded-2xl border p-3",
-            card.active ? "border-[hsl(var(--vg)_/_0.4)] bg-[hsl(var(--vg)_/_0.06)]" : "border-grey-100",
-          )}
-        >
-          <span className={cn("h-2 w-2 rounded-full", card.active ? "bg-[hsl(var(--vg))]" : "bg-grey-200")} />
-          <span
-            className={cn("h-1.5 rounded-full", card.bar, card.active ? "bg-[hsl(var(--vg)_/_0.4)]" : "bg-grey-100")}
-          />
-          <span className="bg-grey-50 mt-auto h-1.5 w-full rounded-full" />
-        </div>
-      ))}
-    </div>
+    <Panel tone={tone} className="justify-between">
+      {/* Header: journal title + entry counter */}
+      <div className="flex items-center justify-between">
+        <span className="bg-grey-200 h-2.5 w-1/3 rounded-full" />
+        <span className="h-5 w-16 rounded-full bg-[hsl(var(--vg)_/_0.2)]" />
+      </div>
+
+      {/* Journal entries — hypothesis + verdict, newest recalled */}
+      <div className="flex flex-1 flex-col justify-center gap-2.5 py-2">
+        {entries.map((entry, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex items-center gap-3 rounded-2xl border p-3",
+              entry.active ? "border-[hsl(var(--vg)_/_0.4)] bg-[hsl(var(--vg)_/_0.06)]" : "border-grey-100",
+            )}
+          >
+            <span
+              className={cn(
+                "h-2.5 w-2.5 flex-none rounded-full",
+                entry.active ? "bg-[hsl(var(--vg))]" : entry.refuted ? "bg-grey-300" : "bg-grey-200",
+              )}
+            />
+            <span className="flex flex-1 flex-col gap-1.5">
+              <span
+                className={cn(
+                  "h-2 rounded-full",
+                  entry.active ? "w-3/5 bg-[hsl(var(--vg)_/_0.5)]" : "bg-grey-100 w-1/2",
+                )}
+              />
+              <span className="bg-grey-50 h-1.5 w-4/5 rounded-full" />
+            </span>
+            {/* Verdict chip */}
+            <span
+              className={cn(
+                "h-4 w-12 flex-none rounded-full",
+                entry.active ? "bg-[hsl(var(--vg)_/_0.25)]" : "bg-grey-50",
+              )}
+            />
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }

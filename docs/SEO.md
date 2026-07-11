@@ -30,10 +30,10 @@ exactly one `<h1>` (the page title), a localized title tag (target term + value,
 
 | Page | Primary term / intent | Funnel role |
 |---|---|---|
-| `/` (home) | Brand + core value proposition — "one platform for billing, teams and AI" | brand + top-of-funnel |
-| `/pricing` | "<product category> pricing" / "<category> plans" | commercial → the money page |
-| `/about` | Brand + "about" | brand / navigational |
-| `/contact` | Brand + "contact" | navigational |
+| `/` (home) | "copiloto de growth para Meta Ads" / "diagnóstico de anúncios com IA" — decision-intelligence for paid traffic | brand + top-of-funnel |
+| `/pricing` | "Seenaly preços" / "copiloto Meta Ads planos" | commercial → the money page |
+| `/about` | Brand + "sobre" / a decision-intelligence copilot for paid traffic | brand / navigational |
+| `/contact` | Brand + "contato" / "falar com o Seenaly" | navigational |
 | `/legal/*` | none — not a ranking target | trust / compliance |
 
 These are template placeholders. A real project maps each page to a validated keyword with clear intent (money pages first), and grows blog/topic clusters around them — that work lives in the project, not the template.

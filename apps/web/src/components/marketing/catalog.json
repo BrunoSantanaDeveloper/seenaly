@@ -18,6 +18,20 @@
   },
   "components": [
     {
+      "name": "DiagnosisReadout",
+      "file": "diagnosis-readout.tsx",
+      "role": "evidence",
+      "props": "title, signal, rows: {label, value}[], confidenceLabel, confidenceValue",
+      "use": "seenaly signature — the product's fixed recommendation format rendered as a mono instrument panel (font-mono); the committed hero evidence slot (Sala de Controle direction). Copy from i18n, tokens only"
+    },
+    {
+      "name": "ProductVignettes",
+      "file": "product-vignettes.tsx",
+      "role": "evidence",
+      "props": "DiagnosisVignette/FatigueVignette/FunnelVignette/MemoryVignette, each {tone}",
+      "use": "seenaly domain evidence for FeatureRows/BentoGrid media slots — ranked recommendations, CTR-decay fatigue, funnel leak, experiment memory; token-driven, thread the SAME tone as the row/cell"
+    },
+    {
       "name": "Section",
       "file": "section.tsx",
       "role": "layout",

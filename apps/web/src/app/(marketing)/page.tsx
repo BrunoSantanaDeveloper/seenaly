@@ -3,39 +3,49 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { BRAND } from "@/brand";
-import BentoGrid from "@/components/marketing/bento-grid";
 import Cta from "@/components/marketing/cta";
-import DataVizPlaceholder from "@/components/marketing/data-viz-placeholder";
+import DiagnosisReadout from "@/components/marketing/diagnosis-readout";
 import Faq from "@/components/marketing/faq";
+import FeatureGrid from "@/components/marketing/feature-grid";
 import FeatureRows from "@/components/marketing/feature-row";
 import Hero from "@/components/marketing/hero";
-import LogoCloud from "@/components/marketing/logo-cloud";
 import PricingSection from "@/components/marketing/pricing-section";
-import ProductFrame from "@/components/marketing/product-frame";
+import ProcessSteps from "@/components/marketing/process-steps";
+import {
+  DiagnosisVignette,
+  FatigueVignette,
+  FunnelVignette,
+  MemoryVignette,
+} from "@/components/marketing/product-vignettes";
 import StatBand from "@/components/marketing/stat-band";
 import Testimonials from "@/components/marketing/testimonials";
-import NiAi from "@/icons/nexture/ni-ai";
-import NiCreditCard from "@/icons/nexture/ni-credit-card";
-import NiFlash from "@/icons/nexture/ni-flash";
+import NiBook from "@/icons/nexture/ni-book";
+import NiRocket from "@/icons/nexture/ni-rocket";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("marketing");
   // `absolute` bypasses the root "%s | Brand" template so the home title reads
-  // as one line: "Brand — value proposition" (keyword-led, under ~60 chars).
-  return { title: { absolute: `${BRAND.name} — ${t("home-meta-title")}` } };
+  // as one line: "Seenaly — <value proposition>" (keyword-led, ~60 chars).
+  return {
+    title: { absolute: `${BRAND.name} — ${t("home-meta-title")}` },
+    description: t("home-meta-description"),
+  };
 }
 
 /**
- * Home = conversion funnel: hero (value prop + product evidence) → logos
- * (trust) → feature rows (flagship depth, claim next to evidence) → bento
- * (secondary desire) → stat band (proof) → testimonials (trust) → pricing
- * (action) → FAQ (objections) → CTA (recovery). The primary CTA label
- * (cta-primary) repeats verbatim at every action point.
+ * Home — committed "Sala de Controle" direction (docs/DESIGN.md): an instrument
+ * hero (mono DiagnosisReadout) → instrument decision pipeline (ProcessSteps
+ * mono) → FeatureRows depth with the domain vignettes → oversized StatBand
+ * proof → more FeatureRows → FeatureGrid foundations → Testimonials → Pricing
+ * → FAQ → CTA. Every mid-page section carries a real domain visual; the four
+ * product vignettes each get a full-size row/cell. The primary CTA (cta-primary)
+ * repeats verbatim at hero, pricing and the final CTA.
  *
- * Family → hue mapping (consistent site-wide): data/analytics = primary
- * (the bold moment), tenancy/security = secondary, audit = accent-1,
- * day-one = accent-2, billing = accent-3, AI = accent-4.
+ * Family → hue mapping, consistent site-wide: diagnosis/decision = primary,
+ * creative fatigue = accent-1, funnel/bottleneck = accent-4, experiment
+ * memory = accent-3, Meta knowledge base = secondary, product context /
+ * zero-data = accent-2.
  */
 export default async function Home() {
   const [t, plans] = await Promise.all([getTranslations("marketing"), getDisplayPlans()]);
@@ -49,10 +59,40 @@ export default async function Home() {
         subtitle={t("hero-subtitle")}
         primaryCta={{ label: t("cta-primary"), href: "/auth/sign-up" }}
         secondaryCta={{ label: t("hero-secondary"), href: "/pricing" }}
-        media={<ProductFrame glow />}
+        media={
+          <DiagnosisReadout
+            title={t("readout-title")}
+            signal={t("readout-signal")}
+            rows={[1, 2, 3, 4].map((index) => ({
+              label: t(`readout-row-${index}-label`),
+              value: t(`readout-row-${index}-value`),
+            }))}
+            confidenceLabel={t("readout-confidence-label")}
+            confidenceValue={t("readout-confidence-value")}
+          />
+        }
       />
 
-      <LogoCloud label={t("logos-label")} items={[1, 2, 3, 4, 5].map((index) => ({ name: t(`logo-${index}`) }))} />
+      <ProcessSteps
+        mono
+        eyebrow={t("pipeline-eyebrow")}
+        title={t("pipeline-title")}
+        steps={[
+          {
+            kicker: t("pipeline-1-kicker"),
+            title: t("pipeline-1-title"),
+            body: t("pipeline-1-body"),
+            tone: "secondary",
+          },
+          {
+            kicker: t("pipeline-2-kicker"),
+            title: t("pipeline-2-title"),
+            body: t("pipeline-2-body"),
+            tone: "accent-4",
+          },
+          { kicker: t("pipeline-3-kicker"), title: t("pipeline-3-title"), body: t("pipeline-3-body"), tone: "primary" },
+        ]}
+      />
 
       <FeatureRows
         id="features"
@@ -63,66 +103,62 @@ export default async function Home() {
         items={[
           {
             eyebrow: t("row-1-eyebrow"),
-            title: t("feature-6-title"),
-            body: t("feature-6-description"),
+            title: t("row-1-title"),
+            body: t("row-1-body"),
             bullets: [t("row-1-bullet-1"), t("row-1-bullet-2"), t("row-1-bullet-3")],
-            media: (
-              <ProductFrame>
-                <DataVizPlaceholder label={t("row-1-eyebrow")} />
-              </ProductFrame>
-            ),
+            media: <DiagnosisVignette tone="primary" />,
             tone: "primary",
           },
           {
             eyebrow: t("row-2-eyebrow"),
-            title: t("feature-2-title"),
-            body: t("feature-2-description"),
+            title: t("row-2-title"),
+            body: t("row-2-body"),
             bullets: [t("row-2-bullet-1"), t("row-2-bullet-2"), t("row-2-bullet-3")],
-            media: <ProductFrame />,
-            tone: "secondary",
-          },
-        ]}
-      />
-
-      <BentoGrid
-        eyebrow={t("bento-eyebrow")}
-        title={t("bento-title")}
-        items={[
-          {
-            title: t("feature-3-title"),
-            body: t("feature-3-description"),
-            visual: <NiCreditCard className="h-10 w-10" />,
-            featured: true,
-            tone: "accent-3",
-          },
-          {
-            title: t("feature-4-title"),
-            body: t("feature-4-description"),
-            visual: <NiShieldCheck className="h-10 w-10" />,
+            media: <FatigueVignette tone="accent-1" />,
             tone: "accent-1",
-          },
-          {
-            title: t("feature-5-title"),
-            body: t("feature-5-description"),
-            visual: <NiAi className="h-10 w-10" />,
-            featured: true,
-            tone: "accent-4",
-          },
-          {
-            title: t("feature-1-title"),
-            body: t("feature-1-description"),
-            visual: <NiFlash className="h-10 w-10" />,
-            tone: "accent-2",
           },
         ]}
       />
 
       <StatBand
         stats={[
-          { value: t("stats-1-value"), label: t("stats-1-label"), tone: "accent-2" },
-          { value: t("stats-2-value"), label: t("stats-2-label"), tone: "accent-3" },
-          { value: t("stats-3-value"), label: t("stats-3-label"), tone: "accent-1" },
-          { value: t("stats-4-value"), label: t("stats-4-label"), tone: "secondary" },
+          { value: t("stats-1-value"), label: t("stats-1-label"), tone: "accent-3" },
+          { value: t("stats-2-value"), label: t("stats-2-label"), tone: "secondary" },
+          { value: t("stats-3-value"), label: t("stats-3-label"), tone: "accent-2" },
+          { value: t("stats-4-value"), label: t("stats-4-label"), tone: "primary" },
+        ]}
+      />
+
+      <FeatureRows
+        eyebrow={t("bento-eyebrow")}
+        title={t("bento-title")}
+        items={[
+          {
+            eyebrow: t("row-3-eyebrow"),
+            title: t("bento-1-title"),
+            body: t("bento-1-body"),
+            bullets: [t("row-3-bullet-1"), t("row-3-bullet-2"), t("row-3-bullet-3")],
+            media: <FunnelVignette tone="accent-4" />,
+            tone: "accent-4",
+          },
+          {
+            eyebrow: t("row-4-eyebrow"),
+            title: t("bento-2-title"),
+            body: t("bento-2-body"),
+            bullets: [t("row-4-bullet-1"), t("row-4-bullet-2"), t("row-4-bullet-3")],
+            media: <MemoryVignette tone="accent-3" />,
+            tone: "accent-3",
+          },
+        ]}
+      />
+
+      <FeatureGrid
+        eyebrow={t("foundations-eyebrow")}
+        title={t("foundations-title")}
+        features={[
+          { icon: <NiBook />, title: t("bento-3-title"), description: t("bento-3-body"), tone: "secondary" },
+          { icon: <NiRocket />, title: t("bento-4-title"), description: t("bento-4-body"), tone: "accent-2" },
+          { icon: <NiShieldCheck />, title: t("bento-5-title"), description: t("bento-5-body"), tone: "accent-1" },
         ]}
       />
 
@@ -155,6 +191,7 @@ export default async function Home() {
       />
 
       <Cta
+        kicker={t("cta-kicker")}
         title={t("cta-title")}
         subtitle={t("cta-subtitle")}
         cta={{ label: t("cta-primary"), href: "/auth/sign-up" }}

@@ -1,7 +1,7 @@
 import "@/style/global.css";
 
 import { Metadata } from "next";
-import { Mulish, Urbanist } from "next/font/google";
+import { IBM_Plex_Mono, Mulish, Space_Grotesk, Urbanist } from "next/font/google";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -28,6 +28,25 @@ const urbanist = Urbanist({
   variable: "--font-heading",
   display: "swap",
   preload: true,
+});
+
+// Marketing typography (committed direction "Sala de Controle" — docs/DESIGN.md).
+// Space Grotesk is the display face (marketing `font-display` resolves to it;
+// the admin heading font --font-heading stays Urbanist). IBM Plex Mono is the
+// instrument/data face for the diagnosis readout, metric callouts and eyebrows.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  preload: true,
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -66,7 +85,7 @@ export default async function RootLayout({
       lang={locale}
       suppressHydrationWarning
       style={{ "--inner-shadow-opacity": "0.6", "--foreground-opacity": "0.6" } as React.CSSProperties}
-      className={`${mulish.variable} ${urbanist.variable}`}
+      className={`${mulish.variable} ${urbanist.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}
     >
       <head>
         {/* We need to include the loader CSS directly to avoid flash of unstyled content */}
