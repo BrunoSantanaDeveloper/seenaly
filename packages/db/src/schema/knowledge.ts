@@ -39,7 +39,7 @@ export const knowledgeChunks = pgTable("knowledge_chunks", {
     .references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
   idx: integer("idx").notNull(),
   content: text("content").notNull(),
-  // Gemini text-embedding-004.
+  // Gemini gemini-embedding-001, truncated to 768 dims (embeddings.ts).
   embedding: vector("embedding", { dimensions: 768 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

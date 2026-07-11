@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Box, Typography } from "@mui/material";
@@ -8,10 +9,10 @@ import { Box, Typography } from "@mui/material";
 import Logo from "@/components/logo/logo";
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import { DEFAULTS } from "@/config";
-import { isOnboardingEnabled, ONBOARDING_FLOW, ONBOARDING_STEPS } from "@/lib/onboarding";
+import { getOnboardingFlowKey, isOnboardingEnabled, ONBOARDING_STEPS } from "@/lib/onboarding";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
-import { completeStep, getOnboardingState } from "@flyee/onboarding";
+import { completeStep, type FlowKey, getOnboardingState } from "@flyee/onboarding";
 
 /**
  * Post-signup setup — the path to the aha moment, NOT a demo dashboard.
@@ -24,7 +25,8 @@ import { completeStep, getOnboardingState } from "@flyee/onboarding";
  */
 export default function Onboarding() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  const t = useTranslations("product");
+  const [flowKey, setFlowKey] = useState<FlowKey | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -41,24 +43,25 @@ export default function Onboarding() {
         router.replace("/auth/sign-in");
         return;
       }
-      const state = await getOnboardingState(supabase, { userId: user.id, flow: ONBOARDING_FLOW });
+      const key = await getOnboardingFlowKey(supabase, user.id);
+      const state = await getOnboardingState(supabase, key);
       if (state.completedAt) {
         router.replace(DEFAULTS.appRoot);
         return;
       }
-      setUserId(user.id);
+      setFlowKey(key);
       setReady(true);
     };
     check();
   }, [router]);
 
   const finish = async () => {
-    if (!userId) return;
+    if (!flowKey) return;
     const supabase = createClient();
     const required = ONBOARDING_STEPS.filter((step) => step.required !== false).map((step) => step.key);
     // Mark the wizard's own step; the remaining checklist steps live on the
     // app home, where progress keeps nudging the user (completion drive).
-    await completeStep(supabase, { userId, flow: ONBOARDING_FLOW }, "welcome", required);
+    await completeStep(supabase, flowKey, "welcome", required);
     router.push(DEFAULTS.appRoot);
     router.refresh();
   };
@@ -68,12 +71,11 @@ export default function Onboarding() {
   // Replace with the project's real setup steps.
   const steps: WizardStep[] = [
     {
-      title: "Welcome",
-      hint: "A couple of quick steps and you'll see your first result.",
+      title: t("onboardingTitle"),
+      hint: t("onboardingHint"),
       content: (
         <Typography variant="body1" className="text-text-secondary leading-6">
-          This wizard is a scaffold. Replace these steps with the setup and personalization your product needs — and end
-          on a screen that shows what the answers unlocked.
+          {t("onboardingScaffold")}
         </Typography>
       ),
     },
@@ -82,7 +84,7 @@ export default function Onboarding() {
   return (
     <Box className="flex min-h-screen w-full flex-col items-center justify-center gap-8 p-4">
       <Logo classNameMobile="hidden" />
-      <SetupWizard steps={steps} onComplete={finish} completeLabel="Get started" />
+      <SetupWizard steps={steps} onComplete={finish} completeLabel={t("getStarted")} />
     </Box>
   );
 }

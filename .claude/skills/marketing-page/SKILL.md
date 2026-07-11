@@ -21,11 +21,12 @@ It applies equally to **creating a page**, **editing an existing page**, and **a
 
 **A. `docs/DESIGN.md` already exists (the common case after the first page): INHERIT, do not re-decide.** Read it and build strictly within it — typography, palette usage, depth treatment, layout archetypes, signature element, motion. **STRICT MODE: do NOT re-run the direction engine and do NOT restyle the UI.** Changing the direction is a "redesign" and happens ONLY when the user explicitly asks for it ("redesign", "nova direção", "novo visual"); that request rewrites `docs/DESIGN.md` first, then pages follow the new version.
 
-**B. `docs/DESIGN.md` does NOT exist yet (first public page of the project): run the engine, then WRITE it.**
+**B. `docs/DESIGN.md` does NOT exist yet (first public page of the project): run the engine, let the user SEE the candidates, then WRITE it.**
 1. If the `ui-ux-pro-max` skill is installed (`.claude/skills/ui-ux-pro-max`), query it for this product's category: style, color usage, **font pairing** and layout guidance (161 product types, 57 pairings). For premium/expensive-product briefs, also load `premium-frontend-ui` (hero architecture, scroll narratives, atmosphere).
-2. Pick ONE named direction from `references/directions.md` (or justify a custom one). The direction fixes: typography pairing, background/depth treatment, layout archetypes, motion character.
-3. **Typography is a blocking decision**: load the display font with `next/font` in the root layout and set `--font-display`. A marketing page shipped on the admin font alone fails review.
-4. **Persist it**: write the committed direction to `docs/DESIGN.md` (follow the shape of the template's version). This is what every later page inherits — the whole point of a consistent site.
+2. Shortlist **2–3 named directions** from `references/directions.md` (or one justified custom candidate) that genuinely fit THIS product — distinct directions, not three flavors of the same look. Each fixes: typography pairing, background/depth treatment, layout archetypes, motion character.
+3. **Show, don't describe — the user picks a direction they can SEE.** For each candidate, generate a lightweight self-contained HTML preview (one file per direction: hero + one content section, ~a screenful) using the REAL token values from `packages/design-tokens` and the candidate's font pairing (a Google Fonts link is acceptable in the preview only). Present them side by side — publish via the Artifact tool when available, otherwise save them under `docs/design-directions/` and ask the user to open them — and collect the choice with AskUserQuestion (one option per direction, naming its typography/depth/layout traits). Never commit a direction the user has only read about in prose. If the session is non-interactive, pick the best-fit candidate, say so explicitly, and leave the previews in place for later review.
+4. **Typography is a blocking decision**: load the display font with `next/font` in the root layout and set `--font-display`. A marketing page shipped on the admin font alone fails review.
+5. **Persist it**: write the CHOSEN direction to `docs/DESIGN.md` (follow the shape of the template's version) and delete the losing previews. This is what every later page inherits — the whole point of a consistent site.
 
 **Pass 1 — Plan against the committed direction (before any code).** Write down, consistent with `docs/DESIGN.md`: how the palette will be used on this page (where the one bold moment lives); the type treatment (display scale usage, hierarchy); the layout concept per section (which archetypes: split hero / FeatureRows / BentoGrid / StatBand — never centered-stack all the way down); and how this page carries the direction's signature element. **Spend your boldness in one place** — but quiet ≠ empty: every section still needs a visual anchor (media, background shift, oversized number, illustration).
 
@@ -61,6 +62,19 @@ A page can follow every rule below and still look like a beginner site if it is 
 - **Icons:** the template ships more than one icon set (Nexture native; Phosphor and others via adapters — see `apps/web/src/icons/README.md`). The set is a per-project decision made once (init-project or tsconfig alias remap), NOT per page. Pages always import through the alias `@/icons/nexture/ni-*` regardless of the chosen set, and never import an icon library (Phosphor, Lucide, MUI icons) directly. If the project hasn't decided yet, ask before the first page — don't mix sets.
 - **Responsive:** mobile-first — the base layout is the phone; breakpoints only add columns/space. No horizontal scroll at 375px. Verify 375/768/1440.
 - **Routes:** a new public page must be added to `PUBLIC_PREFIXES` in `apps/web/src/middleware.ts` and to `apps/web/src/app/sitemap.ts`, and export its own `metadata`/`generateMetadata`.
+
+## SEO & discoverability (every page earns its ranking)
+
+The template already ships the technical layer — `sitemap.ts`, `robots.ts`, the shared Open Graph image, `Organization`/`WebSite` JSON-LD in the marketing layout, and `FAQPage`/`Product` JSON-LD emitted automatically by `Faq`/`PricingSection`. The committed per-page search direction (target term + intent per page) lives in `docs/SEO.md` — read it the way you read `docs/DESIGN.md`. Your job on each page is the on-page layer:
+
+- **Exactly one `<h1>` — the page title.** A page that opens with `<Hero>` already has it; a page whose lead is a plain section passes `as="h1"` to its first `<SectionHeader>` (or `headingAs="h1"` to `<PricingSection>`). Every other heading is `<h2>`/`<h3>` in a real hierarchy — the display size is set by `text-display-*`, independent of the tag, so NEVER pick a heading level for its size.
+- **Title tag:** `generateMetadata` returns a `title` that leads with the page's target term + the value, ~60 chars, localized — never just the brand name. The home composes `Brand — value proposition` via `title: { absolute }` to skip the `%s | Brand` template.
+- **Meta description:** 150–160 chars, written like ad copy (the outcome + the reason to click), localized, distinct per page — don't let a page inherit the home description.
+- **Answer-first copy:** any section that answers a question (FAQ, feature explainer) opens with the direct answer in the first sentence, then the depth. This is what AI search engines quote and what wins zero-click surfaces.
+- **Target term in the visible places:** the page's keyword belongs in the `<h1>`, the title tag, the URL slug and the first sentence — naturally, never stuffed.
+- **Structured data:** reuse the components that already emit it; if a page adds a new schema-eligible block (article, breadcrumb, how-to), emit it with `<JsonLd>` (`components/marketing/json-ld.tsx`) — never hand-write a `<script>`.
+- **Internal links:** connect a new page to related pages and to the money page (pricing/sign-up) — this is how authority flows and how crawlers discover it.
+- **Indexable language:** i18n is cookie-based, so crawlers only see the default locale (`DEFAULTS.locale`). The primary market's language MUST be the default; a truly multilingual site needs `/[locale]/` routing (an architecture change, not a page edit).
 
 ## Visual vocabulary (the library's expressive range)
 
@@ -123,4 +137,6 @@ Rules:
 
 ## Before finishing
 
-Walk the page at 375px, 768px, 1440px; toggle dark mode and at least two color themes; emulate reduced motion; confirm every string resolves in all 5 locales; run `npm run build` and `npm run lint:fix`.
+Run the `marketing-verify` skill — it renders the page and judges the premium bar on actual screenshots (375/768/1440 × light/dark, reduced motion, fired reveals). Code that was never rendered is not verified. Additionally: confirm every string resolves in all 5 locales; run `npm run build` and `npm run lint:fix`.
+
+**SEO pass:** exactly one `<h1>`; `generateMetadata` exports a localized title (target term + value, not just the brand) and a distinct 150–160-char description; the route is in `PUBLIC_PREFIXES` and `sitemap.ts`; structured data is present where applicable (FAQ, pricing, article); every image has descriptive `alt`; the page links to the money page. View source and confirm the JSON-LD and `<h1>` are in the server-rendered HTML.

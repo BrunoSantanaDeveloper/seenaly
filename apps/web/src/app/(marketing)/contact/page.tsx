@@ -16,7 +16,7 @@ export default async function ContactPage() {
 
   return (
     <Section spacing="compact">
-      <SectionHeader title={t("contact-title")} subtitle={t("contact-subtitle")} />
+      <SectionHeader title={t("contact-title")} subtitle={t("contact-subtitle")} as="h1" />
       <Reveal>
         <ContactForm />
       </Reveal>

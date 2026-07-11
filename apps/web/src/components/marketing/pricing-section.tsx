@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { Button } from "@mui/material";
 
+import { BRAND } from "@/brand";
+import JsonLd from "@/components/marketing/json-ld";
 import Reveal from "@/components/marketing/reveal";
 import Section from "@/components/marketing/section";
 import SectionHeader from "@/components/marketing/section-header";
@@ -21,6 +23,13 @@ export type PublicPlanDisplay = {
   highlighted?: boolean;
   /** Harmonic hue identifying this tier (name mark + feature checks). Defaults to a rotation. */
   tone?: Tone;
+  /**
+   * Raw amount + ISO-4217 currency for Offer structured data. Present for real
+   * billing plans; omitted for i18n placeholder plans so no fake pricing is
+   * published as JSON-LD.
+   */
+  priceAmount?: number;
+  priceCurrency?: string;
 };
 
 /**
@@ -36,6 +45,8 @@ export default function PricingSection({
   plans,
   ctaLabel,
   ctaHref = "/auth/sign-up",
+  headingAs = "h2",
+  decor = "none",
 }: {
   id?: string;
   eyebrow?: string;
@@ -44,10 +55,35 @@ export default function PricingSection({
   plans: PublicPlanDisplay[];
   ctaLabel: string;
   ctaHref?: string;
+  /** Set "h1" when this section is the page's lead (e.g. the pricing page). */
+  headingAs?: "h1" | "h2";
+  /** Section depth layer — pages that LEAD with pricing use "glow" (same treatment as a hero). */
+  decor?: "none" | "glow" | "grid" | "gradient-edge";
 }) {
   return (
-    <Section id={id}>
-      <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
+    <Section id={id} decor={decor}>
+      {plans
+        .filter((plan) => plan.priceAmount !== undefined && plan.priceCurrency)
+        .map((plan) => (
+          <JsonLd
+            key={plan.slug}
+            data={{
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: plan.name,
+              ...(plan.description ? { description: plan.description } : {}),
+              brand: { "@type": "Brand", name: BRAND.name },
+              offers: {
+                "@type": "Offer",
+                price: plan.priceAmount,
+                priceCurrency: plan.priceCurrency,
+                availability: "https://schema.org/InStock",
+                url: `${BRAND.siteUrl}${ctaHref}`,
+              },
+            }}
+          />
+        ))}
+      <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} as={headingAs} />
       <Reveal stagger={0.08} className="mx-auto grid w-full max-w-4xl grid-cols-1 items-stretch gap-6 md:grid-cols-3">
         {plans.map((plan, index) => {
           const tone = TONE[plan.tone ?? toneAt(index)];

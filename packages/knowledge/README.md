@@ -14,7 +14,9 @@ Content lives in **collections** (global, superadmin-managed at `/admin/knowledg
 | 4 | Internal playbook | Validated internal processes |
 | 5 | Unverified / opinion | Courses, posts, opinions |
 
-Ingestion chunks the document (`chunkText`), embeds with **Gemini `text-embedding-004`** (768 dims) and stores chunks in `knowledge_chunks`. Retrieval (`knowledge_search` RPC, security invoker — RLS applies) ranks by cosine similarity plus a small trust bonus, so authoritative content wins ties without crowding out relevance.
+Ingestion chunks the document (`chunkText`), embeds with **Gemini `gemini-embedding-001`** (truncated to 768 dims via `outputDimensionality`) and stores chunks in `knowledge_chunks`. Retrieval (`knowledge_search` RPC, security invoker — RLS applies) ranks by cosine similarity plus a small trust bonus, so authoritative content wins ties without crowding out relevance.
+
+> **Changing the embedding model changes the vector space.** Documents embedded with a previous model become incomparable to new query embeddings — re-index every chunk (re-run ingestion) after a model swap. Google retired `text-embedding-004`/`embedding-001`; projects that ingested before the switch must re-index.
 
 ## Wiring into assistants
 

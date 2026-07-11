@@ -1,41 +1,89 @@
 import { DEFAULTS } from "@/config";
-import { computeProgress, getOnboardingState, type OnboardingStep } from "@flyee/onboarding";
+import { computeProgress, type FlowKey, getOnboardingState, type OnboardingStep } from "@flyee/onboarding";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Onboarding declaration point for THIS project (the template ships none —
  * see packages/onboarding/README.md and the `product-screen` skill).
  *
- * SEENALY CHOICE — keep ONBOARDING_STEPS EMPTY on purpose. Seenaly's
- * activation is org-scoped and state-driven (does the org have product
- * context? a Meta connection?), which the template's static, user-scoped
- * ONBOARDING_STEPS can't express. So the real activation surface is
- * `components/activation/activation-checklist.tsx` (flow "activation",
- * org-scoped, live done-predicates, i18n), rendered on `/home` and
- * `/products`. Leaving this empty makes `resolvePostAuthDestination` send new
- * users straight to the app root (`/home`), where that checklist greets them.
- * Do NOT fill this array — it would spin up a second, inferior checklist
- * (user-scoped, click-based) via the template's OnboardingChecklistCard.
+ * Fill ONBOARDING_STEPS with the few steps that take a brand-new user to
+ * their first real result. Everything degrades gracefully while it is
+ * empty: post-auth lands on the app root and no checklist is rendered.
+ *
+ * Prefer LIVE step predicates over click-tracking: give a step a `done`
+ * derived from real product state (e.g. "has connected a data source") so
+ * the checklist reflects reality, not just clicks. `completeStep` remains
+ * for steps that have no observable signal.
+ *
+ * Example:
+ *   export const ONBOARDING_STEPS: OnboardingStep[] = [
+ *     { key: "connect-source", title: "Connect your data source", href: "/settings/connections", done: hasConnection },
+ *     { key: "first-report", title: "Open your first report", href: "/reports" },
+ *   ];
  */
 export const ONBOARDING_FLOW = "user-activation";
 
+/**
+ * SEENALY CHOICE — keep ONBOARDING_STEPS EMPTY on purpose. Seenaly's activation
+ * is org-scoped and state-driven (does the org have product context? a Meta
+ * connection?), which this template's static, user-scoped ONBOARDING_STEPS
+ * can't express. The real activation surface is
+ * `components/activation/activation-checklist.tsx` (flow "activation",
+ * org-scoped, live done-predicates, i18n), rendered on `/home` and `/products`.
+ * Empty here makes `resolvePostAuthDestination` send new users to the app root
+ * (`/home`), where that checklist greets them. Do NOT fill this array — it would
+ * spin up a second, inferior checklist via the template's OnboardingChecklistCard.
+ */
 export const ONBOARDING_STEPS: OnboardingStep[] = [];
 
 /** Route hosting the post-signup setup wizard. */
 export const ONBOARDING_ROUTE = "/onboarding";
 
+/**
+ * Scope of the activation flow:
+ * - `false` (default): PER USER — personal activation, the same across orgs.
+ * - `true`: PER ORGANIZATION — setup shared by the org's members (e.g. "connect
+ *   the data source", "invite the team"); one member completing it activates
+ *   the org. More correct for multi-tenant setup work. When true, the flow key
+ *   carries the user's active org id.
+ */
+export const ONBOARDING_ORG_SCOPED = false;
+
 export const isOnboardingEnabled = ONBOARDING_STEPS.length > 0;
 
+/** The user's active organization (first membership) — for org-scoped flows. */
+async function getActiveOrgId(supabase: SupabaseClient, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("memberships")
+    .select("org_id")
+    .eq("user_id", userId)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  return (data?.org_id as string | undefined) ?? null;
+}
+
 /**
- * Where a user goes right after signing up / signing in. Called from the
- * three auth entry points (sign-in, sign-up, /auth/callback) — never from
- * the middleware, which runs on every request and must stay query-free.
- * Falls back to the app root on any failure: auth must never dead-end.
+ * The flow key shared by the resolver, the checklist card and the /onboarding
+ * page, so they all read/write the SAME onboarding_state row (adds org_id when
+ * the flow is org-scoped). Use this instead of hand-building the key.
+ */
+export async function getOnboardingFlowKey(supabase: SupabaseClient, userId: string): Promise<FlowKey> {
+  const orgId = ONBOARDING_ORG_SCOPED ? await getActiveOrgId(supabase, userId) : null;
+  return { userId, orgId, flow: ONBOARDING_FLOW };
+}
+
+/**
+ * Where a user goes right after signing up / signing in. Called from the auth
+ * entry points (never the middleware, which runs on every request and must
+ * stay query-free). Falls back to the app root on any failure: auth must never
+ * dead-end.
  */
 export async function resolvePostAuthDestination(supabase: SupabaseClient, userId: string): Promise<string> {
   if (!isOnboardingEnabled) return DEFAULTS.appRoot;
   try {
-    const state = await getOnboardingState(supabase, { userId, flow: ONBOARDING_FLOW });
+    const key = await getOnboardingFlowKey(supabase, userId);
+    const state = await getOnboardingState(supabase, key);
     if (state.completedAt) return DEFAULTS.appRoot;
     const progress = computeProgress(ONBOARDING_STEPS, state);
     return progress.complete ? DEFAULTS.appRoot : ONBOARDING_ROUTE;

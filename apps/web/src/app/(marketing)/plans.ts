@@ -1,18 +1,9 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { PublicPlanDisplay } from "@/components/marketing/pricing-section";
-import { type Tone } from "@/components/marketing/tone";
 import { listPublicPlans } from "@flyee/billing/public";
 
 const PLACEHOLDER_SLUGS = ["plan-1", "plan-2", "plan-3"] as const;
-
-/**
- * Harmonic hue per plan tier by position (premium bar item 7): a distinct
- * trio so the three tiers read apart, with the middle anchor in the
- * differentiator hue. Primary stays reserved for the highlighted plan's
- * border + CTA. Extra tiers (>3) fall back to the component's rotation.
- */
-const TIER_TONES: Tone[] = ["accent-1", "secondary", "accent-4"];
 
 /**
  * Display-ready plans for the public pricing sections: real rows from
@@ -23,7 +14,7 @@ export async function getDisplayPlans(): Promise<PublicPlanDisplay[]> {
   const [t, locale, plans] = await Promise.all([getTranslations("marketing"), getLocale(), listPublicPlans()]);
 
   if (!plans || plans.length === 0) {
-    return PLACEHOLDER_SLUGS.map((slug, index) => ({
+    return PLACEHOLDER_SLUGS.map((slug) => ({
       slug,
       name: t(`${slug}-name`),
       description: t(`${slug}-description`),
@@ -31,7 +22,6 @@ export async function getDisplayPlans(): Promise<PublicPlanDisplay[]> {
       period: t(`${slug}-period`),
       features: [t(`${slug}-feature-1`), t(`${slug}-feature-2`), t(`${slug}-feature-3`)],
       highlighted: slug === "plan-2",
-      tone: TIER_TONES[index],
     }));
   }
 
@@ -64,7 +54,9 @@ export async function getDisplayPlans(): Promise<PublicPlanDisplay[]> {
       period: plan.kind === "recurring" && plan.period && !plan.isFree ? t(`pricing-period-${plan.period}`) : undefined,
       features,
       highlighted: index === highlightIndex,
-      tone: TIER_TONES[index],
+      // Raw values power the Offer JSON-LD (formatted `price` is display-only).
+      priceAmount: plan.isFree ? 0 : plan.priceCents / 100,
+      priceCurrency: plan.currency,
     };
   });
 }

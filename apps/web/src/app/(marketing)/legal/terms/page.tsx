@@ -20,7 +20,7 @@ export default async function TermsPage() {
 
   return (
     <Section spacing="compact">
-      <SectionHeader title={t("terms-title")} subtitle={t("legal-updated")} align="start" className="mx-0" />
+      <SectionHeader title={t("terms-title")} subtitle={t("legal-updated")} align="start" className="mx-0" as="h1" />
       <Prose className="mx-0">
         {[1, 2, 3, 4].map((index) => (
           <section key={index}>

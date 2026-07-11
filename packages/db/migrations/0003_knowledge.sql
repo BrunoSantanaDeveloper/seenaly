@@ -47,7 +47,9 @@ create index knowledge_documents_collection_idx on public.knowledge_documents (c
 
 -- ---------- Chunks (the retrieval unit) ----------
 
--- 768 dimensions = Gemini text-embedding-004 (the template's embedder).
+-- 768 dimensions: Gemini `gemini-embedding-001` with outputDimensionality=768
+-- (see packages/knowledge/src/embeddings.ts). Keep the column and the model's
+-- dimension in sync; swapping the model requires re-indexing every chunk.
 create table public.knowledge_chunks (
   id uuid primary key default gen_random_uuid(),
   document_id uuid not null references public.knowledge_documents (id) on delete cascade,

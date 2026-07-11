@@ -28,19 +28,18 @@ export default function FeatureRows({
   title,
   subtitle,
   items,
-  background,
-  decor,
+  decor = "none",
 }: {
   id?: string;
   eyebrow?: string;
   title?: string;
   subtitle?: string;
   items: FeatureRowItem[];
-  background?: React.ComponentProps<typeof Section>["background"];
-  decor?: React.ComponentProps<typeof Section>["decor"];
+  /** Section depth layer — the committed direction puts decor="grid" on one technical section per page. */
+  decor?: "none" | "glow" | "grid" | "gradient-edge";
 }) {
   return (
-    <Section id={id} background={background} decor={decor}>
+    <Section id={id} decor={decor}>
       {title && <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />}
       <div className="flex flex-col gap-[var(--section-space-sm)]">
         {items.map((item, index) => {

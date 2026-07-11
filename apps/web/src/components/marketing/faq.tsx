@@ -1,6 +1,7 @@
 "use client";
 import { Accordion, AccordionDetails, AccordionSummary, Typography } from "@mui/material";
 
+import JsonLd from "@/components/marketing/json-ld";
 import Reveal from "@/components/marketing/reveal";
 import Section from "@/components/marketing/section";
 import SectionHeader from "@/components/marketing/section-header";
@@ -11,10 +12,24 @@ export type FaqItem = { question: string; answer: string };
 /**
  * Funnel stage: objection handling. Each question should be a REAL purchase
  * objection (price, migration, security, lock-in), answered plainly.
+ *
+ * Emits FAQPage structured data from the same `items` — an eligible rich
+ * result and a strong AI-search signal, with nothing for the page to remember.
  */
 export default function Faq({ eyebrow, title, items }: { eyebrow?: string; title: string; items: FaqItem[] }) {
   return (
     <Section>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: items.map((item) => ({
+            "@type": "Question",
+            name: item.question,
+            acceptedAnswer: { "@type": "Answer", text: item.answer },
+          })),
+        }}
+      />
       <SectionHeader eyebrow={eyebrow} title={title} />
       <Reveal className="mx-auto flex w-full max-w-3xl flex-col gap-2">
         {items.map((item) => (

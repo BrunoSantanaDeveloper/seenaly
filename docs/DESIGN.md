@@ -41,4 +41,6 @@ Derived projects: `/init-project` rewrites this file when the brand direction is
 
 ## Open items (template baseline)
 
-- The template's own `(marketing)` pages predate this direction and may not yet meet every premium-bar item; bringing them up is a normal edit governed by this file (and the coherence pass).
+- The home page now implements this direction end to end (split hero + ProductFrame glow, FeatureRows zig-zag with decor="grid", BentoGrid, StatBand contrast break, orchestrated hero timeline, family→hue mapping documented in `app/(marketing)/page.tsx`). It is the reference implementation new pages should read.
+- `/pricing`, `/about` and `/contact` are supporting pages: structurally compliant (single h1, metadata, primitives, lead-section glow) but intentionally quieter than the home. Deepening them further is a normal edit governed by this file.
+- Real product screenshots still pending (template ships token-driven placeholders by design); derived projects drop screenshots into `<ProductFrame>` at init-project time.

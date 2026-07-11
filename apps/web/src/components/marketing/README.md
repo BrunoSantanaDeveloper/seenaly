@@ -2,6 +2,8 @@
 
 Building blocks for every public page under `apps/web/src/app/(marketing)/`. Consistency is enforced **by construction**: pages compose these components and never hand-tune spacing, widths or type sizes.
 
+`catalog.json` is the machine-readable index of this library (components, props, funnel stage, when to use). The `marketing-guard` hook injects its digest into every marketing write/edit, and the `marketing-lint` hook checks the written result against the contract — keep the catalog in sync whenever a component's props change.
+
 ## Contract
 
 - **Every block of content sits inside `<Section>`** (which renders `<Container>`); vertical rhythm, max width and horizontal padding come from the marketing tokens (`packages/design-tokens/css/marketing.css`) — never from per-page utility values.
@@ -15,7 +17,7 @@ Building blocks for every public page under `apps/web/src/app/(marketing)/`. Con
 
 ## Conversion mapping (home page order)
 
-`Hero` (attention + value prop, ONE primary CTA) → `LogoCloud`/`Testimonials` (trust) → `FeatureGrid` (desire, benefit-led) → `PricingSection` (action) → `Faq` (objection handling) → `Cta` (recovery, repeats the primary CTA verbatim).
+`Hero` split + `ProductFrame glow` (attention + value prop + evidence, ONE primary CTA) → `LogoCloud` (trust) → `FeatureRows` (flagship desire, claim next to evidence) → `BentoGrid` (secondary desire) → `StatBand` (proof) → `Testimonials` (trust) → `PricingSection` (action) → `Faq` (objection handling) → `Cta` (recovery, repeats the primary CTA verbatim).
 
 ## Expressive range (premium archetypes)
 

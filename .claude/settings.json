@@ -25,6 +25,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/marketing-lint.mjs"
+          }
+        ]
+      }
     ]
   }
 }

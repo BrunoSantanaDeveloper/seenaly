@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 import OnboardingChecklist from "@/components/product/onboarding-checklist";
-import { isOnboardingEnabled, ONBOARDING_FLOW, ONBOARDING_STEPS } from "@/lib/onboarding";
+import { getOnboardingFlowKey, isOnboardingEnabled, ONBOARDING_STEPS } from "@/lib/onboarding";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
-import { dismissFlow, getOnboardingState, type OnboardingStateRow } from "@flyee/onboarding";
+import { dismissFlow, type FlowKey, getOnboardingState, type OnboardingStateRow } from "@flyee/onboarding";
 
 /**
  * Drop-in activation card for the app home: reads the user's onboarding
@@ -15,7 +15,7 @@ import { dismissFlow, getOnboardingState, type OnboardingStateRow } from "@flyee
  * complete, or the user dismissed it — safe to mount unconditionally.
  */
 export default function OnboardingChecklistCard({ title, className }: { title?: string; className?: string }) {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [flowKey, setFlowKey] = useState<FlowKey | null>(null);
   const [state, setState] = useState<OnboardingStateRow | null>(null);
 
   useEffect(() => {
@@ -26,17 +26,18 @@ export default function OnboardingChecklistCard({ title, className }: { title?: 
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      setUserId(user.id);
-      setState(await getOnboardingState(supabase, { userId: user.id, flow: ONBOARDING_FLOW }));
+      const key = await getOnboardingFlowKey(supabase, user.id);
+      setFlowKey(key);
+      setState(await getOnboardingState(supabase, key));
     };
     load();
   }, []);
 
   const handleDismiss = useCallback(async () => {
-    if (!userId) return;
+    if (!flowKey) return;
     setState((current) => (current ? { ...current, dismissed: true } : current));
-    await dismissFlow(createClient(), { userId, flow: ONBOARDING_FLOW });
-  }, [userId]);
+    await dismissFlow(createClient(), flowKey);
+  }, [flowKey]);
 
   if (!state) return null;
 

@@ -50,7 +50,7 @@ export default function ProcessSteps({
               {/* Ghosted ordinal — reads as rhythm, not content. */}
               <span
                 aria-hidden
-                className="font-display pointer-events-none absolute -top-4 right-3 text-[5rem] leading-none font-extrabold opacity-[0.07]"
+                className="font-display text-display-2xl pointer-events-none absolute -top-4 right-3 leading-none font-extrabold opacity-[0.07]"
                 style={{ color: "hsl(var(--step-tone))" }}
               >
                 {String(index + 1).padStart(2, "0")}
