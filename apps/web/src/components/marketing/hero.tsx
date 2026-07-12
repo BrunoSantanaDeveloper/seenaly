@@ -1,14 +1,11 @@
 "use client";
-import gsap from "gsap";
 import Link from "next/link";
 import { useRef } from "react";
 
 import { Button } from "@mui/material";
 
+import { gsap, readMotionToken, tokenSeconds, useGSAP } from "@/components/marketing/motion";
 import Section from "@/components/marketing/section";
-import { useGSAP } from "@gsap/react";
-
-gsap.registerPlugin(useGSAP);
 
 export type HeroCta = { label: string; href: string };
 
@@ -50,16 +47,30 @@ export default function Hero({
       const element = scope.current;
       if (!element) return;
 
-      const rootStyles = getComputedStyle(document.documentElement);
-      const distance = rootStyles.getPropertyValue("--motion-reveal-distance").trim() || "2.5rem";
-      const durationMs = parseFloat(rootStyles.getPropertyValue("--motion-duration-3")) || 800;
+      const distance = readMotionToken("--motion-reveal-distance", "2.5rem");
+      const duration = tokenSeconds("--motion-duration-3", 0.8);
 
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const timeline = gsap.timeline({
-          defaults: { y: distance, autoAlpha: 0, duration: durationMs / 1000, ease: "power3.out" },
+          defaults: { y: distance, autoAlpha: 0, duration, ease: "power3.out" },
         });
         timeline.from(element.querySelectorAll("[data-hero-copy] > *"), { stagger: 0.12 });
+
+        // Layered media (<ProductComposition>): frame rises, then satellites
+        // pop in staggered. The entrance animates each satellite's positioning
+        // wrapper — <Float> inside animates the chip itself, so no collision.
+        const frame = element.querySelector("[data-composition-frame]");
+        if (frame) {
+          timeline.from(frame, {}, "-=0.55");
+          const satellites = element.querySelectorAll("[data-composition-satellite]");
+          if (satellites.length) {
+            const half = (parseFloat(distance) * 16) / 2; // rem → px, half the reveal distance
+            timeline.from(satellites, { y: half, autoAlpha: 0, scale: 0.96, stagger: 0.08 }, "-=0.35");
+          }
+          return;
+        }
+
         const mediaElement = element.querySelector("[data-hero-media]");
         if (mediaElement) timeline.from(mediaElement, {}, "-=0.55");
       });

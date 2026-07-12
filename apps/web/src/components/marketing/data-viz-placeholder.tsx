@@ -1,14 +1,17 @@
+import InView from "@/components/marketing/in-view";
+
 /**
  * Token-driven data visualization that stands in for a product screenshot
  * on DATA products (analytics, growth, finance) — a hero must never ship
  * without product evidence, and for these products "evidence" is a chart.
- * Pure SVG tinted by the theme tokens; the draw-in animation is CSS-only
- * and disabled under prefers-reduced-motion. Replace with a real
- * screenshot inside <ProductFrame> as soon as one exists.
+ * Pure SVG tinted by the theme tokens; the draw-in animation is CSS-only,
+ * fires when the chart ENTERS THE VIEWPORT (InView sets data-inview) and is
+ * disabled under prefers-reduced-motion (line renders fully drawn). Replace
+ * with a real screenshot inside <ProductFrame> as soon as one exists.
  */
 export default function DataVizPlaceholder({ label }: { label?: string }) {
   return (
-    <div className="flex aspect-[16/10] w-full flex-col gap-4 p-6 sm:p-8">
+    <InView className="flex aspect-[16/10] w-full flex-col gap-4 p-6 sm:p-8">
       {/* KPI row — one harmonic hue per metric family, like the real product. */}
       <div className="grid grid-cols-3 gap-3">
         {[
@@ -59,10 +62,11 @@ export default function DataVizPlaceholder({ label }: { label?: string }) {
             </linearGradient>
           </defs>
         </svg>
-        {/* CSS-only draw-in, motion-safe. */}
+        {/* CSS-only draw-in, motion-safe, keyed to viewport entry via InView. */}
         <style>{`
           @media (prefers-reduced-motion: no-preference) {
-            .dvp-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: dvp-draw 1.6s var(--motion-ease, ease-out) 0.2s forwards; }
+            .dvp-line { stroke-dasharray: 1; stroke-dashoffset: 1; }
+            [data-inview] .dvp-line { animation: dvp-draw 1.6s var(--motion-ease, ease-out) 0.1s forwards; }
             @keyframes dvp-draw { to { stroke-dashoffset: 0; } }
           }
         `}</style>
@@ -78,6 +82,6 @@ export default function DataVizPlaceholder({ label }: { label?: string }) {
           />
         ))}
       </div>
-    </div>
+    </InView>
   );
 }

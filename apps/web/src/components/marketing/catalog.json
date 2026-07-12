@@ -9,7 +9,9 @@
     "Exactly one <h1> per page (Hero, or SectionHeader/PricingSection as/headingAs=\"h1\")",
     "New public routes: PUBLIC_PREFIXES (src/middleware.ts) + src/app/sitemap.ts + generateMetadata",
     "Structured data via <JsonLd> only; Organization/FAQPage/Product already emitted by layout/Faq/PricingSection",
-    "Motion via <Reveal> or useGSAP in client components; transforms + autoAlpha; reduced-motion safe"
+    "Motion via <Reveal> or useGSAP in client components; transforms + autoAlpha; reduced-motion safe",
+    "Layer scale: compositions are relative isolate with z-0 (back) / z-10 (frame) / z-20 (front); z-30 is reserved for site chrome",
+    "Ambient motion is seasoning: max 4 <Float> + 2 <Parallax> per page, always reduced-motion safe; one orbiting decor at most"
   ],
   "tones": {
     "source": "tone.ts — TONE map + toneAt(index) rotation",
@@ -35,8 +37,71 @@
       "name": "Section",
       "file": "section.tsx",
       "role": "layout",
-      "props": "spacing: default|compact, background: default|paper|primary-soft|contrast, decor: none|glow|grid|gradient-edge, bleed, id",
-      "use": "vertical rhythm unit wrapping every block; vary background/decor at least twice along a page (premium bar #3)"
+      "props": "spacing: default|compact, background: default|paper|primary-soft|contrast, decor: none|glow|grid|gradient-edge|dots|mesh|orbit, bleed, id",
+      "use": "vertical rhythm unit wrapping every block; vary background/decor at least twice along a page (premium bar #3); orbit is the one slowly-alive ambient — max one per page"
+    },
+    {
+      "name": "ProductComposition",
+      "file": "product-composition.tsx",
+      "role": "evidence",
+      "props": "frame (ProductFrame/screenshot), satellites: {children, position: top-left|top-right|right|bottom-right|bottom-left|left, depth: front|back, rotate: -6..6, float, floatDelay, parallax, hideBelow}[] (2–4)",
+      "use": "LAYERED hero media — central frame + floating chips overlapping its edges (the reference-site look); collapses to a chip row below md; Hero's timeline choreographs frame then satellites (premium bar #9)"
+    },
+    {
+      "name": "SatelliteChips",
+      "file": "satellite-chips.tsx",
+      "role": "evidence",
+      "props": "KpiChip{label,value,delta?,tone} · TrendChip{label,data?,tone} · AvatarRowChip{names,label} · ReadoutChip{text,tone}",
+      "use": "ready-made satellites for ProductComposition; REAL localized content only — a satellite that lies is worse than none"
+    },
+    {
+      "name": "ProductShot",
+      "file": "product-shot.tsx",
+      "role": "evidence",
+      "props": "name (basename under /images/marketing), alt (translated), sizes, priority (above the fold only), width?, height?",
+      "use": "REAL product screenshot pair (light + -dark) captured by npm run shots:marketing; use inside ProductFrame/Breakout media — real imagery beats any placeholder (premium bar #12)"
+    },
+    {
+      "name": "Band",
+      "file": "band.tsx",
+      "role": "layout",
+      "props": "angle: -2..2, background: contrast|primary-soft|paper, spacing, decor: none|grid|dots, id",
+      "use": "full-bleed ANGLED contrast strip — the diagonal-band breakout; background skews, content stays level; use INSTEAD of <Section> for that block (premium bar #10)"
+    },
+    {
+      "name": "Breakout",
+      "file": "breakout.tsx",
+      "role": "layout",
+      "props": "side: right|left, media, children (copy column)",
+      "use": "media escaping the container to the viewport edge; use inside <Section bleed className=\"overflow-x-clip\">; copy column stays aligned with the site container (premium bar #10)"
+    },
+    {
+      "name": "Float",
+      "file": "float.tsx",
+      "role": "motion",
+      "props": "amplitude?, duration?, delay?, rotate?, className",
+      "use": "gentle infinite oscillation for satellites/decor; reduced-motion static; budget ≤ 4 per page"
+    },
+    {
+      "name": "Parallax",
+      "file": "parallax.tsx",
+      "role": "motion",
+      "props": "speed (yPercent, capped 12), className",
+      "use": "scroll-scrubbed drift for layered media; desktop-only + reduced-motion safe; budget ≤ 2 per page"
+    },
+    {
+      "name": "CountUp",
+      "file": "count-up.tsx",
+      "role": "motion",
+      "props": "value (pre-formatted string), duration?, className",
+      "use": "numbers count up on scroll entry; SSR renders the final string (SEO/no-JS/reduced-motion correct); StatBand uses it internally"
+    },
+    {
+      "name": "InView",
+      "file": "in-view.tsx",
+      "role": "motion",
+      "props": "threshold?, className",
+      "use": "one-shot data-inview attribute on viewport entry — the CSS hook for server-rendered draw-ins (DataVizPlaceholder uses it internally)"
     },
     {
       "name": "Container",
@@ -92,14 +157,14 @@
       "file": "stat-band.tsx",
       "funnel": "trust (proof)",
       "props": "stats: {value (pre-formatted), label, tone} — 3–4 stats",
-      "use": "contrast band of oversized REAL numbers; doubles as a background break; invented stats are worse than none"
+      "use": "contrast+grid band of OVERSIZED numbers (display-2xl, mono index, tone gauge bar) that COUNT UP on entry; doubles as a background break; invented stats are worse than none"
     },
     {
       "name": "ProcessSteps",
       "file": "process-steps.tsx",
       "funnel": "desire (how it works)",
-      "props": "steps: {icon, title, body, deliverableLabel?, deliverableValue?, tone}",
-      "use": "scannable sequence: ghosted ordinal + meaningful themed icon + optional deliverable, one hue per step"
+      "props": "steps: {icon?, kicker?, title, body, deliverableLabel?, deliverableValue?, tone}, variant: icon|mono",
+      "use": "scannable sequence: ghosted ordinal + meaningful themed icon + optional deliverable, one hue per step; variant=\"mono\" swaps to a mono 0N · kicker label (instrument treatment)"
     },
     {
       "name": "FeatureGrid",
@@ -127,7 +192,7 @@
       "file": "pricing-section.tsx",
       "funnel": "action",
       "props": "plans (from getDisplayPlans()), ctaLabel, ctaHref, headingAs: h1|h2, decor, id",
-      "use": "real plans, one highlighted anchor, tone per tier; emits Product JsonLd; CTA repeats the page's primary action verbatim; decor=\"glow\" when it leads the page"
+      "use": "real plans, one highlighted anchor, tone per tier; emits Product JsonLd; CTA repeats the page's primary action verbatim; decor=\"glow\" when it leads the page; 1–2 plans auto-center instead of stranding in a 3-up grid"
     },
     {
       "name": "Faq",
@@ -140,8 +205,8 @@
       "name": "Cta",
       "file": "cta.tsx",
       "funnel": "recovery",
-      "props": "title, subtitle, cta",
-      "use": "last conversion opportunity; repeats the primary CTA verbatim"
+      "props": "title, subtitle, cta, kicker?, decor: none|orbit|mesh|dots",
+      "use": "last conversion opportunity as a bordered console panel with primary glow + optional mono kicker; repeats the primary CTA verbatim; decor=\"orbit\" is the classic closer"
     },
     {
       "name": "Reveal",

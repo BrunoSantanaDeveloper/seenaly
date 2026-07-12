@@ -5,9 +5,9 @@ import { TONE, type Tone, toneAt } from "@/components/marketing/tone";
 import { cn } from "@/lib/utils";
 
 export type ProcessStep = {
-  /** Meaningful icon for this step (default variant) — the concept at a glance, not decoration. */
+  /** Meaningful icon for this step (icon variant) — the concept at a glance, not decoration. */
   icon?: React.ReactNode;
-  /** Mono kicker word for the instrument variant (e.g. "leitura", "cruzamento"). */
+  /** Mono kicker word for the mono variant (e.g. "read", "cross", "output"). */
   kicker?: string;
   title: string;
   body: string;
@@ -24,9 +24,8 @@ export type ProcessStep = {
  * grasps the flow by scanning icons + numbers, before reading a word.
  * The ordinal is only decorative order; use benefit-led step titles.
  *
- * `mono` switches to the INSTRUMENT variant (committed "Sala de Controle"
- * direction): the icon/ghosted ordinal give way to a mono `0N · kicker` label,
- * so the section reads like a decision pipeline/readout.
+ * `variant="mono"` swaps the icon + ghost ordinal for a mono `0N · kicker`
+ * label — the instrument/pipeline treatment for data-first directions.
  */
 export default function ProcessSteps({
   id,
@@ -34,14 +33,14 @@ export default function ProcessSteps({
   title,
   subtitle,
   steps,
-  mono = false,
+  variant = "icon",
 }: {
   id?: string;
   eyebrow?: string;
   title: string;
   subtitle?: string;
   steps: ProcessStep[];
-  mono?: boolean;
+  variant?: "icon" | "mono";
 }) {
   return (
     <Section id={id} decor="grid">
@@ -56,10 +55,15 @@ export default function ProcessSteps({
               className="group border-grey-100 bg-background-paper relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-7"
               style={{ ["--step-tone" as string]: `var(${tone.cssVar})` }}
             >
-              {mono ? (
-                <span className={cn("font-mono text-xs font-medium tracking-wider uppercase", tone.text)}>
+              {variant === "mono" ? (
+                <span className="text-text-secondary font-mono text-sm">
                   {ordinal}
-                  {step.kicker ? ` · ${step.kicker}` : ""}
+                  {step.kicker && (
+                    <>
+                      {" · "}
+                      <span className={cn("tracking-wider uppercase", tone.text)}>{step.kicker}</span>
+                    </>
+                  )}
                 </span>
               ) : (
                 <>
@@ -71,6 +75,7 @@ export default function ProcessSteps({
                   >
                     {ordinal}
                   </span>
+
                   {step.icon && (
                     <span
                       className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", tone.softBg, tone.text)}
@@ -89,7 +94,7 @@ export default function ProcessSteps({
               {step.deliverableValue && (
                 <div className="border-grey-100 mt-auto border-t pt-4">
                   {step.deliverableLabel && (
-                    <p className={cn("mb-1 font-mono text-xs font-semibold tracking-wide uppercase", tone.text)}>
+                    <p className={cn("mb-1 text-xs font-semibold tracking-wide uppercase", tone.text)}>
                       {step.deliverableLabel}
                     </p>
                   )}

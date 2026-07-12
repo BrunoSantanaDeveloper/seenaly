@@ -72,6 +72,17 @@ const sizes = await page.evaluate(() =>
 - `font` must be the committed display face, not the admin font.
 - Count the elements you expect: if the selector finds fewer than the page's headings + stat numbers, a class was stripped somewhere.
 
+Also assert the layered-composition and breakout invariants:
+```js
+const layout = await page.evaluate(() => ({
+  satellites: document.querySelectorAll("[data-composition-satellite]").length,
+  overflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+}));
+```
+- At 1440, `satellites` ≥ 2 (the hero is a layered `<ProductComposition>`, not a flat frame — premium bar #9). Zero means the composition collapsed or was never used.
+- At **375**, `overflow` must be `true` (`scrollWidth <= clientWidth`). Breakouts (`Band`/`Breakout`, `bleed` sections) are the new horizontal-overflow risk — this is the deterministic check for it.
+- Note: 768 is below the `md` breakpoint (960px), so the 768 shot shows the satellites' MOBILE chip row under the frame, not the overlapping desktop layout — that is correct, not a bug.
+
 ## 3. Judge (Read every screenshot — actually look)
 
 Verdict each item PASS/FAIL with the screenshot as evidence:
@@ -86,6 +97,10 @@ Verdict each item PASS/FAIL with the screenshot as evidence:
 8. **Mobile (375)** — no horizontal scroll, no overlapping/clipped text, media scales.
 
 9. **Nothing is a stock component with new text.** The failure this skill exists to catch: the page passes every item above and still looks like the template, because the mid/lower sections reused generic components while only the hero got real craft. Ask of every section: is the visual here *specific to this product*, or would it appear unchanged on any SaaS page? A section whose only visual is a small lonely icon in a tall empty card FAILS — give it real evidence (a domain visual, an oversized number) or merge it away.
+10. **Layered hero** — the fold shot shows floating satellite chips overlapping the frame (a composition), not a single flat rectangle. Confirmed numerically by the `satellites ≥ 2` measurement above.
+11. **Breakout present** — the full-page shot has one angled band or edge-bleeding media; the page is not a stack of centered containers.
+12. **Real imagery when available** — if `public/images/marketing/` has assets, the page uses `<ProductShot>` (not a placeholder). When it has none (the template itself), the layered placeholder frame is correct — do not fail this.
+13. **Ambient motion + reduced-motion pass** — in the normal capture something breathes (a floated chip offset between two shots, stat numbers mid-count); in the `reducedMotion: "reduce"` pass EVERYTHING is static AND fully visible (no chip stuck invisible, no un-drawn chart).
 
 ## 4. Close the loop
 

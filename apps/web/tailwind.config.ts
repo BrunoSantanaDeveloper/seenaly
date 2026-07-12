@@ -16,8 +16,9 @@ const config: Config = {
         // may load a display font in the root layout and set --font-display.
         display: ["var(--font-display, var(--font-heading))", "ui-sans-serif"],
         // Instrument/data face for marketing (diagnosis readout, metric callouts,
-        // mono eyebrows). Set --font-mono in the root layout.
-        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        // mono eyebrows). Seenaly loads a mono font via next/font and sets
+        // --font-mono in the root layout; without it this degrades to system mono.
+        mono: ["var(--font-mono, ui-monospace)", "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       screens: { sm: "480px", md: "960px", lg: "1280px", xl: "1440px", "2xl": "1640px", "3xl": "1900px" } as Screens,
       backgroundImage: {

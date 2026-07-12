@@ -332,8 +332,12 @@ export const marketing = {
   "motion-duration-1": "200ms",
   "motion-duration-2": "450ms",
   "motion-duration-3": "800ms",
+  "motion-duration-4": "1600ms",
   "motion-ease": "cubic-bezier(0.22, 1, 0.36, 1)",
-  "motion-reveal-distance": "2.5rem"
+  "motion-reveal-distance": "2.5rem",
+  "motion-float-distance": "0.4rem",
+  "motion-float-duration": "6s",
+  "motion-orbit-duration": "40s"
 } as const;
 
 /**

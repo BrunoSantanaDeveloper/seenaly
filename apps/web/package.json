@@ -10,6 +10,7 @@
     "lint:fix": "next lint --fix",
     "prettier": "prettier --write './src/**/*.{js,jsx,json,ts,tsx,scss,css,md}'",
     "icons:stubs": "node scripts/generate-icon-stubs.mjs",
+    "shots:marketing": "node scripts/marketing-shots.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

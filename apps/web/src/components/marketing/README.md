@@ -19,6 +19,14 @@ Building blocks for every public page under `apps/web/src/app/(marketing)/`. Con
 
 `Hero` split + `ProductFrame glow` (attention + value prop + evidence, ONE primary CTA) → `LogoCloud` (trust) → `FeatureRows` (flagship desire, claim next to evidence) → `BentoGrid` (secondary desire) → `StatBand` (proof) → `Testimonials` (trust) → `PricingSection` (action) → `Faq` (objection handling) → `Cta` (recovery, repeats the primary CTA verbatim).
 
+## Layered compositions, breakouts & ambient motion
+
+- **Layer scale** (no z tokens — a fixed local rule): every composition root is `relative isolate`; inside it use ONLY `z-0` (back layers), `z-10` (the frame/primary media), `z-20` (front satellites). `z-30` is reserved for the site chrome (sticky header). The `isolate` guarantees nothing ever fights the chrome.
+- **`<ProductComposition>`** — the reference-site hero: a central frame + 2–4 floating `satellite-chips` overlapping its edges (depth, slight rotation, float). Collapses to a centered chip row below `md` (960px). Satellites carry REAL localized content.
+- **Breakouts** (premium bar #10): `<Band angle>` = full-bleed angled contrast strip (background skews, content stays level; replaces `<Section>` for that block). `<Breakout side>` = media escaping to the viewport edge, used inside `<Section bleed className="overflow-x-clip">`. Never hand-roll `100vw` bleeds — scrollbar width causes horizontal overflow.
+- **Ambient motion is seasoning, not the dish**: budget ≤4 `<Float>` + ≤2 `<Parallax>` (desktop-only) + at most one `orbit` decor per page; `<CountUp>` for StatBand/KPI numbers. Everything reduced-motion safe by construction.
+- **Real imagery first**: `<ProductShot name>` renders the light/dark screenshot pair from `public/images/marketing/` (captured by `npm run shots:marketing -w @flyee/web`). The token wireframe placeholder is the fallback by authorship, not by runtime detection.
+
 ## Expressive range (premium archetypes)
 
 - `Hero layout="split"` + `<ProductFrame glow>` — copy left, product evidence right. `<DataVizPlaceholder>` stands in for the screenshot on data products.

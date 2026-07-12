@@ -87,13 +87,13 @@ export default function PricingSection({
       <Reveal
         stagger={0.08}
         className={cn(
-          "mx-auto grid w-full max-w-4xl grid-cols-1 items-stretch gap-6",
-          // Track the real plan count: one or two plans must stay CENTERED, not
-          // stranded in the first column of a 3-up grid (a project may ship a
-          // single public plan while billing is still being set up).
+          "mx-auto grid w-full grid-cols-1 items-stretch gap-6",
+          // Track the real plan count: one or two plans stay CENTERED instead
+          // of stranding in the first column of a 3-up grid (a project may
+          // ship a single public plan while billing is being set up).
           plans.length === 1 && "md:max-w-sm",
           plans.length === 2 && "md:max-w-2xl md:grid-cols-2",
-          plans.length >= 3 && "md:grid-cols-3",
+          plans.length >= 3 && "max-w-4xl md:grid-cols-3",
         )}
       >
         {plans.map((plan, index) => {

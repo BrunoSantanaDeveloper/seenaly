@@ -1,12 +1,8 @@
 "use client";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRef } from "react";
 
+import { gsap, readMotionToken, tokenSeconds, useGSAP } from "@/components/marketing/motion";
 import { cn } from "@/lib/utils";
-import { useGSAP } from "@gsap/react";
-
-gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 /**
  * Scroll reveal for marketing sections — the ONLY sanctioned way to animate
@@ -35,16 +31,15 @@ export default function Reveal({
       const element = ref.current;
       if (!element) return;
 
-      const rootStyles = getComputedStyle(document.documentElement);
-      const distance = rootStyles.getPropertyValue("--motion-reveal-distance").trim() || "2.5rem";
-      const durationMs = parseFloat(rootStyles.getPropertyValue("--motion-duration-3")) || 800;
+      const distance = readMotionToken("--motion-reveal-distance", "2.5rem");
+      const duration = tokenSeconds("--motion-duration-3", 0.8);
 
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.from(stagger > 0 ? Array.from(element.children) : element, {
           y: distance,
           autoAlpha: 0,
-          duration: durationMs / 1000,
+          duration,
           ease: "power3.out",
           delay,
           stagger,

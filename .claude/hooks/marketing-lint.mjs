@@ -80,6 +80,12 @@ function lint(filePath, content) {
   if (isPage && file === "page.tsx" && !content.includes("@/components/marketing/"))
     violations.push(`[library-bypass] marketing page without a single @/components/marketing/* import — pages compose Section/SectionHeader and the archetypes, never raw layout.`);
 
+  // Imagery advisories (never block — imagery is a judgment call).
+  if (/<img[\s>]/.test(content))
+    advisories.push(`[raw-img] a raw <img> tag — use next/image (via <ProductShot> in marketing) for sizing/format/lazy-loading.`);
+  if (/from\s+["']next\/image["']/.test(content) && !/\bsizes=/.test(content))
+    advisories.push(`[image-sizes] next/image used without a sizes= prop — add one so the browser fetches a sensibly sized webp/avif (LCP).`);
+
   // New public route → must be registered in PUBLIC_PREFIXES and the sitemap.
   if (isPage && file === "page.tsx" && p.includes("/src/app/(marketing)/")) {
     const route = routeFromPath(p);

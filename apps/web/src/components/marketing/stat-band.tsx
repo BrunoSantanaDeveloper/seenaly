@@ -1,3 +1,4 @@
+import CountUp from "@/components/marketing/count-up";
 import Reveal from "@/components/marketing/reveal";
 import Section from "@/components/marketing/section";
 import { TONE, type Tone } from "@/components/marketing/tone";
@@ -16,9 +17,10 @@ export type Stat = {
  * proof (committed "Sala de Controle" direction). The number is the payload:
  * display-2xl, extrabold, tabular, left-aligned over the technical grid, each
  * under a mono index and above a tone gauge bar so the band reads like an
- * instrument panel, not a timid centered row. Real numbers only — an invented
- * stat is worse than no band. Callers pass a `tone` per stat so the families
- * keep their hue.
+ * instrument panel, not a timid centered row, and it COUNTS UP on scroll entry
+ * (CountUp is SSR-safe and reduced-motion safe). Real numbers only — an
+ * invented stat is worse than no band. Callers pass a `tone` per stat so the
+ * families keep their hue.
  */
 export default function StatBand({ stats }: { stats: Stat[] }) {
   return (
@@ -31,9 +33,11 @@ export default function StatBand({ stats }: { stats: Stat[] }) {
               <span className="text-text-muted font-mono text-xs tracking-widest">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className={cn("font-display text-display-2xl leading-none font-extrabold tabular-nums", tone.text)}>
-                {stat.value}
-              </span>
+              <CountUp
+                value={stat.value}
+                className={cn("font-display text-display-2xl leading-none font-extrabold tabular-nums", tone.text)}
+              />
+
               <span
                 aria-hidden
                 className="h-1 w-16 rounded-full"

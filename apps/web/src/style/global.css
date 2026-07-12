@@ -12,6 +12,14 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+/*
+  Dark mode is CLASS-driven in this app (ThemeProvider toggles `.dark` on
+  <html>), not media-query-driven. Without this, Tailwind's `dark:` variant
+  follows prefers-color-scheme and silently disagrees with the app theme —
+  the light/dark <ProductShot> swap depends on it.
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* --------- Theme (design tokens: source of truth in packages/design-tokens) --------- */
 @import "@flyee/design-tokens/css/common.css";
 @import "@flyee/design-tokens/css/orange.css";

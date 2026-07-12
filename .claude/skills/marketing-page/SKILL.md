@@ -17,6 +17,21 @@ It applies equally to **creating a page**, **editing an existing page**, and **a
 
 ## Process: direction engine, two passes, then code
 
+**Pass 0.R — Reference ingestion (optional, run it FIRST when references exist).** If the user dropped inspiration screenshots in `attachments/` (or points you at reference sites), study them BEFORE the direction work — a great reference analysis is wasted if the library can't express it, so the output is a mapping, not a mood board:
+1. `Read` each reference image (multimodal). Extract **structural** ingredients only — layout composition, layering/depth, breakout usage, imagery type, motion character, type hierarchy. NEVER carry over a hex value or font name; map each cue to the nearest token/library primitive, or record it as "rejected: off-system".
+2. Append/replace the `## Reference ingredients` section in `docs/DESIGN.md` (table shape below). Explicitly list any ingredient the library **cannot express yet** → that becomes a component to build in `components/marketing/`, NOT a per-page hack.
+3. Route/delete the reference files per `attachments/README.md` (they never live in the repo).
+
+```md
+## Reference ingredients (ingested <date> from <filenames>)
+| Ingredient | What the reference does | How WE do it (library mapping) |
+|---|---|---|
+| Hero composition | central screenshot + 3 floating KPI cards, slight tilt | ProductComposition + Kpi/Trend satellites, rotate ±2–3 |
+| Breakout | angled full-width band mid-page | Band angle=-1 |
+| Motion | chips drift, stats count up | Float / CountUp (reduced-motion safe) |
+Gaps the library cannot express yet: <list or "none"> → extend components/marketing.
+```
+
 **Pass 0 — Establish the direction.** Design decisions must be TUNED TO THE PRODUCT, not generically "good". Two branches:
 
 **A. `docs/DESIGN.md` already exists (the common case after the first page): INHERIT, do not re-decide.** Read it and build strictly within it — typography, palette usage, depth treatment, layout archetypes, signature element, motion. **STRICT MODE: do NOT re-run the direction engine and do NOT restyle the UI.** Changing the direction is a "redesign" and happens ONLY when the user explicitly asks for it ("redesign", "nova direção", "novo visual"); that request rewrites `docs/DESIGN.md` first, then pages follow the new version.
@@ -44,12 +59,16 @@ A page can follow every rule below and still look like a beginner site if it is 
 6. **Display typography is not the admin font** (Pass 0.3).
 7. **Harmonic palette, not monochrome** — the theme ships 6 hues designed to combine (`primary`, `secondary`, `accent-1..4`, all with light/dark variants). Primary is reserved for CTAs and the bold moment; categorical elements (plan tiers, feature families, chart series, icon chips) take accent tones via the `tone` prop (`components/marketing/tone.ts`) with a CONSISTENT meaning-mapping across the page and site (the same family keeps the same hue everywhere). A page where every tinted element is primary reads flat and monochrome — it FAILS. Never invent hues outside the token palette.
 8. **Show, don't tell** — the reader scans, they don't read. Every text-heavy section must carry a visual that conveys its meaning AT A GLANCE, so the point lands without reading the body: a MEANINGFUL icon (the concept, not decoration), a figure, a chart, or a conceptual illustration. Feature families and process steps always lead with such an icon in their family hue (`FeatureGrid`, `ProcessSteps`, `BentoGrid`). A wall of cards that are title+paragraph only FAILS.
+9. **The hero media is LAYERED, not a flat rectangle** — a lone `<ProductFrame>` sitting in a column reads like the pre-2020 template look. Use `<ProductComposition>`: a central frame (real `<ProductShot>` screenshot when available, else `<ProductFrame>`/`<DataVizPlaceholder>`) with ≥2 floating `satellite-chips` (KPI/trend/readout) overlapping its edges at different depths and slight rotation. This is the single biggest lever against "looks like every other SaaS".
+10. **≥1 breakout / full-bleed moment** — a landing page that lives entirely inside the container reads timid. One `<Band angle>` (angled contrast strip) OR `<Breakout side>` (media escaping to the viewport edge). Exactly one is plenty; two competing breakouts fight.
+11. **Ambient motion is present but restrained** — something breathes: a `<Float>` satellite, an `orbit` decor, `<CountUp>` stat numbers, one `<Parallax>` layer. Budget: ≤4 Float + ≤2 Parallax + ≤1 orbit per page, all reduced-motion safe. A dead-static page reads cheap; a page where everything moves reads like a demo. Verify the reduced-motion pass renders everything visible.
 
 ## Anti-slop list (never ship these)
 
 - The three default clusters: warm-cream + serif display + terracotta; near-black + acid accent; broadsheet hairlines with zero radius.
 - **This repo's own failure mode: admin widgets stretched into a landing page.** Marketing pages use the marketing library, never dashboard cards/stat tiles as hero content.
-- Templated hero = big stat + purple gradient. Open instead with the most characteristic thing in this product's world (usually a real product screenshot in `<ProductFrame>`).
+- Templated hero = big stat + purple gradient. Open instead with the most characteristic thing in this product's world (a layered `<ProductComposition>` around a real screenshot / data-viz).
+- A flat single-rectangle hero, or a page with zero breakouts and zero ambient motion — it will read a full tier below the reference sites (Flowora/Nexora/Taskora) even if every other rule passes.
 - Scattered scroll effects on everything. One orchestrated moment lands harder.
 - Numbered markers (01/02/03) unless the sequence carries real information.
 
@@ -81,13 +100,16 @@ The template already ships the technical layer — `sitemap.ts`, `robots.ts`, th
 Beyond `Section`/`SectionHeader`/`FeatureGrid`/`Testimonials`/`Faq`/`Cta`, the library ships archetypes for expensive-product pages — compose these instead of inventing per-page layouts:
 
 - `Hero layout="split"` — copy left, product evidence right; the default for data/product-heavy pages.
-- `<ProductFrame glow>` — primary-tinted halo behind the frame; `<DataVizPlaceholder>` inside it when no screenshot exists yet (data products never ship a naked hero).
+- `<ProductComposition>` — the LAYERED hero: a central frame + 2–4 floating `satellite-chips` (`KpiChip`/`TrendChip`/`AvatarRowChip`/`ReadoutChip`) overlapping its edges with depth + rotation + float. This is the reference-site look and the answer to premium bar #9. Collapses to a chip row below md.
+- `<ProductShot name>` — the real light/dark screenshot pair from `public/images/marketing/` (see Imagery). `<ProductFrame glow>` — browser chrome; `<DataVizPlaceholder>` inside it when no screenshot exists (data products never ship a naked hero).
+- `<Band angle>` / `<Breakout side>` — the breakout primitives (premium bar #10): an angled full-bleed contrast strip, or media escaping to the viewport edge. One per page.
+- `<Float>` / `<Parallax speed>` / `<CountUp>` — the ambient motion layer (premium bar #11); `Section decor="orbit"` is the one slowly-alive decor. Budget ≤4 Float + ≤2 Parallax + ≤1 orbit.
 - `<FeatureRows>` — alternating text ↔ visual zig-zag; every claim next to its evidence. Use for the 2–4 features that deserve depth.
 - `<BentoGrid>` — asymmetric grid with `featured` cells; replaces a second equal-card grid.
-- `<StatBand>` — contrast band of oversized real numbers.
-- `<ProcessSteps>` — "how it works" sequence: ghosted ordinal + meaningful themed icon + optional deliverable, one hue per step. The scannable way to explain a flow.
+- `<StatBand>` — contrast+grid band of oversized numbers that count up.
+- `<ProcessSteps>` — "how it works" sequence: `variant="icon"` (themed icon + ghost ordinal) or `variant="mono"` (mono `0N · kicker`, instrument treatment), one hue per step.
 - `<FeatureGrid>` — benefit-led cards, each leading with a meaningful icon in its family hue.
-- `Section` props `decor` (glow/grid/gradient-edge) and `background="contrast"` — the depth system; vary along the scroll.
+- `Section` props `decor` (glow/grid/gradient-edge/dots/mesh/orbit) and `background="contrast"` — the depth system; vary along the scroll.
 
 ## Conversion structure (the home/landing formula)
 
@@ -118,6 +140,8 @@ Three distinct asset kinds — do not conflate them:
 1. **Product evidence** — real screenshots inside `<ProductFrame>` (or `<DataVizPlaceholder>` for data products). The proof the product exists and works.
 2. **Explanatory iconography** — a meaningful icon per feature/step (`@/icons/nexture/ni-*`), carrying the concept at a glance in the family's hue. Zero-dependency, always on-brand and theme-aware — this is the FIRST choice for "show, don't tell", before reaching for generated art. The icon set has hundreds of glyphs; pick the one that means the thing.
 3. **Conceptual illustration** — a spot illustration/scene that explains an idea (how the flow works, what a concept maps to). This is a first-class asset, not decoration.
+
+**Real screenshots via the pipeline (first-class):** `<ProductShot name>` renders the light + `-dark` PNG pair from `public/images/marketing/`, captured by `npm run shots:marketing -w @flyee/web` (dev server up; playwright resolved from the session/`PLAYWRIGHT_DIR`, never a repo dependency). Pass a translated `alt`, a `sizes` string, and `priority` ONLY on the above-the-fold shot. The captured screenshot is the frame inside `<ProductComposition>`/`<ProductFrame>`. **The template itself ships NO screenshots** — a fresh clone's dashboards are auth-gated, so the reference home uses `<ProductComposition>` + a token `<ProductFrame>`/`<DataVizPlaceholder>` frame; a derived project runs `shots:marketing` once it can reach its real product and swaps the frame to `<ProductShot>` (same page, one line). Real imagery is required on a page ONLY when the assets exist.
 
 Rules:
 - Real product screenshots inside `<ProductFrame>` beat any decorative stock photo. The template ships zero stock photos — placeholders are token-driven (CSS gradients, tinted inline SVG) so they follow every theme.

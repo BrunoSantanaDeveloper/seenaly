@@ -9,23 +9,26 @@ import Section from "@/components/marketing/section";
 /**
  * Funnel stage: recovery — the last conversion opportunity on the page.
  * A bordered "console" panel with a primary glow and an optional mono kicker
- * (committed "Sala de Controle" direction) — it carries real presence instead
- * of reading as a pastel box. The button label repeats the page's primary CTA.
+ * so it carries real presence instead of reading as a pastel box. The button
+ * label must repeat the page's primary CTA verbatim.
  */
 export default function Cta({
   title,
   subtitle,
   cta,
   kicker,
+  decor = "none",
 }: {
   title: string;
   subtitle?: string;
   cta: { label: string; href: string };
-  /** Optional mono kicker above the title (e.g. "próximo passo"). */
+  /** Optional mono kicker above the title (e.g. "next step"). */
   kicker?: string;
+  /** Ambient layer on the surrounding Section (orbit is the classic closer). */
+  decor?: "none" | "orbit" | "mesh" | "dots";
 }) {
   return (
-    <Section>
+    <Section decor={decor}>
       <Reveal>
         <div className="border-grey-100 bg-background-paper relative overflow-hidden rounded-4xl border px-6 py-16 text-center md:py-24">
           <div

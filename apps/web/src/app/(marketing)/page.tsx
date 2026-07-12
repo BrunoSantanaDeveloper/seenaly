@@ -74,7 +74,7 @@ export default async function Home() {
       />
 
       <ProcessSteps
-        mono
+        variant="mono"
         eyebrow={t("pipeline-eyebrow")}
         title={t("pipeline-title")}
         steps={[
