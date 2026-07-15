@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { BRAND } from "@/brand";
+import Breakout from "@/components/marketing/breakout";
 import Cta from "@/components/marketing/cta";
 import DiagnosisReadout from "@/components/marketing/diagnosis-readout";
 import Faq from "@/components/marketing/faq";
@@ -11,17 +12,19 @@ import FeatureRows from "@/components/marketing/feature-row";
 import Hero from "@/components/marketing/hero";
 import PricingSection from "@/components/marketing/pricing-section";
 import ProcessSteps from "@/components/marketing/process-steps";
-import {
-  DiagnosisVignette,
-  FatigueVignette,
-  FunnelVignette,
-  MemoryVignette,
-} from "@/components/marketing/product-vignettes";
+import ProductComposition from "@/components/marketing/product-composition";
+import ProductShot from "@/components/marketing/product-shot";
+import { DiagnosisVignette, FatigueVignette, FunnelVignette } from "@/components/marketing/product-vignettes";
+import { KpiChip, ReadoutChip, TrendChip } from "@/components/marketing/satellite-chips";
+import Section from "@/components/marketing/section";
 import StatBand from "@/components/marketing/stat-band";
 import Testimonials from "@/components/marketing/testimonials";
+import { TONE } from "@/components/marketing/tone";
 import NiBook from "@/icons/nexture/ni-book";
+import NiCheck from "@/icons/nexture/ni-check";
 import NiRocket from "@/icons/nexture/ni-rocket";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("marketing");
@@ -34,18 +37,23 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Home — committed "Sala de Controle" direction (docs/DESIGN.md): an instrument
- * hero (mono DiagnosisReadout) → instrument decision pipeline (ProcessSteps
- * mono) → FeatureRows depth with the domain vignettes → oversized StatBand
- * proof → more FeatureRows → FeatureGrid foundations → Testimonials → Pricing
- * → FAQ → CTA. Every mid-page section carries a real domain visual; the four
- * product vignettes each get a full-size row/cell. The primary CTA (cta-primary)
- * repeats verbatim at hero, pricing and the final CTA.
+ * Home — committed "Sala de Controle" direction (docs/DESIGN.md): a LAYERED
+ * instrument hero (mono DiagnosisReadout framed by ProductComposition, orbited
+ * by the three signals it cross-references) → instrument decision pipeline
+ * (ProcessSteps mono) → FeatureRows zig-zag with the domain vignettes →
+ * oversized StatBand proof (counts up) → the memory BREAKOUT (the product's
+ * differentiator, media bleeding to the viewport edge) → FeatureGrid
+ * foundations → Testimonials → Pricing → FAQ → CTA (orbit closer). The primary
+ * CTA (cta-primary) repeats verbatim at hero, pricing and the final CTA.
  *
  * Family → hue mapping, consistent site-wide: diagnosis/decision = primary,
  * creative fatigue = accent-1, funnel/bottleneck = accent-4, experiment
  * memory = accent-3, Meta knowledge base = secondary, product context /
  * zero-data = accent-2.
+ *
+ * Ambient motion budget (premium bar #11): 3 Float (hero satellites) + 1
+ * Parallax (the back-depth satellite) + 1 orbit (the closing CTA). Under the
+ * ≤4 / ≤2 / ≤1 ceiling; StatBand's CountUp is built in.
  */
 export default async function Home() {
   const [t, plans] = await Promise.all([getTranslations("marketing"), getDisplayPlans()]);
@@ -60,15 +68,59 @@ export default async function Home() {
         primaryCta={{ label: t("cta-primary"), href: "/auth/sign-up" }}
         secondaryCta={{ label: t("hero-secondary"), href: "/pricing" }}
         media={
-          <DiagnosisReadout
-            title={t("readout-title")}
-            signal={t("readout-signal")}
-            rows={[1, 2, 3, 4].map((index) => ({
-              label: t(`readout-row-${index}-label`),
-              value: t(`readout-row-${index}-value`),
-            }))}
-            confidenceLabel={t("readout-confidence-label")}
-            confidenceValue={t("readout-confidence-value")}
+          <ProductComposition
+            frame={
+              <DiagnosisReadout
+                title={t("readout-title")}
+                signal={t("readout-signal")}
+                rows={[1, 2, 3, 4].map((index) => ({
+                  label: t(`readout-row-${index}-label`),
+                  value: t(`readout-row-${index}-value`),
+                }))}
+                confidenceLabel={t("readout-confidence-label")}
+                confidenceValue={t("readout-confidence-value")}
+              />
+            }
+            /* The three signals the readout above actually cross-references —
+               each in its family hue, so the hero states the palette mapping
+               the rest of the page keeps. Primary stays on the CTA + glow. */
+            satellites={[
+              {
+                children: (
+                  <KpiChip
+                    label={t("satellite-fatigue-label")}
+                    value={t("satellite-fatigue-value")}
+                    delta={t("satellite-fatigue-delta")}
+                    tone="accent-1"
+                  />
+                ),
+                position: "top-right",
+                depth: "front",
+                rotate: 2,
+                float: true,
+              },
+              {
+                /* depth="back": a front chip on this corner would sit on top of
+                   the readout's confidence row and hide its value. Behind the
+                   frame it peeks out from the corner instead — layered, and the
+                   readout stays fully legible. */
+                children: <TrendChip label={t("satellite-funnel-label")} data={[12, 11, 9, 7, 6, 5]} tone="accent-4" />,
+                position: "bottom-right",
+                depth: "back",
+                rotate: -2,
+                float: true,
+                floatDelay: 0.8,
+              },
+              {
+                children: <ReadoutChip text={t("satellite-memory-text")} tone="accent-3" />,
+                position: "top-left",
+                depth: "back",
+                rotate: -3,
+                float: true,
+                floatDelay: 1.4,
+                parallax: 6,
+              },
+            ]}
           />
         }
       />
@@ -117,6 +169,14 @@ export default async function Home() {
             media: <FatigueVignette tone="accent-1" />,
             tone: "accent-1",
           },
+          {
+            eyebrow: t("row-3-eyebrow"),
+            title: t("row-3-title"),
+            body: t("row-3-body"),
+            bullets: [t("row-3-bullet-1"), t("row-3-bullet-2"), t("row-3-bullet-3")],
+            media: <FunnelVignette tone="accent-4" />,
+            tone: "accent-4",
+          },
         ]}
       />
 
@@ -129,28 +189,31 @@ export default async function Home() {
         ]}
       />
 
-      <FeatureRows
-        eyebrow={t("bento-eyebrow")}
-        title={t("bento-title")}
-        items={[
-          {
-            eyebrow: t("row-3-eyebrow"),
-            title: t("bento-1-title"),
-            body: t("bento-1-body"),
-            bullets: [t("row-3-bullet-1"), t("row-3-bullet-2"), t("row-3-bullet-3")],
-            media: <FunnelVignette tone="accent-4" />,
-            tone: "accent-4",
-          },
-          {
-            eyebrow: t("row-4-eyebrow"),
-            title: t("bento-2-title"),
-            body: t("bento-2-body"),
-            bullets: [t("row-4-bullet-1"), t("row-4-bullet-2"), t("row-4-bullet-3")],
-            media: <MemoryVignette tone="accent-3" />,
-            tone: "accent-3",
-          },
-        ]}
-      />
+      {/* The one breakout of the page (premium bar #10) — reserved for the
+          product's differentiator: experiment memory. The vignette escapes the
+          container to the right edge; the copy column stays on the site grid. */}
+      <Section bleed decor="dots" className="overflow-x-clip">
+        <Breakout
+          side="right"
+          media={
+            <ProductShot name="experiment-memory" alt={t("memory-shot-alt")} sizes="(max-width: 960px) 100vw, 50vw" />
+          }
+        >
+          <p className={cn("mb-3 text-sm font-semibold tracking-wide uppercase", TONE["accent-3"].text)}>
+            {t("memory-eyebrow")}
+          </p>
+          <h2 className="font-display text-display-lg text-text-primary font-bold">{t("memory-title")}</h2>
+          <p className="text-text-secondary mt-4 leading-7">{t("memory-body")}</p>
+          <ul className="mt-6 flex flex-col gap-2.5">
+            {[1, 2, 3].map((index) => (
+              <li key={index} className="text-text-primary flex items-start gap-2.5 leading-6">
+                <NiCheck size="small" className={cn("mt-0.5 flex-none", TONE["accent-3"].text)} />
+                {t(`memory-bullet-${index}`)}
+              </li>
+            ))}
+          </ul>
+        </Breakout>
+      </Section>
 
       <FeatureGrid
         eyebrow={t("foundations-eyebrow")}
@@ -190,7 +253,9 @@ export default async function Home() {
         }))}
       />
 
+      {/* decor="orbit" is the page's single slowly-alive ambient (budget: ≤1). */}
       <Cta
+        decor="orbit"
         kicker={t("cta-kicker")}
         title={t("cta-title")}
         subtitle={t("cta-subtitle")}
