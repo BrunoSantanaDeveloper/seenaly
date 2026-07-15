@@ -101,6 +101,7 @@ Verdict each item PASS/FAIL with the screenshot as evidence:
 11. **Breakout present** — the full-page shot has one angled band or edge-bleeding media; the page is not a stack of centered containers.
 12. **Real imagery when available** — if `public/images/marketing/` has assets, the page uses `<ProductShot>` (not a placeholder). When it has none (the template itself), the layered placeholder frame is correct — do not fail this.
 13. **Ambient motion + reduced-motion pass** — in the normal capture something breathes (a floated chip offset between two shots, stat numbers mid-count); in the `reducedMotion: "reduce"` pass EVERYTHING is static AND fully visible (no chip stuck invisible, no un-drawn chart).
+14. **Blueprint comparison (only when `docs/DESIGN.md` has a `## Reference blueprint` section).** `Read` the reference screenshots (still in `attachments/` — blueprint mode keeps them until this passes) AND the page's full-page shot, and walk the blueprint table row by row: same section order, same composition per section (media side, layering, breakout placement), every `Deviation:` note accounted for. Judge STRUCTURE, not identity — colors/type/copy are supposed to differ (they are the project's own). A missing/reordered/approximated section FAILS with the row number named. When all rows pass, tell the user the blueprint is satisfied and the reference files in `attachments/` can now be deleted.
 
 ## 4. Close the loop
 

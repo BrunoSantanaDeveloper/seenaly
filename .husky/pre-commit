@@ -1,3 +1,5 @@
 # Run lint-staged per workspace so each tool resolves its own config
 # (eslint.config.ts lives in apps/web, not at the repo root).
+npm run harness:check
+npm run harness:test
 npx lint-staged --cwd apps/web

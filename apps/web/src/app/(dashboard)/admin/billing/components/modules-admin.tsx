@@ -19,6 +19,7 @@ import {
 
 import NiPen from "@/icons/nexture/ni-pen";
 import NiPlus from "@/icons/nexture/ni-plus";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type ModuleForm = {
@@ -104,6 +105,11 @@ export default function ModulesAdmin() {
       setError(saveError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.billing.module.updated" : "admin.billing.module.created", {
+      entityType: "module",
+      entityId: form.id || undefined,
+      metadata: { slug: form.slug.trim() },
+    });
     setForm(null);
     refresh();
   };

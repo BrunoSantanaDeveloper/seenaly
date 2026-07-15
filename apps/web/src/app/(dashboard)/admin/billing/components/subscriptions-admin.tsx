@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Alert, Box, Chip, FormControl, Input, Switch, Tooltip, Typography } from "@mui/material";
 
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type SubRow = {
@@ -69,6 +70,11 @@ export default function SubscriptionsAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, row.adminSuspended ? "admin.org.reactivated" : "admin.org.suspended", {
+      entityType: "subscription",
+      entityId: row.id,
+      metadata: { org: row.orgName },
+    });
     refresh();
   };
 

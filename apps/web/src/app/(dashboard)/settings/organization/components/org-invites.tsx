@@ -24,6 +24,7 @@ import {
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiLink from "@/icons/nexture/ni-link";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,6 +82,12 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
       setError(deleteError.message);
       return;
     }
+    recordAudit(supabase, "org.invite.revoked", {
+      orgId: org.id,
+      entityType: "invite",
+      entityId: invite.id,
+      metadata: { email: invite.email },
+    });
     onChanged();
   };
 

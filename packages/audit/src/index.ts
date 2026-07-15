@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface AuditEventInput {
-  orgId: string;
+  /** Null for platform-level events (superadmin actions outside any tenant). */
+  orgId: string | null;
   actorId: string;
   /** Project-defined verb, e.g. "patient.viewed", "document.issued". */
   action: string;

@@ -7,6 +7,7 @@ import { Alert, Box, Button, Chip, Tab, Tabs, Typography } from "@mui/material";
 import { RowLine, RowText } from "@/app/(dashboard)/admin/billing/components/catalog-shared";
 import EmptyState from "@/components/product/empty-state";
 import NiMessages from "@/icons/nexture/ni-messages";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type CommentRow = {
@@ -70,6 +71,7 @@ export default function BlogCommentsAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, `admin.blog.comment.${nextStatus}`, { entityType: "blog_comment", entityId: id });
     refresh();
   };
 

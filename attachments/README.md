@@ -15,7 +15,7 @@ Drop zone for material the user hands to the project (brand art, page imagery, b
 | Brand master art (logo SVG or PNG ≥1024, optional dark variant) | `packages/content/brand/` (cross-platform source of truth) → derivatives are GENERATED from it into `apps/web/public/favicon/`, `apps/web/public/favicon.ico`, `apps/web/public/images/email/`, `apps/mobile/assets/` (see `/init-project` brand-assets actions) |
 | Final logo SVGs (wordmark + compact mark) | inlined into `apps/web/src/components/logo/logo.tsx` (keep the token-tinting contract documented there) |
 | Page/marketing imagery (heroes, product screenshots, illustrations) | `apps/web/public/images/…` next to where the page uses it |
-| Reference / inspiration screenshots (landing pages the user admires) | consumed by the `marketing-page` skill's Pass 0.R — structural ingredients recorded in `docs/DESIGN.md`, then deleted; never stored in the repo |
+| Reference / inspiration screenshots (landing pages the user admires) | consumed by the `marketing-page` skill's Pass 0.R — structural ingredients recorded in `docs/DESIGN.md`, then deleted. **Blueprint mode** ("siga este modelo"): kept here until the built page passes the marketing-verify blueprint comparison, then deleted; never stored in the repo |
 | Product brief / PRD | `docs/PRODUCT.md` (+ ~10-line summary in the root `CLAUDE.md`) |
 | Reference documents meant for the AI knowledge base | not repo files — ingest via `/admin/knowledge` (chunked + embedded), then delete from here |
 | Meta Ads documentation captures (HTML articles) | `docs/meta_ads/` — maintained corpus with its own pipeline (`_tools/convert.py` → `verify.py` → `build_index.py` → `npm run knowledge:ingest`); see `docs/meta_ads/_tools/README.md` |

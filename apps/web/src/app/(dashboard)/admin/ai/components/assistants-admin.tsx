@@ -23,6 +23,7 @@ import {
 
 import NiPen from "@/icons/nexture/ni-pen";
 import NiPlus from "@/icons/nexture/ni-plus";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type AssistantForm = {
@@ -127,6 +128,11 @@ export default function AssistantsAdmin() {
       setError(saveError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.ai.assistant.updated" : "admin.ai.assistant.created", {
+      entityType: "assistant",
+      entityId: form.id || undefined,
+      metadata: { slug: form.slug.trim(), provider: form.provider },
+    });
     setForm(null);
     refresh();
   };

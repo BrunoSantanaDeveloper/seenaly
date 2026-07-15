@@ -1,0 +1,17 @@
+{
+  "name": "@flyee/backup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Automatic logical database backups: exports every public table to gzipped JSONL in the private `backups` bucket, on a daily Inngest cron or on demand from /admin/backups.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./jobs": "./src/jobs.ts"
+  },
+  "dependencies": {
+    "@flyee/auth": "*",
+    "@flyee/jobs": "*",
+    "@supabase/supabase-js": "^2.50.0",
+    "postgres": "^3.4.7"
+  }
+}

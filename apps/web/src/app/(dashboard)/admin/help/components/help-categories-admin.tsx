@@ -8,6 +8,7 @@ import { Field, RowLine, RowText, SelectField } from "@/app/(dashboard)/admin/bi
 import EmptyState from "@/components/product/empty-state";
 import { LOCALES } from "@/constants";
 import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 export type HelpCategoryRow = {
@@ -105,6 +106,11 @@ export default function HelpCategoriesAdmin() {
       setError(writeError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.help.category.updated" : "admin.help.category.created", {
+      entityType: "help_category",
+      entityId: form.id ?? undefined,
+      metadata: { name: payload.name, locale: payload.locale },
+    });
     setForm(null);
     refresh();
   };
@@ -117,6 +123,7 @@ export default function HelpCategoriesAdmin() {
       setError(deleteError.message);
       return;
     }
+    recordAudit(supabase, "admin.help.category.deleted", { entityType: "help_category", entityId: id });
     setForm(null);
     refresh();
   };

@@ -7,8 +7,10 @@ import { Alert, Box, Breadcrumbs, Card, CardContent, Grid, Skeleton, Typography 
 
 import NiAI from "@/icons/nexture/ni-ai";
 import NiAnnouncement from "@/icons/nexture/ni-announcement";
+import NiArchive from "@/icons/nexture/ni-archive";
 import NiBook from "@/icons/nexture/ni-book";
 import NiBuilding from "@/icons/nexture/ni-building";
+import NiChartLineBar from "@/icons/nexture/ni-chart-line-bar";
 import NiCoin from "@/icons/nexture/ni-coin";
 import NiMoney from "@/icons/nexture/ni-money";
 import NiPen from "@/icons/nexture/ni-pen";
@@ -107,7 +109,19 @@ const consoles = [
     href: "/admin/audit",
     icon: <NiShieldCheck size="medium" />,
     title: "Audit & Logs",
-    description: "Append-only audit trail and the WhatsApp message log.",
+    description: "Append-only audit trail, sign-in access log and the WhatsApp message log.",
+  },
+  {
+    href: "/admin/insights",
+    icon: <NiChartLineBar size="medium" />,
+    title: "Data Insights",
+    description: "Ask questions about the database in plain language — the AI answers with a read-only query.",
+  },
+  {
+    href: "/admin/backups",
+    icon: <NiArchive size="medium" />,
+    title: "Backups",
+    description: "Automatic nightly database backups and on-demand exports you can download.",
   },
   {
     href: "/admin/announcements",

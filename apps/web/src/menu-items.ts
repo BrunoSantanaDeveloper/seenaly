@@ -161,6 +161,20 @@ export const leftMenuItems: MenuItem[] = [
         description: "menu-admin-audit-description",
       },
       {
+        id: "admin-insights",
+        icon: "NiChartLineBar",
+        label: "menu-admin-insights",
+        href: "/admin/insights",
+        description: "menu-admin-insights-description",
+      },
+      {
+        id: "admin-backups",
+        icon: "NiArchive",
+        label: "menu-admin-backups",
+        href: "/admin/backups",
+        description: "menu-admin-backups-description",
+      },
+      {
         id: "admin-announcements",
         icon: "NiAnnouncement",
         label: "menu-admin-announcements",

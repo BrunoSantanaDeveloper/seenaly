@@ -1,5 +1,6 @@
 "use server";
 
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/server";
 import { createServiceClient } from "@flyee/auth/service";
 
@@ -8,6 +9,8 @@ export type UserAdminInfo = {
   email: string | null;
   lastSignInAt: string | null;
   bannedUntil: string | null;
+  /** True when the user has at least one verified TOTP factor. */
+  hasMfa: boolean;
 };
 
 export type AdminActionResult<T> =
@@ -55,6 +58,7 @@ export async function listUserAdminInfo(): Promise<AdminActionResult<UserAdminIn
         email: user.email ?? null,
         lastSignInAt: user.last_sign_in_at ?? null,
         bannedUntil: (user as { banned_until?: string }).banned_until ?? null,
+        hasMfa: (user.factors ?? []).some((factor) => factor.status === "verified"),
       })),
     );
     if (data.users.length < 200) break;
@@ -76,5 +80,34 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<Ad
     ban_duration: banned ? "876000h" : "none",
   });
   if (error) return { ok: false, error: error.message };
+  await recordAudit(await createClient(), banned ? "admin.user.banned" : "admin.user.unbanned", {
+    entityType: "user",
+    entityId: userId,
+  });
+  return { ok: true, data: null };
+}
+
+/**
+ * Remove every MFA factor from a user's account — the recovery path when
+ * someone loses their authenticator and is locked out at the 2FA step-up.
+ * The user can sign in with password alone afterwards and re-enroll.
+ */
+export async function resetUserMfa(userId: string): Promise<AdminActionResult<null>> {
+  const { allowed } = await isCallerSuperadmin();
+  if (!allowed) return { ok: false, error: "forbidden" };
+  if (!isServiceConfigured()) return { ok: false, error: "not-configured" };
+
+  const service = createServiceClient();
+  const { data, error } = await service.auth.admin.mfa.listFactors({ userId });
+  if (error) return { ok: false, error: error.message };
+  for (const factor of data?.factors ?? []) {
+    const { error: deleteError } = await service.auth.admin.mfa.deleteFactor({ id: factor.id, userId });
+    if (deleteError) return { ok: false, error: deleteError.message };
+  }
+  await recordAudit(await createClient(), "admin.user.mfa_reset", {
+    entityType: "user",
+    entityId: userId,
+    metadata: { factorsRemoved: data?.factors?.length ?? 0 },
+  });
   return { ok: true, data: null };
 }

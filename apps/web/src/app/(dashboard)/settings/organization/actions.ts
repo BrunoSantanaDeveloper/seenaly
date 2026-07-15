@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/server";
 import { sendOrgInviteEmail } from "@flyee/email";
 
@@ -40,6 +41,12 @@ export async function createInvite(input: {
   if (error) {
     return { error: error.message };
   }
+
+  await recordAudit(supabase, "org.invite.created", {
+    orgId: input.orgId,
+    entityType: "invite",
+    metadata: { email: input.email.trim().toLowerCase(), role: input.role },
+  });
 
   const [{ data: org }, { data: profile }, headerList] = await Promise.all([
     supabase.from("organizations").select("name").eq("id", input.orgId).single(),

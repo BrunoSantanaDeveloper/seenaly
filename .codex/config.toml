@@ -1,0 +1,36 @@
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^(?:apply_patch|Edit|Write)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.claude/hooks/marketing-guard.mjs"'
+command_windows = "node -e \"const{execFileSync}=require('node:child_process');const{join}=require('node:path');const{pathToFileURL}=require('node:url');const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(pathToFileURL(join(root,'.claude','hooks',process.argv[1])).href)\" marketing-guard.mjs"
+timeout = 30
+statusMessage = "Loading marketing guardrails"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.claude/hooks/product-screen-guard.mjs"'
+command_windows = "node -e \"const{execFileSync}=require('node:child_process');const{join}=require('node:path');const{pathToFileURL}=require('node:url');const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(pathToFileURL(join(root,'.claude','hooks',process.argv[1])).href)\" product-screen-guard.mjs"
+timeout = 30
+statusMessage = "Loading product screen guardrails"
+
+[[hooks.PostToolUse]]
+matcher = "^(?:apply_patch|Edit|Write)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.claude/hooks/marketing-lint.mjs"'
+command_windows = "node -e \"const{execFileSync}=require('node:child_process');const{join}=require('node:path');const{pathToFileURL}=require('node:url');const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(pathToFileURL(join(root,'.claude','hooks',process.argv[1])).href)\" marketing-lint.mjs"
+timeout = 30
+statusMessage = "Checking the marketing contract"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.claude/hooks/harness-sync.mjs"'
+command_windows = "node -e \"const{execFileSync}=require('node:child_process');const{join}=require('node:path');const{pathToFileURL}=require('node:url');const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(pathToFileURL(join(root,'.claude','hooks',process.argv[1])).href)\" harness-sync.mjs"
+timeout = 30
+statusMessage = "Synchronizing the shared harness"

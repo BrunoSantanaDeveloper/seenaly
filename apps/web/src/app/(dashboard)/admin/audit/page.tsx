@@ -1,5 +1,6 @@
 "use client";
 
+import AccessEventsAdmin from "./components/access-events-admin";
 import AuditEventsAdmin from "./components/audit-events-admin";
 import WaLogAdmin from "./components/wa-log-admin";
 import Link from "next/link";
@@ -67,10 +68,12 @@ export default function AdminAudit() {
             <CardContent>
               <Tabs value={tab} onChange={(_, value) => setTab(value)} className="mb-6">
                 <Tab label="Audit trail" />
+                <Tab label="Access" />
                 <Tab label="WhatsApp log" />
               </Tabs>
               <Box hidden={tab !== 0}>{tab === 0 && <AuditEventsAdmin />}</Box>
-              <Box hidden={tab !== 1}>{tab === 1 && <WaLogAdmin />}</Box>
+              <Box hidden={tab !== 1}>{tab === 1 && <AccessEventsAdmin />}</Box>
+              <Box hidden={tab !== 2}>{tab === 2 && <WaLogAdmin />}</Box>
             </CardContent>
           </Card>
         </Grid>

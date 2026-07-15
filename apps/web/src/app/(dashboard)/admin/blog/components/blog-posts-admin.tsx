@@ -9,6 +9,7 @@ import { slugify } from "@/app/(dashboard)/admin/help/components/help-categories
 import EmptyState from "@/components/product/empty-state";
 import { LOCALES } from "@/constants";
 import NiDocumentFull from "@/icons/nexture/ni-document-full";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type PostRow = {
@@ -119,6 +120,11 @@ export default function BlogPostsAdmin() {
       setError(writeError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.blog.post.updated" : "admin.blog.post.created", {
+      entityType: "blog_post",
+      entityId: form.id ?? undefined,
+      metadata: { title: payload.title, locale: payload.locale },
+    });
     setForm(null);
     refresh();
   };
@@ -131,6 +137,7 @@ export default function BlogPostsAdmin() {
       setError(deleteError.message);
       return;
     }
+    recordAudit(supabase, "admin.blog.post.deleted", { entityType: "blog_post", entityId: id });
     setForm(null);
     refresh();
   };
@@ -146,6 +153,11 @@ export default function BlogPostsAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, row.isPublished ? "admin.blog.post.unpublished" : "admin.blog.post.published", {
+      entityType: "blog_post",
+      entityId: row.id,
+      metadata: { title: row.title },
+    });
     refresh();
   };
 

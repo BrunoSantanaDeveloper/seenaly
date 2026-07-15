@@ -19,6 +19,7 @@ import {
 
 import NiPen from "@/icons/nexture/ni-pen";
 import NiPlus from "@/icons/nexture/ni-plus";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type PlanForm = {
@@ -129,6 +130,11 @@ export default function PlansAdmin() {
       setError(saveError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.billing.plan.updated" : "admin.billing.plan.created", {
+      entityType: "plan",
+      entityId: form.id ?? undefined,
+      metadata: { slug: payload.slug },
+    });
     setForm(null);
     refresh();
   };

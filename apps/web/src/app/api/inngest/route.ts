@@ -1,6 +1,7 @@
 import "@/lib/connectors";
 
 import { metaAdsFunctions } from "@/lib/meta-ads/jobs";
+import { backupFunctions } from "@flyee/backup/jobs";
 import { connectorFunctions } from "@flyee/connectors/jobs";
 import { inngest } from "@flyee/jobs";
 import { serve } from "@flyee/jobs/next";
@@ -17,5 +18,6 @@ export const { GET, POST, PUT } = serve({
     ...transcribeFunctions,
     ...whatsappFunctions,
     ...metaAdsFunctions,
+    ...backupFunctions,
   ],
 });

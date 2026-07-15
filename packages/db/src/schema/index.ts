@@ -19,3 +19,5 @@ export * from "./announcements";
 export * from "./notifications";
 export * from "./help";
 export * from "./blog";
+export * from "./access";
+export * from "./backups";

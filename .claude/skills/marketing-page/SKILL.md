@@ -32,6 +32,23 @@ It applies equally to **creating a page**, **editing an existing page**, and **a
 Gaps the library cannot express yet: <list or "none"> → extend components/marketing.
 ```
 
+**Pass 0.R-B — BLUEPRINT mode (when the user says the reference is the model to FOLLOW, not inspiration).** Trigger words: "blueprint", "siga fielmente", "quero a página igual a esta", "use este modelo". The contract hardens:
+
+1. The ingredient table becomes a **mandatory section-by-section mapping** — every section of the reference gets a row, in order, and the built page follows that order 1:1:
+```md
+## Reference blueprint (committed <date> from <filenames> — structure is FIXED)
+| # | Reference section (what it shows) | Our section (primitive + content source) |
+|---|---|---|
+| 1 | hero: headline left, app screenshot right, 3 floating cards | Hero split + ProductComposition (frame + KpiChip/TrendChip/ReadoutChip) |
+| 2 | logo strip | LogoCloud |
+| 3 | 3-step how-it-works with numbered cards | ProcessSteps variant per direction |
+| ... | every remaining section, no skips, no reordering | ... |
+```
+2. **Structure is decided by the blueprint; identity stays ours.** Skip the direction-exploration previews (Pass 0.B.2–3) for layout — the blueprint IS the layout decision. Typography/palette still come from the brand tokens (run only the type/palette part of the engine); copy is always ours, in all 5 locales; the reference's text, images, logos and mascots are NEVER reproduced.
+3. A blueprint section the library cannot express is a **blocking gap**: build the primitive in `components/marketing/` first (register it in `catalog.json`), then compose the page. Never approximate a blueprint section with a "close enough" archetype without flagging it to the user.
+4. Deviations are allowed only where a premium-bar or hard-constraint rule would be violated (e.g. the reference hero is text-only, or uses horizontal-scroll patterns that break at 375px) — list every deviation in the blueprint table (a `Deviation:` note on the row), never deviate silently.
+5. **Keep the reference files in `attachments/` until the blueprint comparison passes** in marketing-verify (it needs them for the side-by-side); delete them only after the page is approved.
+
 **Pass 0 — Establish the direction.** Design decisions must be TUNED TO THE PRODUCT, not generically "good". Two branches:
 
 **A. `docs/DESIGN.md` already exists (the common case after the first page): INHERIT, do not re-decide.** Read it and build strictly within it — typography, palette usage, depth treatment, layout archetypes, signature element, motion. **STRICT MODE: do NOT re-run the direction engine and do NOT restyle the UI.** Changing the direction is a "redesign" and happens ONLY when the user explicitly asks for it ("redesign", "nova direção", "novo visual"); that request rewrites `docs/DESIGN.md` first, then pages follow the new version.

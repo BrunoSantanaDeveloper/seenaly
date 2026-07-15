@@ -7,6 +7,7 @@ import { Alert, Box, Button, Chip, Collapse, FormControl, Input, Switch, Tooltip
 import { RowLine, RowText } from "@/app/(dashboard)/admin/billing/components/catalog-shared";
 import EmptyState from "@/components/product/empty-state";
 import NiBuilding from "@/icons/nexture/ni-building";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type LiveSub = { id: string; status: string; adminSuspended: boolean; planName: string };
@@ -133,6 +134,12 @@ export default function OrgsAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, org.liveSub.adminSuspended ? "admin.org.reactivated" : "admin.org.suspended", {
+      orgId: org.id,
+      entityType: "subscription",
+      entityId: org.liveSub.id,
+      metadata: { org: org.name },
+    });
     refresh();
   };
 

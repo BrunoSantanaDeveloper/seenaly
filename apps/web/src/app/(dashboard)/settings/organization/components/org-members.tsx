@@ -20,6 +20,7 @@ import {
 
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 const ROLES: OrgRole[] = ["owner", "admin", "member"];
@@ -46,6 +47,12 @@ export default function OrgMembers({ org, members, currentUserId, onChanged }: P
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, "org.member.role_changed", {
+      orgId: org.id,
+      entityType: "membership",
+      entityId: member.membershipId,
+      metadata: { userId: member.userId, role },
+    });
     onChanged();
   };
 
@@ -57,6 +64,12 @@ export default function OrgMembers({ org, members, currentUserId, onChanged }: P
       setError(deleteError.message);
       return;
     }
+    recordAudit(supabase, "org.member.removed", {
+      orgId: org.id,
+      entityType: "membership",
+      entityId: member.membershipId,
+      metadata: { userId: member.userId },
+    });
     onChanged();
   };
 

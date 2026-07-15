@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Alert, Box, Button, Card, CardContent, FormControl, FormLabel, Grid, Input, Typography } from "@mui/material";
 
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -51,6 +52,12 @@ export default function OrgGeneral({ org, onUpdated }: Props) {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, "org.updated", {
+      orgId: org.id,
+      entityType: "organization",
+      entityId: org.id,
+      metadata: { name: name.trim(), slug },
+    });
     setSaved(true);
     onUpdated();
   };

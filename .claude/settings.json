@@ -33,6 +33,10 @@
           {
             "type": "command",
             "command": "node .claude/hooks/marketing-lint.mjs"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/harness-sync.mjs"
           }
         ]
       }

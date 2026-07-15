@@ -11,22 +11,27 @@
  * Cross-platform: pure Node, no shell.
  */
 
+import { extractToolPaths, isCodexHook, normalizeToolPath } from "./lib/tool-paths.mjs";
+
 let raw = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => (raw += chunk));
 process.stdin.on("end", () => {
-  let filePath = "";
+  let input = {};
   try {
-    const input = JSON.parse(raw || "{}");
-    filePath = input?.tool_input?.file_path ?? input?.tool_input?.path ?? "";
+    input = JSON.parse(raw || "{}");
   } catch {
     process.exit(0); // Malformed payload — never block a tool call.
   }
 
-  const p = String(filePath).replace(/\\/g, "/");
-  if (/\/app\/\(marketing\)\//.test(p) || /\/components\/marketing\//.test(p)) process.exit(0);
-
-  const isProduct = /\/app\/\(dashboard\)\//.test(p) || /\/components\/product\//.test(p);
+  const isProduct = extractToolPaths(input)
+    .map(normalizeToolPath)
+    .some(
+      (path) =>
+        !/\/app\/\(marketing\)\//.test(path) &&
+        !/\/components\/marketing\//.test(path) &&
+        (/\/app\/\(dashboard\)\//.test(path) || /\/components\/product\//.test(path)),
+    );
   if (!isProduct) process.exit(0);
 
   const reminder = [
@@ -37,10 +42,12 @@ process.stdin.on("end", () => {
     "4. Engagement: use completion drive (`ActivationProgress`) and competence feedback. Do NOT add points, badges, leaderboards or streaks — they are documented failures and streaks carry regulatory risk.",
   ].join("\n");
 
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: reminder },
-    }),
-  );
+  const output = isCodexHook(input)
+    ? { systemMessage: reminder }
+    : {
+        hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: reminder },
+      };
+
+  process.stdout.write(JSON.stringify(output));
   process.exit(0);
 });

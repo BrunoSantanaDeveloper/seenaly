@@ -1,6 +1,6 @@
 "use client";
 
-import { listUserAdminInfo, setUserBanned, UserAdminInfo } from "../actions";
+import { listUserAdminInfo, resetUserMfa, setUserBanned, UserAdminInfo } from "../actions";
 import { useCallback, useEffect, useState } from "react";
 
 import { Alert, Box, Button, Chip, FormControl, Input, Tooltip, Typography } from "@mui/material";
@@ -86,6 +86,17 @@ export default function UsersAdmin() {
     refresh();
   };
 
+  // Recovery path for a user locked out at the 2FA step-up (lost device).
+  const handleResetMfa = async (row: UserRow) => {
+    setError(null);
+    const result = await resetUserMfa(row.id);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    refresh();
+  };
+
   const visible = rows.filter((row) => {
     if (!filter) return true;
     const query = filter.toLowerCase();
@@ -138,7 +149,15 @@ export default function UsersAdmin() {
             <RowText primary={row.displayName} secondary={details} />
             {row.id === selfId && <Chip label="you" size="small" color="primary" variant="outlined" />}
             {row.isSuperadmin && <Chip label="superadmin" size="small" color="warning" variant="outlined" />}
+            {info?.hasMfa && <Chip label="2FA" size="small" color="success" variant="outlined" />}
             {banned && <Chip label="banned" size="small" color="error" variant="outlined" />}
+            {serviceAvailable && info?.hasMfa && (
+              <Tooltip title="Remove all authenticator factors — the recovery path when the user lost the device and is locked out">
+                <Button size="small" variant="text" color="grey" onClick={() => handleResetMfa(row)}>
+                  Reset 2FA
+                </Button>
+              </Tooltip>
+            )}
             {serviceAvailable && row.id !== selfId && (
               <Tooltip title={banned ? "Lift the platform-wide ban" : "Ban from the whole platform"}>
                 <Button size="small" variant="text" color={banned ? "success" : "error"} onClick={() => toggleBan(row)}>

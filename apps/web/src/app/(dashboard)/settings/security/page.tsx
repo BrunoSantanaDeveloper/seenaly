@@ -1,6 +1,7 @@
 "use client";
 
 import SettingsMenu from "../components/settings-menu";
+import RecentActivityCard from "./components/recent-activity-card";
 import TwoFactorCard from "./components/two-factor-card";
 import Link from "next/link";
 import { useState } from "react";
@@ -62,6 +63,7 @@ export default function SecuritySettings() {
         )}
 
         {isSupabaseConfigured && <TwoFactorCard />}
+        {isSupabaseConfigured && <RecentActivityCard />}
 
         <Drawer open={openDrawer} anchor="right" onClose={toggleDrawer(false)}>
           <Box className="min-w-80 p-7">

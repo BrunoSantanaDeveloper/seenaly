@@ -7,6 +7,7 @@ import { Alert, Box, Button, Chip, FormControl, FormLabel, Input, Switch, Toolti
 import { Field, RowLine, RowText, SelectField } from "@/app/(dashboard)/admin/billing/components/catalog-shared";
 import EmptyState from "@/components/product/empty-state";
 import NiAnnouncement from "@/icons/nexture/ni-announcement";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type AnnouncementRow = {
@@ -134,6 +135,11 @@ export default function AnnouncementsAdmin() {
       setError(writeError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.announcement.updated" : "admin.announcement.created", {
+      entityType: "announcement",
+      entityId: form.id ?? undefined,
+      metadata: { title: payload.title, level: payload.level },
+    });
     setForm(null);
     refresh();
   };
@@ -149,6 +155,11 @@ export default function AnnouncementsAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, row.isActive ? "admin.announcement.deactivated" : "admin.announcement.activated", {
+      entityType: "announcement",
+      entityId: row.id,
+      metadata: { title: row.title },
+    });
     refresh();
   };
 

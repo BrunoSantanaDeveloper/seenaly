@@ -9,6 +9,7 @@ import { Field, RowLine, RowText, SelectField } from "@/app/(dashboard)/admin/bi
 import EmptyState from "@/components/product/empty-state";
 import { LOCALES } from "@/constants";
 import NiDocumentFull from "@/icons/nexture/ni-document-full";
+import { recordAudit } from "@/lib/audit";
 import { createClient } from "@flyee/auth/client";
 
 type CategoryOption = { id: string; locale: string; name: string };
@@ -121,6 +122,11 @@ export default function HelpArticlesAdmin() {
       setError(writeError.message);
       return;
     }
+    recordAudit(supabase, form.id ? "admin.help.article.updated" : "admin.help.article.created", {
+      entityType: "help_article",
+      entityId: form.id ?? undefined,
+      metadata: { title: payload.title, locale: payload.locale },
+    });
     setForm(null);
     refresh();
   };
@@ -133,6 +139,7 @@ export default function HelpArticlesAdmin() {
       setError(deleteError.message);
       return;
     }
+    recordAudit(supabase, "admin.help.article.deleted", { entityType: "help_article", entityId: id });
     setForm(null);
     refresh();
   };
@@ -148,6 +155,11 @@ export default function HelpArticlesAdmin() {
       setError(updateError.message);
       return;
     }
+    recordAudit(supabase, row.isPublished ? "admin.help.article.unpublished" : "admin.help.article.published", {
+      entityType: "help_article",
+      entityId: row.id,
+      metadata: { title: row.title },
+    });
     refresh();
   };
 
