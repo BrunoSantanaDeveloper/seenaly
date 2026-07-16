@@ -1,6 +1,7 @@
 "use client";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import * as yup from "yup";
 
@@ -24,10 +25,11 @@ import { resolvePostAuthDestination } from "@/lib/onboarding";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
-const validationSchema = yup.object({
-  name: yup.string().required("The field is required").min(3, "Should be at least 3 characters"),
-  company: yup.string().required("The field is required").min(3, "Should be at least 3 characters"),
-});
+const buildValidationSchema = (t: (key: string) => string) =>
+  yup.object({
+    name: yup.string().required(t("error-required")).min(3, t("error-min-3")),
+    company: yup.string().required(t("error-required")).min(3, t("error-min-3")),
+  });
 
 const InputErrorTooltip = ({ title }: { title: string }) => {
   return (
@@ -64,6 +66,7 @@ const slugify = (value: string) =>
  * to the app, so the page can't be reached spuriously.
  */
 export default function Page() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export default function Page() {
 
   const formik = useFormik({
     initialValues: { name: "", company: "" },
-    validationSchema,
+    validationSchema: buildValidationSchema(t),
     validateOnBlur: false,
     validateOnMount: false,
     onSubmit: async (values) => {
@@ -155,10 +158,10 @@ export default function Page() {
             <Box className="flex flex-col gap-10">
               <Box className="flex flex-col">
                 <Typography variant="h1" component="h1" className="mb-2">
-                  Almost there
+                  {t("profile-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-primary">
-                  Tell us your organization name to finish setting up your account.
+                  {t("profile-subtitle")}
                 </Typography>
               </Box>
 
@@ -172,7 +175,7 @@ export default function Page() {
               >
                 <FormControl className="outlined" variant="standard" size="small">
                   <FormLabel component="label" className="flex flex-row">
-                    Name
+                    {t("name-label")}
                     {formik.touched.name && formik.errors.name && <InputErrorTooltip title={formik.errors.name} />}
                   </FormLabel>
                   <Input
@@ -186,7 +189,7 @@ export default function Page() {
 
                 <FormControl className="outlined" variant="standard" size="small">
                   <FormLabel component="label" className="flex flex-row">
-                    Company
+                    {t("company-label")}
                     {formik.touched.company && formik.errors.company && (
                       <InputErrorTooltip title={formik.errors.company} />
                     )}
@@ -202,13 +205,13 @@ export default function Page() {
 
                 {submitted && !formik.isValid && (
                   <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                    <AlertTitle variant="subtitle2">Please complete the required fields.</AlertTitle>
+                    <AlertTitle variant="subtitle2">{t("profile-incomplete")}</AlertTitle>
                   </Alert>
                 )}
 
                 {serverError && (
                   <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                    <AlertTitle variant="subtitle2">Could not finish setup</AlertTitle>
+                    <AlertTitle variant="subtitle2">{t("profile-failed")}</AlertTitle>
                     <Typography variant="body2" className="text-text-primary">
                       {serverError}
                     </Typography>
@@ -216,7 +219,7 @@ export default function Page() {
                 )}
 
                 <Button type="submit" variant="contained" className="mb-4" disabled={formik.isSubmitting}>
-                  Continue
+                  {t("continue")}
                 </Button>
               </Box>
             </Box>

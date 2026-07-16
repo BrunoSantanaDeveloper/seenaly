@@ -1,5 +1,17 @@
 {
   "auth": {
+    "twofactor-title": "Authentification à deux facteurs",
+    "twofactor-subtitle": "Saisissez le code à 6 chiffres de votre application d'authentification pour continuer.",
+    "twofactor-code-label": "Code d'authentification",
+    "twofactor-verify": "Vérifier",
+    "twofactor-verifying": "Vérification...",
+    "twofactor-signout": "Se déconnecter et utiliser un autre compte",
+    "twofactor-challenge-error": "Impossible de démarrer la vérification.",
+    "password-new-failed": "Impossible de mettre à jour le mot de passe",
+    "profile-title": "Presque terminé",
+    "profile-subtitle": "Indiquez le nom de votre organisation pour finaliser la configuration de votre compte.",
+    "profile-incomplete": "Veuillez remplir les champs obligatoires.",
+    "profile-failed": "Impossible de finaliser la configuration",
     "reset-subtitle": "Recevez un e-mail expliquant comment réinitialiser votre mot de passe en toute sécurité.",
     "email-sent-title": "E-mail envoyé !",
     "email-sent-body": "Consultez votre e-mail pour réinitialiser votre mot de passe.",

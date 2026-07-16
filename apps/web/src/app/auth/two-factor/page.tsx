@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Alert, Box, Button, FormControl, FormLabel, Input, Paper, Typography } from "@mui/material";
@@ -13,6 +14,7 @@ import { createClient } from "@flyee/auth/client";
 
 /** Step-up screen: verifies the TOTP code and raises the session to AAL2. */
 export default function TwoFactor() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -46,7 +48,7 @@ export default function TwoFactor() {
       const supabase = createClient();
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
       if (challengeError || !challenge) {
-        setError(challengeError?.message ?? "Could not start the challenge.");
+        setError(challengeError?.message ?? t("twofactor-challenge-error"));
         return;
       }
       const { error: verifyError } = await supabase.auth.mfa.verify({
@@ -86,10 +88,10 @@ export default function TwoFactor() {
           </Box>
           <Box className="flex flex-col">
             <Typography variant="h1" component="h1" className="mb-2">
-              Two-factor authentication
+              {t("twofactor-title")}
             </Typography>
             <Typography variant="body1" className="text-text-primary">
-              Enter the 6-digit code from your authenticator app to continue.
+              {t("twofactor-subtitle")}
             </Typography>
           </Box>
 
@@ -102,7 +104,7 @@ export default function TwoFactor() {
             }}
           >
             <FormControl className="outlined" variant="standard" size="small">
-              <FormLabel component="label">Authentication code</FormLabel>
+              <FormLabel component="label">{t("twofactor-code-label")}</FormLabel>
               <Input
                 autoFocus
                 value={code}
@@ -118,10 +120,10 @@ export default function TwoFactor() {
             )}
 
             <Button type="submit" variant="contained" disabled={!factorId || code.length < 6 || busy}>
-              {busy ? "Verifying..." : "Verify"}
+              {busy ? t("twofactor-verifying") : t("twofactor-verify")}
             </Button>
             <Button color="grey" variant="text" onClick={signOut}>
-              Sign out and use another account
+              {t("twofactor-signout")}
             </Button>
           </Box>
         </Box>

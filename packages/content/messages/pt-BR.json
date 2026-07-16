@@ -1,5 +1,17 @@
 {
   "auth": {
+    "twofactor-title": "Autenticação em duas etapas",
+    "twofactor-subtitle": "Digite o código de 6 dígitos do seu app autenticador para continuar.",
+    "twofactor-code-label": "Código de autenticação",
+    "twofactor-verify": "Verificar",
+    "twofactor-verifying": "Verificando...",
+    "twofactor-signout": "Sair e usar outra conta",
+    "twofactor-challenge-error": "Não foi possível iniciar a verificação.",
+    "password-new-failed": "Não foi possível atualizar a senha",
+    "profile-title": "Quase lá",
+    "profile-subtitle": "Informe o nome da sua organização para concluir a configuração da conta.",
+    "profile-incomplete": "Preencha os campos obrigatórios.",
+    "profile-failed": "Não foi possível concluir a configuração",
     "reset-subtitle": "Receba um e-mail com as instruções para redefinir sua senha com segurança.",
     "email-sent-title": "E-mail enviado!",
     "email-sent-body": "Confira seu e-mail para redefinir sua senha.",

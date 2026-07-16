@@ -1,5 +1,17 @@
 {
   "auth": {
+    "twofactor-title": "Zwei-Faktor-Authentifizierung",
+    "twofactor-subtitle": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein, um fortzufahren.",
+    "twofactor-code-label": "Authentifizierungscode",
+    "twofactor-verify": "Verifizieren",
+    "twofactor-verifying": "Wird verifiziert...",
+    "twofactor-signout": "Abmelden und anderes Konto verwenden",
+    "twofactor-challenge-error": "Die Verifizierung konnte nicht gestartet werden.",
+    "password-new-failed": "Passwort konnte nicht aktualisiert werden",
+    "profile-title": "Fast geschafft",
+    "profile-subtitle": "Nennen Sie uns den Namen Ihrer Organisation, um die Einrichtung abzuschließen.",
+    "profile-incomplete": "Bitte füllen Sie die Pflichtfelder aus.",
+    "profile-failed": "Einrichtung konnte nicht abgeschlossen werden",
     "reset-subtitle": "Erhalten Sie eine E-Mail mit Anweisungen zum sicheren Zurücksetzen Ihres Passworts.",
     "email-sent-title": "E-Mail gesendet!",
     "email-sent-body": "Prüfen Sie Ihre E-Mails, um Ihr Passwort zurückzusetzen.",

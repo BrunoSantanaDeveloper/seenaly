@@ -1,5 +1,17 @@
 {
   "auth": {
+    "twofactor-title": "Two-factor authentication",
+    "twofactor-subtitle": "Enter the 6-digit code from your authenticator app to continue.",
+    "twofactor-code-label": "Authentication code",
+    "twofactor-verify": "Verify",
+    "twofactor-verifying": "Verifying...",
+    "twofactor-signout": "Sign out and use another account",
+    "twofactor-challenge-error": "Could not start the challenge.",
+    "password-new-failed": "Could not update password",
+    "profile-title": "Almost there",
+    "profile-subtitle": "Tell us your organization name to finish setting up your account.",
+    "profile-incomplete": "Please complete the required fields.",
+    "profile-failed": "Could not finish setup",
     "reset-subtitle": "Get an email about how to reset your password securely.",
     "email-sent-title": "Email sent!",
     "email-sent-body": "Please check your email to reset your password.",
