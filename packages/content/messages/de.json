@@ -1673,7 +1673,13 @@
     "memory-bullet-1": "Hypothese, Änderung, Ergebnis und Fazit zu jedem Test",
     "memory-bullet-2": "Schlägt kein Experiment erneut vor, das Sie verworfen haben",
     "memory-bullet-3": "Lernt die Muster Ihrer Produkte und Angebote",
-    "memory-shot-alt": "Seenaly-Experimentgedächtnis: jeder Test mit Hypothese, Änderung, Ergebnis und Fazit festgehalten."
+    "memory-shot-alt": "Seenaly-Experimentgedächtnis: jeder Test mit Hypothese, Änderung, Ergebnis und Fazit festgehalten.",
+    "cookie-consent-title": "Wir verwenden Cookies",
+    "cookie-consent-description": "Wir verwenden Cookies für Kernfunktionen (Anmeldung, Einstellungen) und, mit Ihrer Zustimmung, für Produktanalysen zur Verbesserung des Produkts. Sie können die Analysen ablehnen — alles andere funktioniert trotzdem.",
+    "cookie-consent-accept": "Verstanden",
+    "cookie-consent-reject": "Analysen ablehnen",
+    "cookie-consent-privacy": "Datenschutzerklärung"
+
   },
   "mobile": {
     "signin-title": "Anmelden",

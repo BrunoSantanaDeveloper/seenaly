@@ -1673,7 +1673,13 @@
     "memory-bullet-1": "Hipótesis, cambio, resultado y conclusión de cada test",
     "memory-bullet-2": "No vuelve a sugerir el experimento que ya descartaste",
     "memory-bullet-3": "Aprende los patrones de tus productos y ofertas",
-    "memory-shot-alt": "Pantalla de memoria de experimentos de Seenaly: cada test con su hipótesis, cambio, resultado y conclusión."
+    "memory-shot-alt": "Pantalla de memoria de experimentos de Seenaly: cada test con su hipótesis, cambio, resultado y conclusión.",
+    "cookie-consent-title": "Usamos cookies",
+    "cookie-consent-description": "Usamos cookies para funciones esenciales (inicio de sesión, preferencias) y, con tu permiso, para analíticas de uso que mejoran el producto. Puedes rechazar las analíticas: todo lo demás funciona igual.",
+    "cookie-consent-accept": "Entendido",
+    "cookie-consent-reject": "Rechazar analíticas",
+    "cookie-consent-privacy": "Política de privacidad"
+
   },
   "mobile": {
     "signin-title": "Iniciar sesión",

@@ -1673,7 +1673,12 @@
     "memory-bullet-1": "Hypothesis, change, result and conclusion for every test",
     "memory-bullet-2": "Never re-suggests an experiment you already ruled out",
     "memory-bullet-3": "Learns the patterns of your products and offers",
-    "memory-shot-alt": "Seenaly experiment memory screen: every test recorded with its hypothesis, change, result and conclusion."
+    "memory-shot-alt": "Seenaly experiment memory screen: every test recorded with its hypothesis, change, result and conclusion.",
+    "cookie-consent-title": "We use cookies",
+    "cookie-consent-description": "We use cookies for core functionality (sign-in, preferences) and, with your permission, product analytics to improve the product. You can opt out of analytics — everything else works either way.",
+    "cookie-consent-accept": "Got it",
+    "cookie-consent-reject": "Reject analytics",
+    "cookie-consent-privacy": "Privacy policy"
   },
   "mobile": {
     "signin-title": "Sign in",
