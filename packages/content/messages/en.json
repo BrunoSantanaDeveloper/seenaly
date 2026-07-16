@@ -1,5 +1,11 @@
 {
   "auth": {
+    "reset-subtitle": "Get an email about how to reset your password securely.",
+    "email-sent-title": "Email sent!",
+    "email-sent-body": "Please check your email to reset your password.",
+    "verify-title": "Confirm your email",
+    "verify-body": "We sent a confirmation link to your email. Click the link to activate your account — check your spam folder too.",
+    "verify-back": "After confirming, <link>sign in</link> with your email and password.",
     "or": "OR",
     "continue": "Continue",
     "name-label": "Name",

@@ -1,5 +1,11 @@
 {
   "auth": {
+    "reset-subtitle": "Erhalten Sie eine E-Mail mit Anweisungen zum sicheren Zurücksetzen Ihres Passworts.",
+    "email-sent-title": "E-Mail gesendet!",
+    "email-sent-body": "Prüfen Sie Ihre E-Mails, um Ihr Passwort zurückzusetzen.",
+    "verify-title": "Bestätigen Sie Ihre E-Mail",
+    "verify-body": "Wir haben einen Bestätigungslink an Ihre E-Mail gesendet. Klicken Sie auf den Link, um Ihr Konto zu aktivieren — prüfen Sie auch den Spam-Ordner.",
+    "verify-back": "Nach der Bestätigung <link>melden Sie sich an</link>.",
     "or": "ODER",
     "continue": "Weiter",
     "name-label": "Name",

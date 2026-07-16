@@ -1,5 +1,11 @@
 {
   "auth": {
+    "reset-subtitle": "Recevez un e-mail expliquant comment réinitialiser votre mot de passe en toute sécurité.",
+    "email-sent-title": "E-mail envoyé !",
+    "email-sent-body": "Consultez votre e-mail pour réinitialiser votre mot de passe.",
+    "verify-title": "Confirmez votre e-mail",
+    "verify-body": "Nous avons envoyé un lien de confirmation à votre e-mail. Cliquez sur le lien pour activer votre compte — vérifiez aussi vos spams.",
+    "verify-back": "Après confirmation, <link>connectez-vous</link> avec votre e-mail et mot de passe.",
     "or": "OU",
     "continue": "Continuer",
     "name-label": "Nom",

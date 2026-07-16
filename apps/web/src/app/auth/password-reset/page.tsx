@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 
 import { Alert, Box, Button, Divider, FormControl, FormLabel, Input, Paper, Typography } from "@mui/material";
@@ -10,6 +11,7 @@ import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
 export default function Page() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [data, setData] = useState({
     email: "",
@@ -20,7 +22,7 @@ export default function Page() {
     event.preventDefault();
     setServerError(null);
     if (!isSupabaseConfigured) {
-      setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setServerError(t("error-not-configured"));
       return;
     }
     const supabase = createClient();
@@ -46,17 +48,17 @@ export default function Page() {
             <Box className="flex flex-col gap-10">
               <Box className="flex flex-col">
                 <Typography variant="h1" component="h1" className="mb-2">
-                  Reset Password
+                  {t("reset-password")}
                 </Typography>
                 <Typography variant="body1" className="text-text-primary">
-                  Get an email about how to reset your password securely.
+                  {t("reset-subtitle")}
                 </Typography>
               </Box>
 
               <Box className="flex flex-col gap-5">
                 <Box component={"form"} onSubmit={handleSubmit} className="flex flex-col">
                   <FormControl className="outlined" variant="standard" size="small">
-                    <FormLabel component="label">Email</FormLabel>
+                    <FormLabel component="label">{t("email-label")}</FormLabel>
                     <Input
                       placeholder=""
                       value={data.email}
@@ -71,34 +73,39 @@ export default function Page() {
                   )}
                   <Box className="flex flex-col gap-2">
                     <Button type="submit" variant="contained" className="mb-4">
-                      Continue
+                      {t("continue")}
                     </Button>
                   </Box>
 
                   <Typography variant="body2" className="text-text-secondary">
-                    By clicking Continue, Sign in with Google, or Sign in with GitHub, you agree to the{" "}
-                    <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
-                      Terms and Conditions
-                    </Link>{" "}
-                    and{" "}
-                    <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
-                      Privacy Policy
-                    </Link>
-                    .
+                    {t.rich("legal-agreement", {
+                      terms: (chunks) => (
+                        <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                      privacy: (chunks) => (
+                        <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </Typography>
                 </Box>
               </Box>
               <Divider className="text-text-secondary my-0 text-sm"></Divider>
               <Box className="flex flex-col">
                 <Typography variant="h6" component="h6">
-                  Sign in
+                  {t("have-account-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-secondary">
-                  If you already have an account, please{" "}
-                  <Link href="/auth/sign-in" className="link-primary link-underline-hover">
-                    sign in
-                  </Link>
-                  .
+                  {t.rich("have-account-body", {
+                    link: (chunks) => (
+                      <Link href="/auth/sign-in" className="link-primary link-underline-hover">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </Typography>
               </Box>
             </Box>

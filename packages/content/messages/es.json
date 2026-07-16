@@ -1,5 +1,11 @@
 {
   "auth": {
+    "reset-subtitle": "Recibe un correo con instrucciones para restablecer tu contraseña de forma segura.",
+    "email-sent-title": "¡Correo enviado!",
+    "email-sent-body": "Revisa tu correo para restablecer tu contraseña.",
+    "verify-title": "Confirma tu correo",
+    "verify-body": "Enviamos un enlace de confirmación a tu correo. Haz clic en el enlace para activar tu cuenta — revisa también la carpeta de spam.",
+    "verify-back": "Después de confirmar, <link>inicia sesión</link> con tu correo y contraseña.",
     "or": "O",
     "continue": "Continuar",
     "name-label": "Nombre",
