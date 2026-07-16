@@ -14,7 +14,6 @@ import MenuList from "@mui/material/MenuList";
 import Popper from "@mui/material/Popper";
 
 import { useProfile } from "@/hooks/use-profile";
-import NiDocumentFull from "@/icons/nexture/ni-document-full";
 import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
 import NiSettings from "@/icons/nexture/ni-settings";
 import { cn } from "@/lib/utils";
@@ -32,7 +31,7 @@ export default function User() {
   const t = useTranslations("dashboard");
   const { displayName, email, avatarUrl } = useProfile();
 
-  const shownName = displayName || "Guest";
+  const shownName = displayName || t("user-guest");
   const initial = shownName.charAt(0).toUpperCase();
 
   const handleToggle = () => {
@@ -153,17 +152,6 @@ export default function User() {
                         <UserLanguageSwitch />
 
                         <Divider className="large" />
-                        <MenuItem
-                          onClick={(event) => {
-                            handleClose(event);
-                            router.push("/docs");
-                          }}
-                        >
-                          <ListItemIcon>
-                            <NiDocumentFull size={20} />
-                          </ListItemIcon>
-                          {t("user-documentation")}
-                        </MenuItem>
                         <MenuItem
                           onClick={(event) => {
                             handleClose(event);

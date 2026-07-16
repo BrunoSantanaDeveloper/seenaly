@@ -1,7 +1,5 @@
 "use client";
 import Notifications from "../notifications/notifications";
-import Search from "../search/search";
-import Shortcuts from "../shortcuts/shortcuts";
 import User from "../user/user";
 import Link from "next/link";
 import * as React from "react";
@@ -70,11 +68,11 @@ export default function Header() {
           </Link>
         </Box>
 
-        {/* Right buttons */}
+        {/* Right buttons. The template's Search and Shortcuts popovers were
+            demo-only (hardcoded fake results/links) and were pruned at launch
+            prep; reintroduce a real search when the product grows one. */}
         <Box className="ml-auto flex flex-row sm:gap-1">
-          <Search />
           <Notifications />
-          <Shortcuts />
         </Box>
 
         {/* User Avatar and Menu */}

@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { Alert, Breadcrumbs, Grid, Typography } from "@mui/material";
+import { Alert, Breadcrumbs, Button, Grid, Typography } from "@mui/material";
 
 import { createClient } from "@flyee/auth/client";
 
@@ -50,7 +50,15 @@ export default function NewCreativePage() {
 
         {(!configured || !currentOrg || !productId) && (
           <Grid size={12}>
-            <Alert severity="info" className="neutral bg-background-paper/60!">
+            <Alert
+              severity="info"
+              className="neutral bg-background-paper/60!"
+              action={
+                <Button color="info" size="small" variant="text" LinkComponent={Link} href="/creatives">
+                  {t("pick-product-cta")}
+                </Button>
+              }
+            >
               {t("pick-product")}
             </Alert>
           </Grid>
