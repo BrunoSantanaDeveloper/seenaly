@@ -752,6 +752,9 @@
     "status-error": "Erro",
     "status-disabled": "Desativado"
   },
+  "billing": {
+    "checkout-unavailable": "O pagamento online ainda não está disponível — fale com o suporte para ativar seu plano."
+  },
   "organicGrowth": {
     "title": "Organic Growth",
     "subtitle": "Transforme conteúdo orgânico em evidências, sinais comerciais e próximos passos claros.",

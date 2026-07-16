@@ -752,6 +752,9 @@
     "status-error": "Error",
     "status-disabled": "Disabled"
   },
+  "billing": {
+    "checkout-unavailable": "Online payment is not available yet — contact support to activate your plan."
+  },
   "organicGrowth": {
     "title": "Organic Growth",
     "subtitle": "Turn organic content into evidence, commercial signals, and clear next actions.",

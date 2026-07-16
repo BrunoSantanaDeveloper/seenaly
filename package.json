@@ -18,6 +18,8 @@
     "harness:test": "node scripts/test-agent-harness.mjs",
     "tokens:generate": "npm run generate -w @flyee/design-tokens",
     "knowledge:ingest": "tsx scripts/ingest-knowledge.mts",
+    "db:migrate": "node scripts/apply-migrations.mjs",
+    "db:seed-plans": "node scripts/seed-mock-plans.mjs",
     "prepare": "husky",
     "pre-commit": "lint-staged",
     "typecheck": "npm run typecheck -w @flyee/web"

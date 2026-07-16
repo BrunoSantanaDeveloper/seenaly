@@ -2,6 +2,7 @@
 
 import { startCheckout } from "../actions";
 import { formatMoney, ModuleRow, PlanRow, SubscriptionInfo } from "./use-billing";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import {
@@ -41,6 +42,7 @@ type Props = {
 };
 
 export default function PlansGrid({ orgId, subscription, plans, modules, providers, canManage }: Props) {
+  const t = useTranslations("billing");
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [provider, setProvider] = useState<BillingProviderName>(providers[0] ?? "stripe");
@@ -49,16 +51,17 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
 
   if (!canManage) return null;
 
+  // No payment provider configured: checkout is unavailable by design (mock
+  // billing phase) — say so persistently instead of erroring on click.
+  const checkoutUnavailable = providers.length === 0;
+
   const toggleModule = (id: string) => {
     setSelectedModules((current) => (current.includes(id) ? current.filter((m) => m !== id) : [...current, id]));
   };
 
   const handleSubscribe = async (plan: PlanRow) => {
     setError(null);
-    if (providers.length === 0) {
-      setError("No billing provider is configured (STRIPE_SECRET_KEY / ASAAS_API_KEY).");
-      return;
-    }
+    if (checkoutUnavailable) return;
     setWorkingPlan(plan.id);
     const result = await startCheckout({
       orgId,
@@ -85,6 +88,12 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
           <Typography variant="h5" component="h5" className="card-title">
             Plans
           </Typography>
+
+          {checkoutUnavailable && (
+            <Alert severity="info" className="neutral bg-background-paper/60! mb-4">
+              {t("checkout-unavailable")}
+            </Alert>
+          )}
 
           {error && (
             <Alert severity="error" className="neutral bg-background-paper/60! mb-4">
@@ -129,7 +138,7 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
                         variant="contained"
                         size="medium"
                         onClick={() => handleSubscribe(plan)}
-                        disabled={isCurrent || workingPlan !== null}
+                        disabled={isCurrent || workingPlan !== null || checkoutUnavailable}
                       >
                         {workingPlan === plan.id
                           ? "Redirecting..."
