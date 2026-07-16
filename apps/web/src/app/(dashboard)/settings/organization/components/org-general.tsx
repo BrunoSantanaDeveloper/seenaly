@@ -1,6 +1,7 @@
 "use client";
 
 import { OrgSummary } from "./use-organization";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Alert, Box, Button, Card, CardContent, FormControl, FormLabel, Grid, Input, Typography } from "@mui/material";
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function OrgGeneral({ org, onUpdated }: Props) {
+  const t = useTranslations("settings");
   const canManage = org.role === "owner" || org.role === "admin";
   const [name, setName] = useState(org.name);
   const [slug, setSlug] = useState(org.slug);
@@ -34,11 +36,11 @@ export default function OrgGeneral({ org, onUpdated }: Props) {
     setError(null);
     setSaved(false);
     if (name.trim().length < 3) {
-      setError("Name should be at least 3 characters.");
+      setError(t("org-error-name"));
       return;
     }
     if (!SLUG_PATTERN.test(slug)) {
-      setError("Slug must be lowercase letters, numbers and dashes (e.g. acme-inc).");
+      setError(t("org-error-slug"));
       return;
     }
     setSaving(true);
@@ -67,17 +69,17 @@ export default function OrgGeneral({ org, onUpdated }: Props) {
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h5" className="card-title">
-            General
+            {t("org-general")}
           </Typography>
 
           <Box className="flex flex-col">
             <FormControl className="outlined" variant="standard" size="small" fullWidth>
-              <FormLabel component="label">Organization name</FormLabel>
+              <FormLabel component="label">{t("org-name")}</FormLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!canManage} />
             </FormControl>
 
             <FormControl className="outlined" variant="standard" size="small" fullWidth>
-              <FormLabel component="label">Slug</FormLabel>
+              <FormLabel component="label">{t("org-slug")}</FormLabel>
               <Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} disabled={!canManage} />
             </FormControl>
 
@@ -88,14 +90,14 @@ export default function OrgGeneral({ org, onUpdated }: Props) {
             )}
             {saved && (
               <Alert severity="success" className="neutral bg-background-paper/60! mb-4">
-                Organization updated.
+                {t("org-updated")}
               </Alert>
             )}
 
             {canManage && (
               <Box>
                 <Button variant="outlined" size="medium" color="grey" onClick={handleSave} disabled={saving}>
-                  Save changes
+                  {t("org-save")}
                 </Button>
               </Box>
             )}

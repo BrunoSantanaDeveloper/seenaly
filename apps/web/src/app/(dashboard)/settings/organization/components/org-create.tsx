@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Alert, Box, Button, Card, CardContent, FormControl, FormLabel, Grid, Input, Typography } from "@mui/material";
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export default function OrgCreate({ onCreated }: Props) {
+  const t = useTranslations("settings");
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -26,7 +28,7 @@ export default function OrgCreate({ onCreated }: Props) {
   const handleCreate = async () => {
     setError(null);
     if (name.trim().length < 3) {
-      setError("Name should be at least 3 characters.");
+      setError(t("org-error-name"));
       return;
     }
     setCreating(true);
@@ -51,17 +53,17 @@ export default function OrgCreate({ onCreated }: Props) {
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h5" className="card-title">
-            New organization
+            {t("org-new")}
           </Typography>
 
           <Box className="flex flex-col">
             <Box className="flex flex-col gap-2 md:flex-row md:items-end">
               <FormControl className="outlined grow" variant="standard" size="small">
-                <FormLabel component="label">Organization name</FormLabel>
+                <FormLabel component="label">{t("org-name")}</FormLabel>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Inc." />
               </FormControl>
               <Button variant="outlined" size="medium" color="grey" onClick={handleCreate} disabled={creating}>
-                Create
+                {t("org-create")}
               </Button>
             </Box>
 

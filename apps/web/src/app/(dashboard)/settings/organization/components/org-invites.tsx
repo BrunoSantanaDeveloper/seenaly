@@ -2,6 +2,7 @@
 
 import { createInvite } from "../actions";
 import { OrgInvite, OrgRole, OrgSummary } from "./use-organization";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import {
@@ -36,6 +37,7 @@ type Props = {
 };
 
 export default function OrgInvites({ org, invites, onChanged }: Props) {
+  const t = useTranslations("settings");
   const [email, setEmail] = useState("");
   // Invites never grant ownership; owners are only made via role change.
   const [role, setRole] = useState<Exclude<OrgRole, "owner">>("member");
@@ -50,7 +52,7 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
     setError(null);
     setInfo(null);
     if (!EMAIL_PATTERN.test(email)) {
-      setError("Enter a valid email.");
+      setError(t("org-error-email"));
       return;
     }
     setSending(true);
@@ -61,11 +63,7 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
       return;
     }
     setEmail("");
-    setInfo(
-      result.emailSent
-        ? "Invite email sent. The link below can also be shared directly."
-        : "Invite created. Email delivery is not configured (RESEND_API_KEY) — copy the link below and share it.",
-    );
+    setInfo(result.emailSent ? t("org-invite-sent") : t("org-invite-no-email"));
     onChanged();
   };
 
@@ -96,17 +94,17 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h5" className="card-title">
-            Invites
+            {t("org-invites")}
           </Typography>
 
           <Box className="flex flex-col">
             <Box className="flex flex-col gap-2 md:flex-row md:items-end">
               <FormControl className="outlined grow" variant="standard" size="small">
-                <FormLabel component="label">Email</FormLabel>
+                <FormLabel component="label">{t("org-invite-email")}</FormLabel>
                 <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@company.com" />
               </FormControl>
               <FormControl className="outlined w-40" variant="standard" size="small">
-                <FormLabel component="label">Role</FormLabel>
+                <FormLabel component="label">{t("org-invite-role")}</FormLabel>
                 <Select
                   value={role}
                   size="small"
@@ -114,12 +112,12 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
                   IconComponent={NiChevronDownSmall}
                   onChange={(e) => setRole(e.target.value as Exclude<OrgRole, "owner">)}
                 >
-                  <MenuItem value="member">member</MenuItem>
-                  <MenuItem value="admin">admin</MenuItem>
+                  <MenuItem value="member">{t("role-member")}</MenuItem>
+                  <MenuItem value="admin">{t("role-admin")}</MenuItem>
                 </Select>
               </FormControl>
               <Button variant="outlined" size="medium" color="grey" onClick={handleInvite} disabled={sending}>
-                Send invite
+                {t("org-invite-send")}
               </Button>
             </Box>
 
@@ -143,11 +141,11 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
                         {invite.email}
                       </Typography>
                       <Typography variant="body2" className="text-text-secondary">
-                        Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                        {t("org-invite-expires", { date: new Date(invite.expiresAt).toLocaleDateString() })}
                       </Typography>
                     </Box>
                     <Chip label={invite.role} size="small" variant="outlined" className="capitalize" />
-                    <Tooltip title="Copy invite link">
+                    <Tooltip title={t("org-invite-copy")}>
                       <Button
                         className="icon-only"
                         size="small"
@@ -158,7 +156,7 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
                         <NiLink size="medium" />
                       </Button>
                     </Tooltip>
-                    <Tooltip title="Revoke invite">
+                    <Tooltip title={t("org-invite-revoke")}>
                       <Button
                         className="icon-only"
                         size="small"

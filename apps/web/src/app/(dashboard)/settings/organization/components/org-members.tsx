@@ -1,6 +1,7 @@
 "use client";
 
 import { OrgMember, OrgRole, OrgSummary } from "./use-organization";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import {
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export default function OrgMembers({ org, members, currentUserId, onChanged }: Props) {
+  const t = useTranslations("settings");
   const canManage = org.role === "owner" || org.role === "admin";
   const ownerCount = members.filter((member) => member.role === "owner").length;
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export default function OrgMembers({ org, members, currentUserId, onChanged }: P
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h5" className="card-title">
-            Members
+            {t("org-members")}
           </Typography>
 
           {error && (
@@ -99,12 +101,12 @@ export default function OrgMembers({ org, members, currentUserId, onChanged }: P
                   <Box className="flex min-w-0 grow flex-col">
                     <Box className="flex flex-row items-center gap-2">
                       <Typography variant="subtitle2" className="truncate">
-                        {member.displayName ?? "Unnamed user"}
+                        {member.displayName ?? t("org-unnamed")}
                       </Typography>
-                      {isSelf && <Chip label="You" size="small" variant="outlined" />}
+                      {isSelf && <Chip label={t("org-you")} size="small" variant="outlined" />}
                     </Box>
                     <Typography variant="body2" className="text-text-secondary">
-                      Joined {new Date(member.createdAt).toLocaleDateString()}
+                      {t("org-joined", { date: new Date(member.createdAt).toLocaleDateString() })}
                     </Typography>
                   </Box>
 
@@ -119,16 +121,16 @@ export default function OrgMembers({ org, members, currentUserId, onChanged }: P
                     >
                       {ROLES.map((role) => (
                         <MenuItem key={role} value={role}>
-                          {role}
+                          {t(`role-${role}`)}
                         </MenuItem>
                       ))}
                     </Select>
                   ) : (
-                    <Chip label={member.role} size="small" variant="outlined" className="capitalize" />
+                    <Chip label={t(`role-${member.role}`)} size="small" variant="outlined" className="capitalize" />
                   )}
 
                   {(canManage || isSelf) && !locked && (
-                    <Tooltip title={isSelf ? "Leave organization" : "Remove member"}>
+                    <Tooltip title={isSelf ? t("org-leave") : t("org-remove")}>
                       <Button
                         className="icon-only"
                         size="small"

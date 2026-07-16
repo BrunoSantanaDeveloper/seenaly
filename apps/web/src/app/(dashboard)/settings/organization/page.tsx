@@ -7,6 +7,7 @@ import OrgInvites from "./components/org-invites";
 import OrgMembers from "./components/org-members";
 import { useOrganization } from "./components/use-organization";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import {
@@ -27,6 +28,7 @@ import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiListCircle from "@/icons/nexture/ni-list-circle";
 
 export default function OrganizationSettings() {
+  const t = useTranslations("settings");
   const [openDrawer, setOpenDrawer] = useState(false);
   const {
     configured,
@@ -59,16 +61,16 @@ export default function OrganizationSettings() {
         <Grid size={12} spacing={2.5} container>
           <Grid size={{ xs: 12, md: "grow" }}>
             <Typography variant="h1" component="h1" className="mb-0">
-              Organization
+              {t("org-title")}
             </Typography>
             <Breadcrumbs>
-              <Link color="inherit" href="/dashboards/default">
-                Home
+              <Link color="inherit" href="/home">
+                {t("crumb-home")}
               </Link>
               <Link color="inherit" href="/settings">
-                Settings
+                {t("crumb-settings")}
               </Link>
-              <Typography variant="body2">Organization</Typography>
+              <Typography variant="body2">{t("org-title")}</Typography>
             </Breadcrumbs>
           </Grid>
           {orgs.length > 1 && currentOrg && (
@@ -91,7 +93,7 @@ export default function OrganizationSettings() {
             </Grid>
           )}
           <Grid size={{ xs: 12, md: "auto" }} className="lg:hidden">
-            <Tooltip title="Table of Contents">
+            <Tooltip title={t("toc")}>
               <Button
                 className="icon-only surface-standard"
                 color="grey"
@@ -116,7 +118,7 @@ export default function OrganizationSettings() {
         {configured && !loading && orgs.length === 0 && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
-              You do not belong to any organization yet. Create one below or ask for an invite.
+              {t("org-no-org")}
             </Alert>
           </Grid>
         )}
