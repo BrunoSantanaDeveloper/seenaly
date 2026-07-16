@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormik } from "formik";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import * as Yup from "yup";
 
@@ -29,16 +30,18 @@ const InputErrorTooltip = ({ title }: { title: string }) => (
   </Tooltip>
 );
 
-const emailSchema = Yup.object({
-  email: Yup.string().email("Enter a valid email").required("Email is required"),
-});
+const buildEmailSchema = (t: (key: string) => string) =>
+  Yup.object({
+    email: Yup.string().email(t("error-email-invalid")).required(t("error-email-required")),
+  });
 
-const passwordSchema = Yup.object({
-  password: Yup.string().min(8, "At least 8 characters").required("Password is required"),
-  confirm: Yup.string()
-    .oneOf([Yup.ref("password")], "Passwords must match")
-    .required("Confirm the new password"),
-});
+const buildPasswordSchema = (t: (key: string) => string) =>
+  Yup.object({
+    password: Yup.string().min(8, t("error-password-min")).required(t("error-password-required")),
+    confirm: Yup.string()
+      .oneOf([Yup.ref("password")], t("error-password-match"))
+      .required(t("error-password-confirm")),
+  });
 
 /**
  * Real account credentials: change the sign-in email (Supabase sends a
@@ -46,6 +49,7 @@ const passwordSchema = Yup.object({
  * /settings/security.
  */
 export default function AccountCard() {
+  const t = useTranslations("settings");
   const [currentEmail, setCurrentEmail] = useState("");
   const [emailStatus, setEmailStatus] = useState<"sent" | "error" | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -65,7 +69,7 @@ export default function AccountCard() {
 
   const emailForm = useFormik({
     initialValues: { email: "" },
-    validationSchema: emailSchema,
+    validationSchema: buildEmailSchema(t),
     validateOnBlur: false,
     validateOnMount: false,
     onSubmit: async (values, helpers) => {
@@ -85,7 +89,7 @@ export default function AccountCard() {
 
   const passwordForm = useFormik({
     initialValues: { password: "", confirm: "" },
-    validationSchema: passwordSchema,
+    validationSchema: buildPasswordSchema(t),
     validateOnBlur: false,
     validateOnMount: false,
     onSubmit: async (values, helpers) => {
@@ -108,24 +112,24 @@ export default function AccountCard() {
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h2" className="card-title">
-            Account
+            {t("account-section")}
           </Typography>
 
           <Box component="form" onSubmit={emailForm.handleSubmit} className="mb-8 flex max-w-md flex-col gap-3">
-            <Typography variant="subtitle2">Sign-in email</Typography>
+            <Typography variant="subtitle2">{t("signin-email")}</Typography>
             {emailStatus === "sent" && (
               <Alert severity="success" className="neutral bg-background-paper/60!">
-                Confirmation sent — check both the old and the new inbox to finish the change.
+                {t("email-confirmation-sent")}
               </Alert>
             )}
             {emailStatus === "error" && (
               <Alert severity="error" className="neutral bg-background-paper/60!">
-                {emailError ?? "Could not update the email."}
+                {emailError ?? t("email-update-failed")}
               </Alert>
             )}
             <FormControl className="outlined" variant="standard" size="small" fullWidth>
               <Box className="flex flex-row items-center">
-                <FormLabel component="label">New email</FormLabel>
+                <FormLabel component="label">{t("new-email")}</FormLabel>
                 {emailForm.touched.email && emailForm.errors.email && (
                   <InputErrorTooltip title={emailForm.errors.email} />
                 )}
@@ -141,26 +145,26 @@ export default function AccountCard() {
             </FormControl>
             <Box>
               <Button type="submit" variant="outlined" size="small" disabled={emailForm.isSubmitting}>
-                Change email
+                {t("change-email")}
               </Button>
             </Box>
           </Box>
 
           <Box component="form" onSubmit={passwordForm.handleSubmit} className="flex max-w-md flex-col gap-3">
-            <Typography variant="subtitle2">Password</Typography>
+            <Typography variant="subtitle2">{t("password-section")}</Typography>
             {passwordStatus === "saved" && (
               <Alert severity="success" className="neutral bg-background-paper/60!">
-                Password updated.
+                {t("password-updated")}
               </Alert>
             )}
             {passwordStatus === "error" && (
               <Alert severity="error" className="neutral bg-background-paper/60!">
-                {passwordError ?? "Could not update the password."}
+                {passwordError ?? t("password-update-failed")}
               </Alert>
             )}
             <FormControl className="outlined" variant="standard" size="small" fullWidth>
               <Box className="flex flex-row items-center">
-                <FormLabel component="label">New password</FormLabel>
+                <FormLabel component="label">{t("new-password")}</FormLabel>
                 {passwordForm.touched.password && passwordForm.errors.password && (
                   <InputErrorTooltip title={passwordForm.errors.password} />
                 )}
@@ -175,7 +179,7 @@ export default function AccountCard() {
             </FormControl>
             <FormControl className="outlined" variant="standard" size="small" fullWidth>
               <Box className="flex flex-row items-center">
-                <FormLabel component="label">Confirm new password</FormLabel>
+                <FormLabel component="label">{t("confirm-password")}</FormLabel>
                 {passwordForm.touched.confirm && passwordForm.errors.confirm && (
                   <InputErrorTooltip title={passwordForm.errors.confirm} />
                 )}
@@ -190,7 +194,7 @@ export default function AccountCard() {
             </FormControl>
             <Box>
               <Button type="submit" variant="outlined" size="small" disabled={passwordForm.isSubmitting}>
-                Change password
+                {t("change-password")}
               </Button>
             </Box>
           </Box>

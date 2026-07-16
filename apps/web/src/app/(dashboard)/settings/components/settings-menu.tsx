@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 
@@ -43,36 +44,42 @@ const Item = ({ href, label, icon, selected }: ItemProps) => (
 
 /** Only real destinations — every item leads to a working settings page. */
 export default function SettingsMenu({ active }: { active: SettingsMenuActive }) {
+  const t = useTranslations("settings");
   return (
     <Box className="flex flex-col gap-4">
       <List className="-mt-6">
-        <Group label="Personal" />
-        <Item href="/settings" label="Profile" icon={<NiUser size="medium" />} selected={active === "profile"} />
+        <Group label={t("menu-personal")} />
+        <Item
+          href="/settings"
+          label={t("menu-profile")}
+          icon={<NiUser size="medium" />}
+          selected={active === "profile"}
+        />
         <Item
           href="/settings/security"
-          label="Security"
+          label={t("menu-security")}
           icon={<NiCheckSquare size="medium" />}
           selected={active === "security"}
         />
 
-        <Group label="Organization" />
+        <Group label={t("menu-organization-group")} />
         <Item
           href="/settings/organization"
-          label="Organization"
+          label={t("menu-organization")}
           icon={<NiBuilding size="medium" />}
           selected={active === "organization"}
         />
         <Item
           href="/settings/connections"
-          label="Connections"
+          label={t("menu-connections")}
           icon={<NiPlug size="medium" />}
           selected={active === "connections"}
         />
 
-        <Group label="Payment" />
+        <Group label={t("menu-payment")} />
         <Item
           href="/settings/billing"
-          label="Billing"
+          label={t("menu-billing")}
           icon={<NiWallet size="medium" />}
           selected={active === "billing"}
         />
