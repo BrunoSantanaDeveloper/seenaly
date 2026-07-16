@@ -1,0 +1,10 @@
+{
+  "name": "@flyee/fields",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure validators, formatters and masks for semantic form fields (phone, CPF/CNPJ, CEP/postal code, currency), plus an AddressLookupProvider interface with ViaCEP as the built-in BR provider. Zero dependencies — shared by web and mobile.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

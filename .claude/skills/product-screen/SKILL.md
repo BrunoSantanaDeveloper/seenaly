@@ -43,6 +43,13 @@ Distilled from the gamification research — most of it is a WARNING:
 - Arrange by the QUESTION the screen answers, not by table schema. Group related data; decide how much belongs on one screen before it clutters.
 - Lead cards/sections with a meaningful icon (show, don't tell — same as marketing). Use the harmonic tones (`components/marketing/tone.ts` hues via tokens) for categorical families; primary for the primary action.
 - MUI v9 first, theme tokens only (never hardcode colors), Formik+Yup for forms with inline errors near the field, next-intl for every string.
+
+## Forms & semantic fields
+
+- **Semantic data never goes in a raw `TextField`.** Phone, CPF/CNPJ, CEP/postal code and money use the field catalog in `components/product/fields/` (`PhoneField`, `CpfField`/`CnpjField`/`CpfCnpjField`, `CepField`, `CurrencyField`) — mask, inline check-digit validation and locale-aware formatting come built in (`product-lint` advises when it spots a bypass).
+- **CEP auto-fill pattern**: `CepField`'s `onAddressFound` pre-fills street/district/city/state — those fields MUST remain editable (a head start, not a lock), and a failed lookup silently degrades to manual entry (never block the form on a third-party).
+- **Persist digits, not masks**: run `onlyDigits()` (`@flyee/fields`) before writing to the DB; validate in Yup with the same package's validators (`.test("cpf", t(...), isValidCpf)`) so UI and schema agree.
+- **Inline, translated feedback**: each field takes `invalidMessage` (product namespace) and flags complete-but-invalid values as the user types — never only on submit.
 - Respect the loading and error states — skeletons that reserve space (no layout shift), errors that say what to do next.
 
 ## Reusable building blocks
@@ -56,3 +63,5 @@ Distilled from the gamification research — most of it is a WARNING:
 ## Before finishing
 
 Walk the screen as a brand-new user (empty data) AND as a returning one. Confirm: no blank empty states; a first-run path to value exists; no CRUD table where a focused view fits the job better; strings translated; tokens only; `npm run build` + `npm run lint:fix` pass.
+
+For a new flow or a substantial edit, run the `product-verify` skill — it drives the real app through the journey (new + returning user, 1440/390, light/dark) and judges dead ends, lost context, error-vs-empty and leftover demo surfaces. Code that was never run is not verified.

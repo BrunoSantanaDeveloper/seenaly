@@ -36,6 +36,10 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/product-lint.mjs"
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/harness-sync.mjs"
           }
         ]

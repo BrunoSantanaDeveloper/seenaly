@@ -82,6 +82,69 @@ const lintClaude = runHook("marketing-lint.mjs", {
 });
 assert(lintClaude?.decision === "block", "Claude marketing lint compatibility failed");
 
+const productLintPath = "apps/web/src/app/(dashboard)/__harness_probe__/page.tsx";
+const productViolation = [
+  'const color = "#fff";',
+  "export default function Probe() {",
+  "  return <IconButton onClick={() => null}>x</IconButton>;",
+  "}",
+].join("\n");
+const productLintCodex = runHook("product-lint.mjs", {
+  ...codexBase,
+  hook_event_name: "PostToolUse",
+  tool_input: {
+    command: `*** Begin Patch\n*** Add File: ${productLintPath}\n*** End Patch`,
+    content: productViolation,
+  },
+});
+assert(productLintCodex?.systemMessage?.includes("[raw-color]"), "Codex product lint missed the raw color");
+assert(productLintCodex.systemMessage.includes("[a11y-icon-button]"), "Codex product lint missed the unnamed IconButton");
+
+const productLintClaude = runHook("product-lint.mjs", {
+  cwd: repoRoot,
+  hook_event_name: "PostToolUse",
+  tool_input: {
+    file_path: join(repoRoot, productLintPath),
+    content: productViolation,
+  },
+});
+assert(productLintClaude?.decision === "block", "Claude product lint compatibility failed");
+
+const productLintAdvisory = runHook("product-lint.mjs", {
+  cwd: repoRoot,
+  hook_event_name: "PostToolUse",
+  tool_input: {
+    file_path: join(repoRoot, productLintPath),
+    content: 'load().catch(() => setRows([]));\nexport const f = <TextField name="cpf" />;',
+  },
+});
+assert(
+  productLintAdvisory?.hookSpecificOutput?.additionalContext?.includes("[error-as-empty?]") &&
+    productLintAdvisory.hookSpecificOutput.additionalContext.includes("[semantic-field?]") &&
+    !productLintAdvisory?.decision,
+  "Product lint advisory path failed",
+);
+
+const productLintFieldCatalog = runHook("product-lint.mjs", {
+  cwd: repoRoot,
+  hook_event_name: "PostToolUse",
+  tool_input: {
+    file_path: join(repoRoot, "apps/web/src/components/product/fields/__probe__.tsx"),
+    content: 'export const f = <TextField name="cpf" />;',
+  },
+});
+assert(productLintFieldCatalog === null, "Product lint flagged the field catalog itself");
+
+const productLintMarketing = runHook("product-lint.mjs", {
+  cwd: repoRoot,
+  hook_event_name: "PostToolUse",
+  tool_input: {
+    file_path: join(repoRoot, "apps/web/src/app/(marketing)/page.tsx"),
+    content: 'const color = "#fff";',
+  },
+});
+assert(productLintMarketing === null, "Product lint fired for a marketing file");
+
 const unrelated = runHook("marketing-guard.mjs", {
   ...codexBase,
   tool_input: { command: "*** Begin Patch\n*** Update File: README.md\n*** End Patch" },
