@@ -48,7 +48,8 @@ export default function HomePage() {
   const t = useTranslations("home");
   const tp = useTranslations("products");
   const tc = useTranslations("connections");
-  const { configured, loading, userId, orgs, currentOrg } = useOrganization();
+  const td = useTranslations("dashboard");
+  const { configured, loading, loadError, userId, orgs, currentOrg } = useOrganization();
 
   const [product, setProduct] = useState<ProductWithChildren | null>(null);
   const [connection, setConnection] = useState<ConnectionRow | null>(null);
@@ -112,12 +113,32 @@ export default function HomePage() {
           </Grid>
         )}
 
-        {configured && !loading && orgs.length === 0 && (
+        {configured && loadError && (
+          <Grid size={12}>
+            <Alert severity="error" className="neutral bg-background-paper/60!">
+              {td("org-load-error")}
+            </Alert>
+          </Grid>
+        )}
+
+        {configured && !loading && !loadError && orgs.length === 0 && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
               {t("no-org")}
             </Alert>
           </Grid>
+        )}
+
+        {/* While memberships resolve, hold the space — never a blank screen. */}
+        {configured && loading && (
+          <>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Skeleton variant="rounded" height={180} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Skeleton variant="rounded" height={180} />
+            </Grid>
+          </>
         )}
 
         {/* The path to value. Renders its own slot, or nothing once complete. */}

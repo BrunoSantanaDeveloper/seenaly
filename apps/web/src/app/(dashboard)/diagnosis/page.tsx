@@ -40,8 +40,9 @@ type ProductRow = { id: string; name: string };
 
 export default function DiagnosisPage() {
   const t = useTranslations("diagnosis");
+  const td = useTranslations("dashboard");
   const router = useRouter();
-  const { configured, loading, orgs, currentOrg } = useOrganization();
+  const { configured, loading, loadError, orgs, currentOrg } = useOrganization();
 
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -166,7 +167,15 @@ export default function DiagnosisPage() {
           </Grid>
         )}
 
-        {configured && !loading && orgs.length === 0 && (
+        {configured && loadError && (
+          <Grid size={12}>
+            <Alert severity="error" className="neutral bg-background-paper/60!">
+              {td("org-load-error")}
+            </Alert>
+          </Grid>
+        )}
+
+        {configured && !loading && !loadError && orgs.length === 0 && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
               {t("no-org")}
@@ -174,7 +183,8 @@ export default function DiagnosisPage() {
           </Grid>
         )}
 
-        {currentOrg && !ready && (
+        {/* Hold the space while memberships or diagnoses resolve — never blank. */}
+        {configured && (loading || (currentOrg && !ready)) && (
           <Grid size={12}>
             <Skeleton variant="rounded" height={280} />
           </Grid>

@@ -223,6 +223,7 @@
     "inner-shadow-opacity": "Inner Shadow Opacity",
     "reset-background": "Reset Background",
     "footer-about": "About",
+    "org-load-error": "We could not load your data. Check your connection and reload the page.",
     "footer-docs": "Docs",
     "footer-purchase": "Purchase",
     "menu-cta-copy": "Go premium to get all the cool features!",
@@ -720,6 +721,7 @@
     "history-title": "Previous diagnoses"
   },
   "activation": {
+    "dismiss": "Dismiss checklist",
     "title": "Your next steps",
     "description": "A few steps to your first diagnosis.",
     "step-product": "Register your product or offer",

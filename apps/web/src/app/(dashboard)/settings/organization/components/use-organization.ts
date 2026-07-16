@@ -40,6 +40,7 @@ export interface OrgInvite {
  */
 export function useOrganization() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
@@ -51,32 +52,41 @@ export function useOrganization() {
       setLoading(false);
       return;
     }
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    // A network failure must surface as an ERROR, never as an eternal blank
+    // screen or a fake "no organization" state.
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      setUserId(user.id);
+
+      const { data, error } = await supabase
+        .from("memberships")
+        .select("role, organizations(id, name, slug)")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (error) throw error;
+
+      const list: OrgSummary[] = (data ?? [])
+        .filter((row) => row.organizations)
+        .map((row) => {
+          const org = row.organizations as unknown as { id: string; name: string; slug: string };
+          return { id: org.id, name: org.name, slug: org.slug, role: row.role as OrgRole };
+        });
+
+      setOrgs(list);
+      setCurrentOrgId((current) => current ?? list[0]?.id ?? null);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-    setUserId(user.id);
-
-    const { data } = await supabase
-      .from("memberships")
-      .select("role, organizations(id, name, slug)")
-      .eq("user_id", user.id)
-      .order("created_at");
-
-    const list: OrgSummary[] = (data ?? [])
-      .filter((row) => row.organizations)
-      .map((row) => {
-        const org = row.organizations as unknown as { id: string; name: string; slug: string };
-        return { id: org.id, name: org.name, slug: org.slug, role: row.role as OrgRole };
-      });
-
-    setOrgs(list);
-    setCurrentOrgId((current) => current ?? list[0]?.id ?? null);
-    setLoading(false);
   }, []);
 
   const refreshOrgDetails = useCallback(async () => {
@@ -140,6 +150,7 @@ export function useOrganization() {
   return {
     configured: isSupabaseConfigured,
     loading,
+    loadError,
     userId,
     orgs,
     currentOrg,

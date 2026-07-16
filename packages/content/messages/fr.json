@@ -223,6 +223,7 @@
     "inner-shadow-opacity": "Inner Shadow Opacity",
     "reset-background": "Réinitialiser Arrière-plan",
     "footer-about": "À propos",
+    "org-load-error": "Impossible de charger vos données. Vérifiez votre connexion et rechargez la page.",
     "footer-docs": "Docs",
     "footer-purchase": "Acheter",
     "menu-cta-copy": "Passez à la version premium dès maintenant!",
@@ -720,6 +721,7 @@
     "history-title": "Diagnostics précédents"
   },
   "activation": {
+    "dismiss": "Masquer la liste",
     "title": "Vos prochaines étapes",
     "description": "Quelques étapes avant votre premier diagnostic.",
     "step-product": "Enregistrer votre produit ou offre",

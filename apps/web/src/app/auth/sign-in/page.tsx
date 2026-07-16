@@ -22,6 +22,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { BRAND } from "@/brand";
 import Logo from "@/components/logo/logo";
 import { DEFAULTS } from "@/config";
 import NiCrossSquare from "@/icons/nexture/ni-cross-square";
@@ -323,15 +324,11 @@ export default function Page() {
 
                   <Typography variant="body2" className="text-text-secondary">
                     By clicking Continue, Sign in with Google, or Sign in with GitHub, you agree to the{" "}
-                    <Link
-                      target="_blank"
-                      href="/auth/terms-and-conditions"
-                      className="link-primary link-underline-hover"
-                    >
+                    <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
                       Terms and Conditions
                     </Link>{" "}
                     and{" "}
-                    <Link target="_blank" href="/auth/privacy-policy" className="link-primary link-underline-hover">
+                    <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
                       Privacy Policy
                     </Link>
                     .
@@ -344,7 +341,7 @@ export default function Page() {
                   Get Started
                 </Typography>
                 <Typography variant="body1" className="text-text-secondary">
-                  New to Flyee? Please use your email to{" "}
+                  New to {BRAND.name}? Please use your email to{" "}
                   <Link href="/auth/sign-up" className="link-primary link-underline-hover">
                     sign up
                   </Link>

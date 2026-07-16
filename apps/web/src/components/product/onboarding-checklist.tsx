@@ -21,6 +21,7 @@ import { computeProgress, type OnboardingStateRow, type OnboardingStep } from "@
 export default function OnboardingChecklist({
   title = "Get set up",
   description = "A few steps to your first result.",
+  dismissLabel = "Dismiss",
   steps,
   state,
   onDismiss,
@@ -29,6 +30,8 @@ export default function OnboardingChecklist({
   title?: string;
   /** One-line promise under the title. Pass a translated string. */
   description?: string;
+  /** Accessible name for the dismiss (X) button. Pass a translated string. */
+  dismissLabel?: string;
   steps: OnboardingStep[];
   state: OnboardingStateRow;
   onDismiss?: () => void;
@@ -54,7 +57,14 @@ export default function OnboardingChecklist({
           <Box className="flex flex-row items-center gap-2">
             <ActivationProgress done={progress.done} total={progress.total} />
             {onDismiss && (
-              <Button className="icon-only" size="small" color="grey" variant="text" onClick={onDismiss}>
+              <Button
+                className="icon-only"
+                size="small"
+                color="grey"
+                variant="text"
+                aria-label={dismissLabel}
+                onClick={onDismiss}
+              >
                 <NiCross size="medium" />
               </Button>
             )}

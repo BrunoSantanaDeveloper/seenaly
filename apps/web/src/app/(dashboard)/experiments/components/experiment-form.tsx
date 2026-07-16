@@ -45,8 +45,10 @@ interface FormValues {
   creativeIds: string[];
 }
 
-const toNum = (value: string): number | null => {
-  const trimmed = value.trim();
+// Formik parses type="number" inputs to float, so at runtime these "string"
+// fields can hold numbers — normalize before trimming.
+const toNum = (value: string | number): number | null => {
+  const trimmed = String(value).trim();
   if (trimmed === "") return null;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
@@ -236,7 +238,10 @@ export default function ExperimentForm({
               >
                 {creatives.map((creative) => (
                   <MenuItem key={creative.id} value={creative.id}>
-                    <Checkbox checked={formik.values.creativeIds.includes(creative.id)} />
+                    <Checkbox
+                      checked={formik.values.creativeIds.includes(creative.id)}
+                      slotProps={{ input: { "aria-label": creative.name } }}
+                    />
                     <ListItemText primary={creative.name} />
                   </MenuItem>
                 ))}

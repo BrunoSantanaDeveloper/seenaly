@@ -223,6 +223,7 @@
     "inner-shadow-opacity": "Innere Schatten-Deckkraft",
     "reset-background": "Hintergrund zurücksetzen",
     "footer-about": "Über uns",
+    "org-load-error": "Ihre Daten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und laden Sie die Seite neu.",
     "footer-docs": "Doks",
     "footer-purchase": "Kaufen",
     "menu-cta-copy": "Werde Premium-Mitglied, um alle coolen Funktionen zu erhalten!",
@@ -720,6 +721,7 @@
     "history-title": "Frühere Diagnosen"
   },
   "activation": {
+    "dismiss": "Checkliste ausblenden",
     "title": "Ihre nächsten Schritte",
     "description": "Wenige Schritte bis zu Ihrer ersten Diagnose.",
     "step-product": "Ihr Produkt oder Angebot erfassen",

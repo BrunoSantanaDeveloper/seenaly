@@ -106,6 +106,7 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       <OnboardingChecklist
         title={t("title")}
         description={t("description")}
+        dismissLabel={t("dismiss")}
         steps={steps}
         state={state}
         onDismiss={dismiss}

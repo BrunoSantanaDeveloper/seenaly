@@ -13,7 +13,6 @@ import { PrimaryItem } from "@/components/layout/menu/primary-item";
 import { SecondaryItem } from "@/components/layout/menu/secondary-item";
 import { DEFAULTS } from "@/config";
 import { useIsSuperadmin } from "@/hooks/use-is-superadmin";
-import IllustrationLaunch from "@/icons/illustrations/illustration-launch";
 import { cn, isPathMatch } from "@/lib/utils";
 import { leftMenuBottomItems, leftMenuItems } from "@/menu-items";
 import { MenuItem, MenuShowState, MenuType } from "@/types";
@@ -246,20 +245,6 @@ export default function LeftMenu() {
                                 setOpenedAccordions={setOpenedAccordions}
                               />
                             ))}
-                        </Box>
-
-                        <Box
-                          component="a"
-                          href="#"
-                          className="group flex w-full cursor-pointer flex-col items-center justify-center gap-2"
-                        >
-                          <IllustrationLaunch className="text-primary h-[180px] w-[180px] bg-cover bg-center" />
-                          <Typography variant="body1" className="px-4 text-center">
-                            {t("menu-cta-copy")}
-                          </Typography>
-                          <Box className="group-hover:bg-primary/10 text-primary rounded-md px-5 py-2 font-medium transition-colors">
-                            {t("menu-cta-button")}
-                          </Box>
                         </Box>
                       </Box>
                     </>

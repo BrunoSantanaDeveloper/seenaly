@@ -56,8 +56,10 @@ interface FormValues {
   proofs: { kind: string; content: string }[];
 }
 
-const toNum = (value: string): number | null => {
-  const trimmed = value.trim();
+// Formik parses type="number" inputs to float, so at runtime these "string"
+// fields can hold numbers — normalize before trimming.
+const toNum = (value: string | number): number | null => {
+  const trimmed = String(value).trim();
   if (trimmed === "") return null;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;

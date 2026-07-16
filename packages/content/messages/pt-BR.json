@@ -223,6 +223,7 @@
     "inner-shadow-opacity": "Opacidade da Sombra Interna",
     "reset-background": "Redefinir Fundo",
     "footer-about": "Sobre",
+    "org-load-error": "Não foi possível carregar seus dados. Verifique sua conexão e recarregue a página.",
     "footer-docs": "Docs",
     "footer-purchase": "Comprar",
     "menu-cta-copy": "Assine o premium para ter todos os recursos!",
@@ -720,6 +721,7 @@
     "history-title": "Diagnósticos anteriores"
   },
   "activation": {
+    "dismiss": "Dispensar checklist",
     "title": "Seus próximos passos",
     "description": "Poucos passos até seu primeiro diagnóstico.",
     "step-product": "Cadastrar seu produto ou oferta",

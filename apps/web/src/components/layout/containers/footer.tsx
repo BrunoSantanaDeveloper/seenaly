@@ -5,6 +5,8 @@ import { useTranslations } from "use-intl";
 
 import { Box, Button } from "@mui/material";
 
+// Product-app footer: only the marketing site link. The template's demo
+// links (docs playground, ThemeForest purchase) were pruned at launch prep.
 export default function Footer() {
   const t = useTranslations("dashboard");
 
@@ -19,27 +21,6 @@ export default function Footer() {
         href="/"
       >
         {t("footer-about")}
-      </Button>
-      <Button
-        size="tiny"
-        color="text-secondary"
-        variant="text"
-        className="hover:text-primary !bg-transparent font-normal"
-        component={Link}
-        href="/docs"
-      >
-        {t("footer-docs")}
-      </Button>
-      <Button
-        size="tiny"
-        color="text-secondary"
-        variant="text"
-        className="hover:text-primary !bg-transparent font-normal"
-        component={Link}
-        href="https://themeforest.net"
-        target="_blank"
-      >
-        {t("footer-purchase")}
       </Button>
     </Box>
   );

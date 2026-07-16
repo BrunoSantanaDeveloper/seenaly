@@ -53,6 +53,7 @@ export default function Shortcuts() {
           variant="text"
           size="large"
           color="text-primary"
+          aria-label="Shortcuts"
           className={cn(
             "icon-only hover-icon-shrink [&.active]:text-primary hover:bg-grey-25",
             open && "active bg-grey-25",

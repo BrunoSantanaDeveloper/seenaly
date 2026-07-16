@@ -84,15 +84,11 @@ export default function Page() {
 
                   <Typography variant="body2" className="text-text-secondary">
                     By clicking Continue, Sign in with Google, or Sign in with GitHub, you agree to the{" "}
-                    <Link
-                      target="_blank"
-                      href="/auth/terms-and-conditions"
-                      className="link-primary link-underline-hover"
-                    >
+                    <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
                       Terms and Conditions
                     </Link>{" "}
                     and{" "}
-                    <Link target="_blank" href="/auth/privacy-policy" className="link-primary link-underline-hover">
+                    <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
                       Privacy Policy
                     </Link>
                     .

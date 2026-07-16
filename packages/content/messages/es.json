@@ -223,6 +223,7 @@
     "inner-shadow-opacity": "Inner Shadow Opacity",
     "reset-background": "Restablecer Fondo",
     "footer-about": "Acerca de",
+    "org-load-error": "No pudimos cargar tus datos. Verifica tu conexión y recarga la página.",
     "footer-docs": "Docs",
     "footer-purchase": "Comprar",
     "menu-cta-copy": "Hazte premium para obtener todas las funciones geniales!",
@@ -720,6 +721,7 @@
     "history-title": "Diagnósticos anteriores"
   },
   "activation": {
+    "dismiss": "Descartar lista",
     "title": "Tus próximos pasos",
     "description": "Pocos pasos hasta tu primer diagnóstico.",
     "step-product": "Registrar tu producto u oferta",

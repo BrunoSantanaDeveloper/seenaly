@@ -87,6 +87,16 @@ export async function registerExperimentFromDiagnosis(diagnosisId: string): Prom
     .maybeSingle();
   if (error || !diagnosis) return { ok: false, error: error?.message ?? "Diagnóstico não encontrado." };
 
+  // Idempotent: registering the same diagnosis twice (double click, back
+  // navigation) must reuse the experiment instead of duplicating the journal.
+  const { data: existing } = await supabase
+    .from("experiments")
+    .select("id")
+    .eq("diagnosis_id", diagnosis.id)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: true, id: existing.id as string };
+
   const output = diagnosis.output as DiagnosisOutput;
   const { data: user } = await supabase.auth.getUser();
   const { data: created, error: insertError } = await supabase
