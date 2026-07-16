@@ -91,3 +91,162 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 - Integração Meta Ads → `packages/connectors` (+ tabelas novas em `packages/db`) com sync via `packages/jobs` (Inngest)
 - Assistente e formato fixo → `packages/ai` (`generateStructured` com JSON Schema; grounding via `config.knowledge`)
 - Monetização por uso → `packages/billing` (créditos por mensagem)
+
+## Organic Growth — inteligência de conteúdo orgânico
+
+O **Organic Growth** é um add-on opcional, nativo do Seenaly, que transforma
+conteúdo orgânico e seus sinais de desempenho em diagnóstico, recomendação e
+experimento. Ele amplia a camada de Decision Intelligence; não é uma segunda
+aplicação nem uma ferramenta de operação de redes sociais.
+
+O módulo compartilha produtos, ofertas, públicos, funis, biblioteca criativa,
+conversões, recomendações, conhecimento e memória de experimentos com o núcleo
+de mídia paga. Seu primeiro recorte continua sendo negócios de produtos digitais
+e ofertas self-service, com Instagram como porta de entrada e a ponte
+**orgânico → pago** como principal diferenciação.
+
+Não fazem parte do MVP: agendamento, publicação, inbox, resposta automática,
+edição de mídia, social listening amplo, scraping não autorizado, atribuição
+causal de vendas ou comparação bruta entre redes.
+
+### Decisões arquiteturais
+
+- `creatives` continua sendo a biblioteca canônica do ativo e de sua taxonomia;
+  uma publicação orgânica é uma colocação específica, vinculada ao criativo,
+  com plataforma, conta, URL/ID externo, legenda, formato e data de publicação.
+- Importações são lotes idempotentes e auditáveis. Métricas são snapshots com
+  origem explícita (`manual` ou `connector`) e o payload recebido é preservado.
+- `products`, `diagnoses` e `experiments` são reutilizados. O Organic Growth não
+  cria cópias desses domínios; Reviews apenas agregam e congelam as evidências e
+  recomendações do período analisado.
+- Conectores enriquecem o módulo, mas nunca são portão de valor. No Concierge,
+  plataforma e conta são declaradas pelo usuário; OAuth só entra na Etapa 1.
+- O contexto mínimo para uma análise completa é produto, público, objetivo,
+  oferta ou ação desejada, plataforma/conta de origem e período. Sem ele, o
+  produto orienta o preenchimento em vez de inventar uma análise.
+- Dados do negócio, da conta e de experimentos são evidências da decisão, não
+  uma nova numeração de confiança. Os `trust_level` 1–5 de `packages/knowledge`
+  permanecem canônicos: documentação oficial no topo, opiniões e benchmarks na
+  base.
+
+### Etapa 0 — Concierge Beta
+
+O primeiro recorte vertical valida a proposta antes das integrações completas:
+**um workspace, um produto, uma conta Instagram declarada, um período e uma
+planilha/CSV padronizada**. Ele implementa a fundação do módulo, mas não deve ser
+apresentado como o MVP Instagram completo.
+
+Fluxo:
+
+1. O usuário ativa o beta e seleciona um produto existente.
+2. Confirma o contexto mínimo e informa conta e período da análise.
+3. Importa um CSV; o sistema valida, deduplica e mostra erros por linha.
+4. A IA classifica texto e metadados por etapa do funil, intenção estratégica,
+   tipo narrativo, tema, gancho e CTA, sempre com confiança declarada.
+5. O usuário revisa as classificações; a correção humana prevalece e alimenta
+   imediatamente as análises seguintes.
+6. O sistema compara apenas coortes compatíveis e gera o Organic Growth Review
+   sob demanda.
+7. Recomendações suficientemente fundamentadas podem virar experimentos no
+   journal existente; uma oportunidade orgânico → pago mantém o vínculo com a
+   peça de origem.
+8. O usuário exporta o Review e avalia cada recomendação como útil, não útil ou
+   incorreta.
+
+O CSV aceita um ID externo ou URL, data de publicação, formato e legenda/título,
+além das métricas que estiverem disponíveis — por exemplo impressões, alcance ou
+plays, curtidas, comentários, compartilhamentos, salvamentos, visitas ao perfil,
+cliques, leads e conversões assistidas. A ausência de uma métrica não vira zero:
+ela permanece ausente e reduz o que pode ser concluído.
+
+### Invariantes de análise
+
+1. **Crescimento antes de engajamento.** Alcance e curtidas não equivalem a
+   resultado comercial; intenção, avanço no funil e aprendizado têm precedência.
+2. **Evidência antes de recomendação.** Toda recomendação aprovada cita produto,
+   período, conteúdos e dados observados. Orientação sem dados é orientação de
+   coleta, não recomendação orgânica aprovada.
+3. **Contexto antes de benchmark.** A referência primária é a própria conta em
+   coorte equivalente: mesma rede, conta, produto, formato, objetivo, idade e,
+   quando aplicável, duração e etapa do funil.
+4. **Hipótese antes de produção.** Toda sugestão de conteúdo ou reaproveitamento
+   declara uma hipótese falsificável e um critério de sucesso.
+5. **Insuficiência é uma resposta válida.** Baixo volume, denominadores ausentes
+   ou coortes incompatíveis produzem `insufficient_data` e `missing_data`, nunca
+   preenchimento imaginado.
+6. **Sem causalidade indevida.** O módulo usa “associação observada”, “sinal de
+   influência”, “contribuição provável” ou “conversão assistida”; não afirma que
+   um post causou uma venda sem evidência direta.
+7. **Scores são explicáveis.** Percentis e sinais relativos precedem qualquer
+   score proprietário 0–100; todo score futuro expõe entradas, versão, ausências
+   e confiança.
+8. **Humano no controle.** Classificações podem ser corrigidas, recomendações
+   recebem feedback e nenhuma ação é executada na rede pelo Seenaly.
+
+### Schema superset de recomendação
+
+Organic Growth estende — e não substitui — o formato fixo do motor de diagnóstico:
+
+```text
+diagnosis: string
+evidence: Array<{
+  statement, source,
+  content_id?, metric?, value?, period?
+}>
+context: { product, audience, platform, account, funnel_stage?, period }
+technical_basis: Array<{ rule, citation }>
+hypothesis: string
+recommended_action: string
+priority: critical | high | medium | low
+estimated_effort: low | medium | high
+expected_impact: low | medium | high
+risk: string
+confidence: low | medium | high
+success_criterion: string
+next_review: string
+sources: Array<{ type, reference, version? }>
+insufficient_data: boolean
+missing_data: string
+```
+
+`technical_basis` pode ser vazio quando não existe regra oficial aplicável; não
+se força documentação da Meta em um problema orgânico. Evidências não podem ser
+vazias em uma recomendação aprovada. Fato observado, inferência e hipótese devem
+ser distinguíveis. Versões de taxonomia, prompt, modelo, regra de score e base de
+conhecimento são persistidas com a análise.
+
+### Roadmap do módulo
+
+| Etapa | Entrega |
+|---|---|
+| 0 — Concierge Beta | Modelo compartilhado, taxonomia, importação manual, classificação assistida e corrigível, Review, recomendação estruturada, feedback e integração com experimentos |
+| 1 — MVP Instagram | OAuth para contas profissionais, ingestão e sync de posts/Reels/métricas, histórico, Review recorrente e ponte orgânico → Meta Ads |
+| 2 — TikTok | Conector autorizado, vídeos e métricas básicas, importação complementar, ganchos e reaproveitamento para anúncios |
+| 3 — YouTube | Vídeos e Shorts, retenção, CTR, fontes de tráfego, títulos e thumbnails |
+| 4 — LinkedIn | Páginas e perfis quando permitidos, intenção B2B e conexão posterior com leads/pipeline |
+| 5 — Multicanal | Comparação de mensagens normalizada, jornada de conteúdo, atribuição assistida e recomendações cross-channel |
+| 6 — Opcionais validados | Calendário estratégico, aprovações, respostas assistidas, publicação e análise competitiva autorizada — somente após evidência de demanda |
+
+### Critérios de aceite e suficiência
+
+O Concierge Beta é aceito quando o usuário consegue ativá-lo, escolher um produto,
+importar 30 conteúdos **ou todo o histórico disponível**, revisar classificações,
+ver a distribuição por funil, gerar um Review, converter uma recomendação em
+experimento, exportar o relatório e registrar feedback de utilidade. Importações
+menores continuam válidas e devem conduzir a uma experiência útil de coleta.
+
+Com dados suficientes, o Review deve mostrar conteúdos com maior sinal comercial,
+ao menos três recomendações contextualizadas e, quando sustentada pelos dados, uma
+oportunidade orgânico → pago. Com dados insuficientes, esses mínimos quantitativos
+não se aplicam: o aceite é declarar a limitação, mostrar as evidências disponíveis,
+listar os dados ausentes e recomendar o próximo passo de coleta. Nunca se fabrica
+uma recomendação ou um candidato a anúncio para cumprir uma contagem.
+
+Nenhuma recomendação passa pelo gate de qualidade se não mencionar o produto, não
+usar dados observados, não apresentar hipótese, risco, confiança e critério de
+sucesso, ou não separar fato de inferência. Comparações relativas só são exibidas
+quando existe uma coorte comparável; o limiar é versionado e transparente.
+
+O MVP Instagram completo acrescenta conexão autorizada, ingestão e sincronização
+periódica. Segurança multi-tenant, RLS, auditoria, exclusão de dados importados,
+tratamento de falhas e idempotência são obrigatórios desde a Etapa 0.

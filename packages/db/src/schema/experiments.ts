@@ -8,8 +8,9 @@ import { profiles } from "./profiles";
 
 /**
  * Experiment memory (docs/PRODUCT.md — the key differentiator). Mirrors
- * migration 0014_experiments.sql. Concluded experiments feed back into the
- * diagnosis brief so the engine builds on prior learning.
+ * migration 0014_experiments.sql plus the Organic Growth context added by
+ * 0024. Concluded experiments feed back into the diagnosis brief so the
+ * engine builds on prior learning.
  */
 export const experiments = pgTable(
   "experiments",
@@ -29,6 +30,10 @@ export const experiments = pgTable(
     hypothesis: text("hypothesis"),
     changeMade: text("change_made"),
     reason: text("reason"),
+    platform: text("platform"),
+    audience: text("audience"),
+    variableTested: text("variable_tested"),
+    successCriterion: text("success_criterion"),
     periodStart: date("period_start"),
     periodEnd: date("period_end"),
     budget: numeric("budget"),

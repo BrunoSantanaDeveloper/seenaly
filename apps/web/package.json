@@ -30,6 +30,7 @@
     "@flyee/jobs": "*",
     "@flyee/knowledge": "*",
     "@flyee/onboarding": "*",
+    "@flyee/organic-growth": "*",
     "@flyee/transcribe": "*",
     "@flyee/whatsapp": "*",
     "@gsap/react": "^2.1.2",

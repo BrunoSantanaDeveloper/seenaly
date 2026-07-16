@@ -1,0 +1,20 @@
+{
+  "name": "@flyee/organic-growth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure Organic Growth domain logic: Concierge CSV ingestion, canonical taxonomy, comparable cohorts, transparent scores and deterministic Reviews.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./analysis": "./src/analysis.ts",
+    "./csv": "./src/csv.ts",
+    "./taxonomy": "./src/taxonomy.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.0"
+  }
+}

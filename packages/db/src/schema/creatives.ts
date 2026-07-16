@@ -9,7 +9,8 @@ import { profiles } from "./profiles";
  * Tagged creative library (docs/PRODUCT.md pillar 4). Mirrors migration
  * 0013_creatives.sql. Every creative carries the diagnostic taxonomy so the
  * engine can reason about WHY winners won. `planned` = manually briefed (cold
- * start); `synced` = linked to meta_creatives via connectionId/metaCreativeId.
+ * start); `synced` = linked to meta_creatives; `organic` = reusable asset
+ * created from an organic publication.
  */
 export const creatives = pgTable(
   "creatives",
