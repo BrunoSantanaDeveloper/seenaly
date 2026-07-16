@@ -2,6 +2,7 @@
 import { useFormik } from "formik";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 import * as yup from "yup";
 
@@ -10,7 +11,6 @@ import {
   AlertTitle,
   Box,
   Button,
-  capitalize,
   Divider,
   FormControl,
   FormLabel,
@@ -31,24 +31,25 @@ import { useThemeContext } from "@/theme/theme-provider";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
-const validationSchema = yup.object({
-  name: yup.string().required("The field is required").min(3, "Should be at least 3 characters"),
-  email: yup.string().required("The field is required").email("Enter a valid email"),
-  company: yup.string().required("The field is required").min(3, "Should be at least 3 characters"),
-  password: yup
-    .string()
-    .required("The field is required")
-    .min(8, "Should be at least 8 characters")
-    .test("uppercase", "Should be an uppercase and a lowercase letter", (value) => {
-      const hasUpperCase = /[A-Z]/.test(value);
-      const hasLowerCase = /[a-z]/.test(value);
-      return hasUpperCase && hasLowerCase;
-    })
-    .test("symbol", "Should be a special character", (value) => {
-      const hasSymbol = /[^A-Za-z 0-9]/g.test(value);
-      return hasSymbol;
-    }),
-});
+const buildValidationSchema = (t: (key: string) => string) =>
+  yup.object({
+    name: yup.string().required(t("error-required")).min(3, t("error-min-3")),
+    email: yup.string().required(t("error-required")).email(t("error-email")),
+    company: yup.string().required(t("error-required")).min(3, t("error-min-3")),
+    password: yup
+      .string()
+      .required(t("error-required"))
+      .min(8, t("error-password-length"))
+      .test("uppercase", t("error-password-case"), (value) => {
+        const hasUpperCase = /[A-Z]/.test(value);
+        const hasLowerCase = /[a-z]/.test(value);
+        return hasUpperCase && hasLowerCase;
+      })
+      .test("symbol", t("error-password-symbol"), (value) => {
+        const hasSymbol = /[^A-Za-z 0-9]/g.test(value);
+        return hasSymbol;
+      }),
+  });
 
 type InputErrorProps = {
   title: string;
@@ -70,6 +71,7 @@ const InputErrorTooltip = ({ title }: InputErrorProps) => {
 };
 
 export default function Page() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
   const { isDarkMode } = useThemeContext();
@@ -86,11 +88,11 @@ export default function Page() {
       company: "",
       password: "",
     },
-    validationSchema,
+    validationSchema: buildValidationSchema(t),
     onSubmit: async (values) => {
       setServerError(null);
       if (!isSupabaseConfigured) {
-        setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        setServerError(t("error-not-configured"));
         return;
       }
       const supabase = createClient();
@@ -125,7 +127,7 @@ export default function Page() {
   const handleOAuth = async (provider: "google" | "github") => {
     setServerError(null);
     if (!isSupabaseConfigured) {
-      setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setServerError(t("error-not-configured"));
       return;
     }
     const supabase = createClient();
@@ -199,10 +201,10 @@ export default function Page() {
             <Box className="flex flex-col gap-10">
               <Box className="flex flex-col">
                 <Typography variant="h1" component="h1" className="mb-2">
-                  Sign up
+                  {t("sign-up-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-primary">
-                  Create your account in just a few steps and start today.
+                  {t("sign-up-subtitle")}
                 </Typography>
               </Box>
 
@@ -214,7 +216,8 @@ export default function Page() {
                     className="flex-none md:w-1/2"
                     onClick={() => handleOAuth("google")}
                   >
-                    <Box className="mr-2">{googleSVG()}</Box>Sign up with Google
+                    <Box className="mr-2">{googleSVG()}</Box>
+                    {t("sign-up-google")}
                   </Button>
                   <Button
                     variant="outlined"
@@ -222,11 +225,12 @@ export default function Page() {
                     className="flex-none md:w-1/2"
                     onClick={() => handleOAuth("github")}
                   >
-                    <Box className="mr-2">{githubSVG()}</Box>Sign up with GitHub
+                    <Box className="mr-2">{githubSVG()}</Box>
+                    {t("sign-up-github")}
                   </Button>
                 </Box>
 
-                <Divider className="text-text-secondary my-0 text-sm">OR</Divider>
+                <Divider className="text-text-secondary my-0 text-sm">{t("or")}</Divider>
 
                 <Box
                   component={"form"}
@@ -238,7 +242,7 @@ export default function Page() {
                 >
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Name{" "}
+                      {t("name-label")}{" "}
                       {formik.touched.name && formik.errors.name && <InputErrorTooltip title={formik.errors.name} />}
                     </FormLabel>
                     <Input
@@ -253,7 +257,7 @@ export default function Page() {
 
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Email{" "}
+                      {t("email-label")}{" "}
                       {formik.touched.email && formik.errors.email && <InputErrorTooltip title={formik.errors.email} />}
                     </FormLabel>
                     <Input
@@ -268,7 +272,7 @@ export default function Page() {
 
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Company{" "}
+                      {t("company-label")}{" "}
                       {formik.touched.company && formik.errors.company && (
                         <InputErrorTooltip title={formik.errors.company} />
                       )}
@@ -285,7 +289,7 @@ export default function Page() {
 
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Password{" "}
+                      {t("password-label")}{" "}
                       {formik.touched.password && formik.errors.password && (
                         <InputErrorTooltip title={formik.errors.password} />
                       )}
@@ -300,7 +304,7 @@ export default function Page() {
                       onBlur={formik.handleBlur}
                     />
                     <Typography variant="body2" className="text-text-secondary mt-2 inline-block align-middle">
-                      <span className="inline">Must be</span>
+                      <span className="inline">{t("pw-hint-1")}</span>
                       <span
                         className={cn(
                           "mx-1 inline-block h-4 w-4 rounded-md align-text-bottom",
@@ -314,9 +318,9 @@ export default function Page() {
                         )}
                       </span>
                       <span className={cn("inline font-semibold", isPasswordLengthValid() && "text-success")}>
-                        at least 8 characters long,{" "}
+                        {t("pw-hint-1b")}{" "}
                       </span>
-                      <span className="inline">must contain</span>
+                      <span className="inline">{t("pw-hint-2")}</span>
                       <span
                         className={cn(
                           "mx-1 inline-block h-4 w-4 rounded-md align-text-bottom",
@@ -326,9 +330,9 @@ export default function Page() {
                         {isPasswordCaseValid() ? <NiCheck size={"tiny"}></NiCheck> : <NiCross size={"tiny"}></NiCross>}
                       </span>
                       <span className={cn("inline font-semibold", isPasswordCaseValid() && "text-success")}>
-                        lowercase and uppercase letters,{" "}
+                        {t("pw-hint-2b")}{" "}
                       </span>
-                      <span className="inline">must have at least</span>
+                      <span className="inline">{t("pw-hint-3")}</span>
                       <span
                         className={cn(
                           "mx-1 inline-block h-4 w-4 rounded-md align-text-bottom",
@@ -342,13 +346,13 @@ export default function Page() {
                         )}
                       </span>
                       <span className={cn("inline font-semibold", isPasswordSymbolValid() && "text-success")}>
-                        one special character.
+                        {t("pw-hint-3b")}
                       </span>
                     </Typography>
                   </FormControl>
                   {serverError && (
                     <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                      <AlertTitle variant="subtitle2">Sign up failed</AlertTitle>
+                      <AlertTitle variant="subtitle2">{t("sign-up-failed")}</AlertTitle>
                       <Typography variant="body2" className="text-text-primary">
                         {serverError}
                       </Typography>
@@ -356,12 +360,12 @@ export default function Page() {
                   )}
                   {submitted && !formik.isValid && (
                     <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                      <AlertTitle variant="subtitle2">The following inputs have errors!</AlertTitle>
+                      <AlertTitle variant="subtitle2">{t("errors-title")}</AlertTitle>
                       {Object.entries(formik.errors).map(([key, value]) => {
                         return (
                           <Box className="flex flex-row gap-0.5" key={crypto.randomUUID()}>
                             <Typography variant="body2" className="text-error">
-                              {capitalize(key)}:
+                              {t(`${key}-label`)}:
                             </Typography>
                             <Typography variant="body2" className="text-text-primary">
                               {value}
@@ -376,37 +380,42 @@ export default function Page() {
                       href="/auth/password-reset"
                       className="link-text-secondary link-underline-hover text-center text-sm font-semibold"
                     >
-                      Reset Password
+                      {t("reset-password")}
                     </Link>
                     <Button type="submit" variant="contained" className="mb-4" disabled={formik.isSubmitting}>
-                      Continue
+                      {t("continue")}
                     </Button>
                   </Box>
 
                   <Typography variant="body2" className="text-text-secondary">
-                    By clicking Continue, Sign in with Google, or Sign in with GitHub, you agree to the{" "}
-                    <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
-                      Terms and Conditions
-                    </Link>{" "}
-                    and{" "}
-                    <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
-                      Privacy Policy
-                    </Link>
-                    .
+                    {t.rich("legal-agreement", {
+                      terms: (chunks) => (
+                        <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                      privacy: (chunks) => (
+                        <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </Typography>
                 </Box>
               </Box>
               <Divider className="text-text-secondary my-0 text-sm"></Divider>
               <Box className="flex flex-col">
                 <Typography variant="h6" component="h6">
-                  Sign in
+                  {t("have-account-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-secondary">
-                  If you already have an account, please{" "}
-                  <Link href="/auth/sign-in" className="link-primary link-underline-hover">
-                    sign in
-                  </Link>
-                  .
+                  {t.rich("have-account-body", {
+                    link: (chunks) => (
+                      <Link href="/auth/sign-in" className="link-primary link-underline-hover">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </Typography>
               </Box>
             </Box>

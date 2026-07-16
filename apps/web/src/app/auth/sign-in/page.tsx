@@ -2,6 +2,7 @@
 import { useFormik } from "formik";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 import * as yup from "yup";
 
@@ -10,7 +11,6 @@ import {
   AlertTitle,
   Box,
   Button,
-  capitalize,
   Divider,
   FormControl,
   FormLabel,
@@ -33,10 +33,11 @@ import { useThemeContext } from "@/theme/theme-provider";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
 
-const validationSchema = yup.object({
-  email: yup.string().required("The field is required").email("Enter a valid email"),
-  password: yup.string().required("The field is required"),
-});
+const buildValidationSchema = (t: (key: string) => string) =>
+  yup.object({
+    email: yup.string().required(t("error-required")).email(t("error-email")),
+    password: yup.string().required(t("error-required")),
+  });
 
 type InputErrorProps = {
   title: string;
@@ -58,6 +59,7 @@ const InputErrorTooltip = ({ title }: InputErrorProps) => {
 };
 
 export default function Page() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -73,12 +75,12 @@ export default function Page() {
       email: "",
       password: "",
     },
-    validationSchema,
+    validationSchema: buildValidationSchema(t),
     onSubmit: async (values) => {
       setServerError(null);
       setOfferSignUp(false);
       if (!isSupabaseConfigured) {
-        setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        setServerError(t("error-not-configured"));
         return;
       }
       const supabase = createClient();
@@ -88,11 +90,7 @@ export default function Page() {
       });
       if (error) {
         const invalidCredentials = error.code === "invalid_credentials" || error.status === 400;
-        setServerError(
-          invalidCredentials
-            ? "We couldn't sign you in. Check your password — or if you're new, create an account with this email."
-            : error.message,
-        );
+        setServerError(invalidCredentials ? t("sign-in-invalid-credentials") : error.message);
         setOfferSignUp(invalidCredentials);
         return;
       }
@@ -116,7 +114,7 @@ export default function Page() {
   const handleOAuth = async (provider: "google" | "github") => {
     setServerError(null);
     if (!isSupabaseConfigured) {
-      setServerError("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setServerError(t("error-not-configured"));
       return;
     }
     const supabase = createClient();
@@ -187,10 +185,10 @@ export default function Page() {
             <Box className="flex flex-col gap-10">
               <Box className="flex flex-col">
                 <Typography variant="h1" component="h1" className="mb-2">
-                  Sign in
+                  {t("sign-in-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-primary">
-                  Access your account quickly and securely to get started.
+                  {t("sign-in-subtitle")}
                 </Typography>
               </Box>
 
@@ -202,7 +200,8 @@ export default function Page() {
                     className="flex-none md:w-1/2"
                     onClick={() => handleOAuth("google")}
                   >
-                    <Box className="mr-2">{googleSVG()}</Box>Sign in with Google
+                    <Box className="mr-2">{googleSVG()}</Box>
+                    {t("sign-in-google")}
                   </Button>
                   <Button
                     variant="outlined"
@@ -210,11 +209,12 @@ export default function Page() {
                     className="flex-none md:w-1/2"
                     onClick={() => handleOAuth("github")}
                   >
-                    <Box className="mr-2">{githubSVG()}</Box>Sign in with GitHub
+                    <Box className="mr-2">{githubSVG()}</Box>
+                    {t("sign-in-github")}
                   </Button>
                 </Box>
 
-                <Divider className="text-text-secondary my-0 text-sm">OR</Divider>
+                <Divider className="text-text-secondary my-0 text-sm">{t("or")}</Divider>
 
                 <Box
                   component={"form"}
@@ -226,7 +226,7 @@ export default function Page() {
                 >
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Email
+                      {t("email-label")}
                       {formik.touched.email && formik.errors.email && <InputErrorTooltip title={formik.errors.email} />}
                     </FormLabel>
                     <Input
@@ -241,7 +241,7 @@ export default function Page() {
 
                   <FormControl className="outlined" variant="standard" size="small">
                     <FormLabel component="label" className="flex flex-row">
-                      Password
+                      {t("password-label")}
                       {formik.touched.password && formik.errors.password && (
                         <InputErrorTooltip title={formik.errors.password} />
                       )}
@@ -276,7 +276,7 @@ export default function Page() {
 
                   {serverError && (
                     <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                      <AlertTitle variant="subtitle2">Sign in failed</AlertTitle>
+                      <AlertTitle variant="subtitle2">{t("sign-in-failed")}</AlertTitle>
                       <Typography variant="body2" className="text-text-primary">
                         {serverError}
                       </Typography>
@@ -284,12 +284,12 @@ export default function Page() {
                   )}
                   {submitted && !formik.isValid && (
                     <Alert severity="error" icon={<NiCrossSquare />} className="neutral bg-background-paper/60! mb-4">
-                      <AlertTitle variant="subtitle2">The following inputs have errors!</AlertTitle>
+                      <AlertTitle variant="subtitle2">{t("errors-title")}</AlertTitle>
                       {Object.entries(formik.errors).map(([key, value]) => {
                         return (
                           <Box className="flex flex-row gap-0.5" key={crypto.randomUUID()}>
                             <Typography variant="body2" className="text-error">
-                              {capitalize(key)}:
+                              {t(`${key}-label`)}:
                             </Typography>
                             <Typography variant="body2" className="text-text-primary">
                               {value}
@@ -308,44 +308,50 @@ export default function Page() {
                         href={`/auth/sign-up?email=${encodeURIComponent(formik.values.email)}`}
                         LinkComponent={Link}
                       >
-                        Create an account with this email
+                        {t("sign-in-offer-signup")}
                       </Button>
                     )}
                     <Link
                       href="/auth/password-reset"
                       className="link-text-secondary link-underline-hover text-center text-sm font-semibold"
                     >
-                      Reset Password
+                      {t("reset-password")}
                     </Link>
                     <Button type="submit" variant="contained" className="mb-4" disabled={formik.isSubmitting}>
-                      Continue
+                      {t("continue")}
                     </Button>
                   </Box>
 
                   <Typography variant="body2" className="text-text-secondary">
-                    By clicking Continue, Sign in with Google, or Sign in with GitHub, you agree to the{" "}
-                    <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
-                      Terms and Conditions
-                    </Link>{" "}
-                    and{" "}
-                    <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
-                      Privacy Policy
-                    </Link>
-                    .
+                    {t.rich("legal-agreement", {
+                      terms: (chunks) => (
+                        <Link target="_blank" href="/legal/terms" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                      privacy: (chunks) => (
+                        <Link target="_blank" href="/legal/privacy" className="link-primary link-underline-hover">
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </Typography>
                 </Box>
               </Box>
               <Divider className="text-text-secondary my-0 text-sm"></Divider>
               <Box className="flex flex-col">
                 <Typography variant="h6" component="h6">
-                  Get Started
+                  {t("get-started-title")}
                 </Typography>
                 <Typography variant="body1" className="text-text-secondary">
-                  New to {BRAND.name}? Please use your email to{" "}
-                  <Link href="/auth/sign-up" className="link-primary link-underline-hover">
-                    sign up
-                  </Link>
-                  .
+                  {t.rich("get-started-body", {
+                    brand: BRAND.name,
+                    link: (chunks) => (
+                      <Link href="/auth/sign-up" className="link-primary link-underline-hover">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </Typography>
               </Box>
             </Box>
