@@ -14,7 +14,9 @@ import {
   Divider,
   FormControl,
   FormLabel,
+  IconButton,
   Input,
+  InputAdornment,
   Paper,
   Tooltip,
   Typography,
@@ -25,6 +27,8 @@ import { DEFAULTS } from "@/config";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiCrossSquare from "@/icons/nexture/ni-cross-square";
+import NiEyeClose from "@/icons/nexture/ni-eye-close";
+import NiEyeOpen from "@/icons/nexture/ni-eye-open";
 import { cn } from "@/lib/utils";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/client";
@@ -70,6 +74,7 @@ export default function Page() {
   const router = useRouter();
 
   const [submitted, setSubmitted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const formik = useFormik({
@@ -152,10 +157,26 @@ export default function Page() {
                       id="password"
                       name="password"
                       placeholder=""
-                      autoComplete="off"
+                      autoComplete="new-password"
+                      type={showPassword ? "text" : "password"}
                       value={formik.values.password}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
+                      endAdornment={
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={t("show-password")}
+                            onClick={() => setShowPassword((show) => !show)}
+                            onMouseDown={(event) => event.preventDefault()}
+                          >
+                            {showPassword ? (
+                              <NiEyeClose size="medium" className="text-text-secondary" />
+                            ) : (
+                              <NiEyeOpen size="medium" className="text-text-secondary" />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      }
                     />
                     <Typography variant="body2" className="text-text-secondary mt-2 inline-block align-middle">
                       <span className="inline">{t("pw-hint-1")}</span>

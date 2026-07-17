@@ -137,7 +137,8 @@ export default function AccountCard() {
               <Input
                 name="email"
                 type="email"
-                placeholder={currentEmail || "you@example.com"}
+                autoComplete="email"
+                placeholder={currentEmail || undefined}
                 value={emailForm.values.email}
                 onChange={emailForm.handleChange}
                 onBlur={emailForm.handleBlur}
@@ -172,6 +173,7 @@ export default function AccountCard() {
               <Input
                 name="password"
                 type="password"
+                autoComplete="new-password"
                 value={passwordForm.values.password}
                 onChange={passwordForm.handleChange}
                 onBlur={passwordForm.handleBlur}
@@ -187,6 +189,7 @@ export default function AccountCard() {
               <Input
                 name="confirm"
                 type="password"
+                autoComplete="new-password"
                 value={passwordForm.values.confirm}
                 onChange={passwordForm.handleChange}
                 onBlur={passwordForm.handleBlur}

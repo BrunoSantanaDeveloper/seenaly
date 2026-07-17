@@ -14,7 +14,9 @@ import {
   Divider,
   FormControl,
   FormLabel,
+  IconButton,
   Input,
+  InputAdornment,
   Paper,
   Tooltip,
   Typography,
@@ -25,6 +27,8 @@ import { DEFAULTS } from "@/config";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiCrossSquare from "@/icons/nexture/ni-cross-square";
+import NiEyeClose from "@/icons/nexture/ni-eye-close";
+import NiEyeOpen from "@/icons/nexture/ni-eye-open";
 import { resolvePostAuthDestination } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/theme/theme-provider";
@@ -74,6 +78,7 @@ export default function Page() {
   const t = useTranslations("auth");
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { isDarkMode } = useThemeContext();
   // Carried from a failed sign-in ("create an account with this email"), so
   // the user doesn't retype it.
@@ -249,6 +254,7 @@ export default function Page() {
                       id="name"
                       name="name"
                       placeholder=""
+                      autoComplete="name"
                       value={formik.values.name}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
@@ -264,6 +270,8 @@ export default function Page() {
                       id="email"
                       name="email"
                       placeholder=""
+                      type="email"
+                      autoComplete="email"
                       value={formik.values.email}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
@@ -281,6 +289,7 @@ export default function Page() {
                       id="company"
                       name="company"
                       placeholder=""
+                      autoComplete="organization"
                       value={formik.values.company}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
@@ -298,10 +307,26 @@ export default function Page() {
                       id="password"
                       name="password"
                       placeholder=""
-                      autoComplete="off"
+                      autoComplete="new-password"
+                      type={showPassword ? "text" : "password"}
                       value={formik.values.password}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
+                      endAdornment={
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={t("show-password")}
+                            onClick={() => setShowPassword((show) => !show)}
+                            onMouseDown={(event) => event.preventDefault()}
+                          >
+                            {showPassword ? (
+                              <NiEyeClose size="medium" className="text-text-secondary" />
+                            ) : (
+                              <NiEyeOpen size="medium" className="text-text-secondary" />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      }
                     />
                     <Typography variant="body2" className="text-text-secondary mt-2 inline-block align-middle">
                       <span className="inline">{t("pw-hint-1")}</span>

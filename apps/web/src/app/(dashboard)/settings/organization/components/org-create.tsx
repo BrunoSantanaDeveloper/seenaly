@@ -60,7 +60,7 @@ export default function OrgCreate({ onCreated }: Props) {
             <Box className="flex flex-col gap-2 md:flex-row md:items-end">
               <FormControl className="outlined grow" variant="standard" size="small">
                 <FormLabel component="label">{t("org-name")}</FormLabel>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Inc." />
+                <Input autoComplete="organization" value={name} onChange={(e) => setName(e.target.value)} />
               </FormControl>
               <Button variant="outlined" size="medium" color="grey" onClick={handleCreate} disabled={creating}>
                 {t("org-create")}

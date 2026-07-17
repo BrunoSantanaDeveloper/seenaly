@@ -101,7 +101,7 @@ export default function OrgInvites({ org, invites, onChanged }: Props) {
             <Box className="flex flex-col gap-2 md:flex-row md:items-end">
               <FormControl className="outlined grow" variant="standard" size="small">
                 <FormLabel component="label">{t("org-invite-email")}</FormLabel>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@company.com" />
+                <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </FormControl>
               <FormControl className="outlined w-40" variant="standard" size="small">
                 <FormLabel component="label">{t("org-invite-role")}</FormLabel>

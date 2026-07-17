@@ -107,6 +107,7 @@ export default function TwoFactor() {
               <FormLabel component="label">{t("twofactor-code-label")}</FormLabel>
               <Input
                 autoFocus
+                autoComplete="one-time-code"
                 value={code}
                 inputProps={{ inputMode: "numeric", maxLength: 6 }}
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}

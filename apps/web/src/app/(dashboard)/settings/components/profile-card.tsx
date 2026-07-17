@@ -158,7 +158,7 @@ export default function ProfileCard() {
 
           <FormControl className="outlined mb-4 max-w-md" variant="standard" size="small" fullWidth>
             <FormLabel component="label">{t("display-name")}</FormLabel>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Input autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           </FormControl>
 
           <Box>

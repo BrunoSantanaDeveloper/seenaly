@@ -61,6 +61,8 @@ export default function Page() {
                     <FormLabel component="label">{t("email-label")}</FormLabel>
                     <Input
                       placeholder=""
+                      type="email"
+                      autoComplete="email"
                       value={data.email}
                       onChange={(e) => setData({ ...data, email: e.target.value })}
                     />

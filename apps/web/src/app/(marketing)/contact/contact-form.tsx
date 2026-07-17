@@ -52,6 +52,7 @@ export default function ContactForm() {
         <Input
           id="name"
           name="name"
+          autoComplete="name"
           value={formik.values.name}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
@@ -67,6 +68,7 @@ export default function ContactForm() {
           id="email"
           name="email"
           type="email"
+          autoComplete="email"
           value={formik.values.email}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}

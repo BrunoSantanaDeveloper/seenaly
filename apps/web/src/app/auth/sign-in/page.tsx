@@ -233,6 +233,8 @@ export default function Page() {
                       id="email"
                       name="email"
                       placeholder=""
+                      type="email"
+                      autoComplete="email"
                       value={formik.values.email}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
@@ -251,7 +253,7 @@ export default function Page() {
                       id="password"
                       name="password"
                       placeholder=""
-                      autoComplete="off"
+                      autoComplete="current-password"
                       value={formik.values.password}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
@@ -259,6 +261,7 @@ export default function Page() {
                       endAdornment={
                         <InputAdornment position="end">
                           <IconButton
+                            aria-label={t("show-password")}
                             onClick={handleClickShowPassword}
                             onMouseDown={handleMouseDownPassword}
                             onMouseUp={handleMouseUpPassword}
