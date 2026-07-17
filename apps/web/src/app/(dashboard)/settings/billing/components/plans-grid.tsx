@@ -26,10 +26,10 @@ import {
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import type { BillingProviderName } from "@flyee/billing";
 
-const PERIOD_LABEL: Record<string, string> = {
-  weekly: "/week",
-  monthly: "/month",
-  yearly: "/year",
+const PERIOD_KEY: Record<string, string> = {
+  weekly: "plans-per-week",
+  monthly: "plans-per-month",
+  yearly: "plans-per-year",
 };
 
 type Props = {
@@ -86,7 +86,7 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
       <Card component="section">
         <CardContent>
           <Typography variant="h5" component="h5" className="card-title">
-            Plans
+            {t("plans-title")}
           </Typography>
 
           {checkoutUnavailable && (
@@ -113,19 +113,26 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
                           {plan.name}
                         </Typography>
                         {plan.trialDays > 0 && (
-                          <Chip label={`${plan.trialDays}-day trial`} size="small" color="warning" variant="outlined" />
+                          <Chip
+                            label={t("plans-trial-chip", { days: plan.trialDays })}
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                          />
                         )}
-                        {isCurrent && <Chip label="Current" size="small" color="success" variant="outlined" />}
+                        {isCurrent && (
+                          <Chip label={t("plans-current")} size="small" color="success" variant="outlined" />
+                        )}
                       </Box>
                       <Typography variant="h4" component="p">
                         {formatMoney(plan.priceCents, plan.currency)}
                         <Typography component="span" variant="body2" className="text-text-secondary">
                           {plan.kind === "credits"
                             ? plan.period
-                              ? ` for ${plan.creditAmount} credits ${PERIOD_LABEL[plan.period] ?? ""}`
-                              : ` for ${plan.creditAmount} credits`
+                              ? ` ${t("plans-for-credits", { count: plan.creditAmount ?? 0 })} ${PERIOD_KEY[plan.period] ? t(PERIOD_KEY[plan.period]) : ""}`
+                              : ` ${t("plans-for-credits", { count: plan.creditAmount ?? 0 })}`
                             : plan.period
-                              ? ` ${PERIOD_LABEL[plan.period] ?? ""}`
+                              ? ` ${PERIOD_KEY[plan.period] ? t(PERIOD_KEY[plan.period]) : ""}`
                               : ""}
                         </Typography>
                       </Typography>
@@ -141,10 +148,10 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
                         disabled={isCurrent || workingPlan !== null || checkoutUnavailable}
                       >
                         {workingPlan === plan.id
-                          ? "Redirecting..."
+                          ? t("plans-redirecting")
                           : plan.kind === "credits"
-                            ? "Buy credits"
-                            : "Subscribe"}
+                            ? t("plans-buy-credits")
+                            : t("plans-subscribe")}
                       </Button>
                     </CardContent>
                   </Card>
@@ -155,7 +162,7 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
 
           {modules.length > 0 && (
             <Box className="mt-6 flex flex-col gap-1">
-              <Typography variant="subtitle2">Add-ons (order bump)</Typography>
+              <Typography variant="subtitle2">{t("plans-addons")}</Typography>
               {modules.map((module) => (
                 <FormControlLabel
                   key={module.id}
@@ -169,7 +176,7 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
                   label={
                     <Typography variant="body2">
                       {module.name} — {formatMoney(module.priceCents)}
-                      {module.kind === "recurring" ? " (recurring)" : " (one-time)"}
+                      {module.kind === "recurring" ? ` ${t("plans-recurring")}` : ` ${t("plans-one-time")}`}
                     </Typography>
                   }
                 />
@@ -179,12 +186,12 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
 
           <Box className="mt-6 flex flex-col gap-2 md:flex-row md:items-end">
             <FormControl className="outlined w-56" variant="standard" size="small">
-              <FormLabel component="label">Coupon code</FormLabel>
+              <FormLabel component="label">{t("plans-coupon")}</FormLabel>
               <Input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} />
             </FormControl>
             {providers.length > 1 && (
               <FormControl className="outlined w-40" variant="standard" size="small">
-                <FormLabel component="label">Pay with</FormLabel>
+                <FormLabel component="label">{t("plans-pay-with")}</FormLabel>
                 <Select
                   value={provider}
                   size="small"

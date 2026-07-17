@@ -4,6 +4,7 @@ import SettingsMenu from "../components/settings-menu";
 import RecentActivityCard from "./components/recent-activity-card";
 import TwoFactorCard from "./components/two-factor-card";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Alert, Box, Breadcrumbs, Button, Drawer, Grid, Tooltip, Typography } from "@mui/material";
@@ -12,6 +13,7 @@ import NiListCircle from "@/icons/nexture/ni-list-circle";
 import { isSupabaseConfigured } from "@flyee/auth";
 
 export default function SecuritySettings() {
+  const t = useTranslations("settings");
   const [openDrawer, setOpenDrawer] = useState(false);
 
   const toggleDrawer = (newOpen: boolean) => () => {
@@ -27,20 +29,20 @@ export default function SecuritySettings() {
         <Grid size={12} spacing={2.5} container>
           <Grid size={{ xs: 12, md: "grow" }}>
             <Typography variant="h1" component="h1" className="mb-0">
-              Security
+              {t("security-title")}
             </Typography>
             <Breadcrumbs>
-              <Link color="inherit" href="/dashboards/default">
-                Home
+              <Link color="inherit" href="/home">
+                {t("crumb-home")}
               </Link>
               <Link color="inherit" href="/settings">
-                Settings
+                {t("crumb-settings")}
               </Link>
-              <Typography variant="body2">Security</Typography>
+              <Typography variant="body2">{t("security-title")}</Typography>
             </Breadcrumbs>
           </Grid>
           <Grid size={{ xs: 12, md: "auto" }} className="lg:hidden">
-            <Tooltip title="Table of Contents">
+            <Tooltip title={t("toc")}>
               <Button
                 className="icon-only surface-standard"
                 color="grey"

@@ -6,6 +6,7 @@ import InvoicesCard from "./components/invoices-card";
 import PlansGrid from "./components/plans-grid";
 import { useBilling } from "./components/use-billing";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import {
@@ -27,6 +28,7 @@ import NiListCircle from "@/icons/nexture/ni-list-circle";
 import type { BillingProviderName } from "@flyee/billing";
 
 export default function BillingSettings() {
+  const t = useTranslations("billing");
   const [openDrawer, setOpenDrawer] = useState(false);
   const [providers, setProviders] = useState<BillingProviderName[]>([]);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
@@ -56,12 +58,11 @@ export default function BillingSettings() {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
     if (checkout === "success") {
-      setCheckoutNotice(
-        "Payment received or in processing — your subscription updates as soon as the provider confirms.",
-      );
+      setCheckoutNotice(t("billing-checkout-success"));
     } else if (checkout === "canceled") {
-      setCheckoutNotice("Checkout canceled. No charges were made.");
+      setCheckoutNotice(t("billing-checkout-canceled"));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; t is stable per locale
   }, []);
 
   const toggleDrawer = (newOpen: boolean) => () => {
@@ -77,16 +78,16 @@ export default function BillingSettings() {
         <Grid size={12} spacing={2.5} container>
           <Grid size={{ xs: 12, md: "grow" }}>
             <Typography variant="h1" component="h1" className="mb-0">
-              Billing
+              {t("billing-title")}
             </Typography>
             <Breadcrumbs>
-              <Link color="inherit" href="/dashboards/default">
-                Home
+              <Link color="inherit" href="/home">
+                {t("crumb-home")}
               </Link>
               <Link color="inherit" href="/settings">
-                Settings
+                {t("crumb-settings")}
               </Link>
-              <Typography variant="body2">Billing</Typography>
+              <Typography variant="body2">{t("billing-title")}</Typography>
             </Breadcrumbs>
           </Grid>
           {orgs.length > 1 && currentOrg && (
@@ -109,7 +110,7 @@ export default function BillingSettings() {
             </Grid>
           )}
           <Grid size={{ xs: 12, md: "auto" }} className="lg:hidden">
-            <Tooltip title="Table of Contents">
+            <Tooltip title={t("toc")}>
               <Button
                 className="icon-only surface-standard"
                 color="grey"

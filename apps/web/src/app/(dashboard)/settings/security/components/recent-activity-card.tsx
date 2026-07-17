@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Box, Card, CardContent, Chip, Grid, Typography } from "@mui/material";
@@ -21,6 +22,7 @@ type AccessRow = {
  * device or place that doesn't belong.
  */
 export default function RecentActivityCard() {
+  const t = useTranslations("settings");
   const [rows, setRows] = useState<AccessRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -56,16 +58,15 @@ export default function RecentActivityCard() {
       <Card component="section">
         <CardContent className="flex flex-col gap-4">
           <Typography variant="h5" component="h2" className="card-title">
-            Recent activity
+            {t("activity-title")}
           </Typography>
           <Typography variant="body1" className="text-text-secondary">
-            Sign-ins to your account. If you see a device or location you don&apos;t recognize, change your password and
-            enable two-factor authentication.
+            {t("activity-body")}
           </Typography>
 
           {loaded && rows.length === 0 && (
             <Typography variant="body2" className="text-text-secondary">
-              No sign-ins recorded yet — this history starts filling from your next sign-in.
+              {t("activity-empty")}
             </Typography>
           )}
 
@@ -73,7 +74,7 @@ export default function RecentActivityCard() {
             <Box key={row.id} className="flex flex-row items-center gap-2">
               <Box className="flex-1">
                 <Typography variant="body1">
-                  {describeAgent(row.userAgent) ?? "Unknown device"}
+                  {describeAgent(row.userAgent) ?? t("activity-unknown-device")}
                   {row.ip ? ` · ${row.ip}` : ""}
                 </Typography>
                 <Typography variant="body2" className="text-text-secondary">
