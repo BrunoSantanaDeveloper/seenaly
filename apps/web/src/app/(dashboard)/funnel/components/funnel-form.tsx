@@ -10,6 +10,8 @@ import * as yup from "yup";
 
 import { Alert, Box, Button, Card, CardContent, FormControl, FormLabel, Input, Typography } from "@mui/material";
 
+import { NumericMaskInput, useCurrencySeparators } from "@/components/product/fields";
+
 interface FormValues {
   label: string;
   periodStart: string;
@@ -70,6 +72,7 @@ export default function FunnelForm({
   snapshot?: FunnelWithId;
 }) {
   const t = useTranslations("funnel");
+  const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -125,19 +128,36 @@ export default function FunnelForm({
     },
   });
 
-  const text = (name: keyof FormValues, label: string, opts: { multiline?: boolean; type?: string } = {}) => {
+  const text = (
+    name: keyof FormValues,
+    label: string,
+    opts: { multiline?: boolean; type?: string; mask?: "money" | "integer" | "percent"; adornment?: string } = {},
+  ) => {
     const err = formik.touched[name] && (formik.errors[name] as string | undefined);
     return (
       <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth error={Boolean(err)}>
         <FormLabel component="label">{label}</FormLabel>
         <Input
           name={name}
-          type={opts.type ?? "text"}
+          type={opts.mask ? "text" : (opts.type ?? "text")}
           multiline={opts.multiline}
           rows={opts.multiline ? 2 : undefined}
           value={formik.values[name]}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
+          inputComponent={opts.mask ? (NumericMaskInput as never) : undefined}
+          inputProps={
+            opts.mask
+              ? {
+                  thousand: separators.thousand,
+                  decimal: separators.decimal,
+                  decimalScale: opts.mask === "integer" ? 0 : 2,
+                  inputMode: opts.mask === "integer" ? "numeric" : "decimal",
+                }
+              : undefined
+          }
+          startAdornment={opts.mask === "money" && opts.adornment ? opts.adornment : undefined}
+          endAdornment={opts.mask === "percent" ? "%" : undefined}
         />
         {err && (
           <Typography variant="body2" className="text-error mt-0.5">
@@ -179,12 +199,12 @@ export default function FunnelForm({
         t("section-stages"),
         t("hint-stages"),
         <>
-          {text("visits", t("field-visits"), { type: "number" })}
-          {text("checkoutInitiated", t("field-checkoutInitiated"), { type: "number" })}
-          {text("purchases", t("field-purchases"), { type: "number" })}
-          {text("refunds", t("field-refunds"), { type: "number" })}
-          {text("pending", t("field-pending"), { type: "number" })}
-          {text("upsells", t("field-upsells"), { type: "number" })}
+          {text("visits", t("field-visits"), { mask: "integer" })}
+          {text("checkoutInitiated", t("field-checkoutInitiated"), { mask: "integer" })}
+          {text("purchases", t("field-purchases"), { mask: "integer" })}
+          {text("refunds", t("field-refunds"), { mask: "integer" })}
+          {text("pending", t("field-pending"), { mask: "integer" })}
+          {text("upsells", t("field-upsells"), { mask: "integer" })}
         </>,
       )}
 
@@ -192,8 +212,8 @@ export default function FunnelForm({
         t("section-revenue"),
         t("hint-revenue"),
         <>
-          {text("grossRevenue", t("field-grossRevenue"), { type: "number" })}
-          {text("netRevenue", t("field-netRevenue"), { type: "number" })}
+          {text("grossRevenue", t("field-grossRevenue"), { mask: "money" })}
+          {text("netRevenue", t("field-netRevenue"), { mask: "money" })}
           {text("notes", t("field-notes"), { multiline: true })}
         </>,
       )}

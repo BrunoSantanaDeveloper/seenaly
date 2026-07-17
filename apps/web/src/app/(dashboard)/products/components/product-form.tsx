@@ -11,6 +11,7 @@ import * as yup from "yup";
 
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -21,12 +22,15 @@ import {
   LinearProgress,
   MenuItem,
   Select,
+  TextField,
   Typography,
 } from "@mui/material";
 
+import { NumericMaskInput, useCurrencySeparators } from "@/components/product/fields";
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
+import NiCross from "@/icons/nexture/ni-cross";
 import NiPlus from "@/icons/nexture/ni-plus";
 import { createClient } from "@flyee/auth/client";
 
@@ -55,6 +59,22 @@ interface FormValues {
   objections: string[];
   proofs: { kind: string; content: string }[];
 }
+
+// Meta's official pixel/CAPI standard events (trust-1 vocabulary) — offered as
+// suggestions so the optimization event converges on canonical names; freeSolo
+// still allows custom conversions.
+const META_PIXEL_EVENTS = [
+  "Purchase",
+  "Lead",
+  "InitiateCheckout",
+  "ViewContent",
+  "AddToCart",
+  "AddPaymentInfo",
+  "CompleteRegistration",
+  "Subscribe",
+  "StartTrial",
+  "Contact",
+];
 
 // Formik parses type="number" inputs to float, so at runtime these "string"
 // fields can hold numbers — normalize before trimming.
@@ -144,6 +164,7 @@ export default function ProductForm({
   variant?: "sections" | "wizard";
 }) {
   const t = useTranslations("products");
+  const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [connections, setConnections] = useState<{ id: string; name: string }[]>([]);
@@ -204,21 +225,41 @@ export default function ProductForm({
       .then(({ data }) => setConnections(data ?? []));
   }, [orgId]);
 
+  const CURRENCY_SYMBOLS: Record<string, string> = { BRL: "R$", USD: "$", EUR: "€" };
+  const currencySymbol = CURRENCY_SYMBOLS[formik.values.currency?.toUpperCase()] ?? formik.values.currency;
+
   const completeness = computeCompleteness(toInput(formik.values, orgId, product?.id));
 
-  const text = (name: keyof FormValues, label: string, opts: { multiline?: boolean; type?: string } = {}) => {
+  const text = (
+    name: keyof FormValues,
+    label: string,
+    opts: { multiline?: boolean; type?: string; mask?: "money" | "integer" | "percent"; adornment?: string } = {},
+  ) => {
     const err = formik.touched[name] && (formik.errors[name] as string | undefined);
     return (
       <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth error={Boolean(err)}>
         <FormLabel component="label">{label}</FormLabel>
         <Input
           name={name}
-          type={opts.type ?? "text"}
+          type={opts.mask ? "text" : (opts.type ?? "text")}
           multiline={opts.multiline}
           rows={opts.multiline ? 3 : undefined}
           value={formik.values[name] as string}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
+          inputComponent={opts.mask ? (NumericMaskInput as never) : undefined}
+          inputProps={
+            opts.mask
+              ? {
+                  thousand: separators.thousand,
+                  decimal: separators.decimal,
+                  decimalScale: opts.mask === "integer" ? 0 : 2,
+                  inputMode: opts.mask === "integer" ? "numeric" : "decimal",
+                }
+              : undefined
+          }
+          startAdornment={opts.mask === "money" && opts.adornment ? opts.adornment : undefined}
+          endAdornment={opts.mask === "percent" ? "%" : undefined}
         />
         {err && (
           <Typography variant="body2" className="text-error mt-0.5">
@@ -254,14 +295,29 @@ export default function ProductForm({
 
   const economicsBlock = (
     <>
-      {text("currency", t("field-currency"))}
-      {text("price", t("field-price"), { type: "number" })}
-      {text("unitCost", t("field-unitCost"), { type: "number" })}
-      {text("marginPct", t("field-marginPct"), { type: "number" })}
-      {text("avgTicket", t("field-avgTicket"), { type: "number" })}
-      {text("ltv", t("field-ltv"), { type: "number" })}
-      {text("targetCac", t("field-targetCac"), { type: "number" })}
-      {text("monthlyBudget", t("field-monthlyBudget"), { type: "number" })}
+      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+        <FormLabel component="label">{t("field-currency")}</FormLabel>
+        <Select
+          name="currency"
+          value={formik.values.currency}
+          variant="standard"
+          IconComponent={NiChevronDownSmall}
+          onChange={formik.handleChange}
+        >
+          {["BRL", "USD", "EUR"].map((code) => (
+            <MenuItem key={code} value={code}>
+              {code}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      {text("price", t("field-price"), { mask: "money", adornment: currencySymbol })}
+      {text("unitCost", t("field-unitCost"), { mask: "money", adornment: currencySymbol })}
+      {text("marginPct", t("field-marginPct"), { mask: "percent" })}
+      {text("avgTicket", t("field-avgTicket"), { mask: "money", adornment: currencySymbol })}
+      {text("ltv", t("field-ltv"), { mask: "money", adornment: currencySymbol })}
+      {text("targetCac", t("field-targetCac"), { mask: "money", adornment: currencySymbol })}
+      {text("monthlyBudget", t("field-monthlyBudget"), { mask: "money", adornment: currencySymbol })}
     </>
   );
 
@@ -309,9 +365,23 @@ export default function ProductForm({
     <>
       {text("conversionType", t("field-conversionType"))}
       {text("funnelStage", t("field-funnelStage"))}
-      {text("landingPageUrl", t("field-landingPageUrl"))}
-      {text("landingConversionRate", t("field-landingConversionRate"), { type: "number" })}
-      {text("optimizationEvent", t("field-optimizationEvent"))}
+      {text("landingPageUrl", t("field-landingPageUrl"), { type: "url" })}
+      {text("landingConversionRate", t("field-landingConversionRate"), { mask: "percent" })}
+      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+        <FormLabel component="label">{t("field-optimizationEvent")}</FormLabel>
+        <Autocomplete
+          freeSolo
+          options={META_PIXEL_EVENTS}
+          inputValue={formik.values.optimizationEvent}
+          onInputChange={(_, value) => formik.setFieldValue("optimizationEvent", value)}
+          popupIcon={<NiChevronDownSmall />}
+          clearIcon={<NiCross />}
+          slotProps={{ popper: { className: "outlined" } }}
+          renderInput={(params) => (
+            <TextField {...params} name="optimizationEvent" variant="standard" className="outlined" />
+          )}
+        />
+      </FormControl>
       {text("notes", t("field-notes"), { multiline: true })}
     </>
   );

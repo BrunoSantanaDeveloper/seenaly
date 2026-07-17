@@ -21,28 +21,44 @@ function localeSeparators(locale: string) {
   };
 }
 
-const NumericInput = forwardRef<
+/** Locale-aware separators for forms that compose NumericMaskInput directly. */
+export function useCurrencySeparators() {
+  return localeSeparators(useLocale());
+}
+
+/**
+ * Masked numeric input for MUI's `inputComponent` slot — usable inside the
+ * house FormControl+FormLabel+Input pattern as well as CurrencyField below.
+ * Reports the plain numeric STRING through onChange (Formik-safe: no
+ * type="number" float parsing), never the formatted text.
+ */
+export const NumericMaskInput = forwardRef<
   HTMLInputElement,
   {
     onChange: (event: { target: { name: string; value: string } }) => void;
     name: string;
     thousand: string;
     decimal: string;
+    /** 2 for money/percent (default), 0 for integer counts. */
+    decimalScale?: number;
   }
->(function NumericInput({ onChange, name, thousand, decimal, ...rest }, ref) {
+>(function NumericMaskInput({ onChange, name, thousand, decimal, decimalScale = 2, ...rest }, ref) {
   return (
     <NumericFormat
       {...rest}
+      name={name}
       getInputRef={ref}
       thousandSeparator={thousand}
       decimalSeparator={decimal}
-      decimalScale={2}
+      decimalScale={decimalScale}
       allowNegative={false}
       valueIsNumericString
       onValueChange={(values) => onChange({ target: { name, value: values.value } })}
     />
   );
 });
+
+const NumericInput = NumericMaskInput;
 
 export default function CurrencyField({
   currencySymbol,

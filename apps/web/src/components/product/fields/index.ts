@@ -8,4 +8,4 @@ export { default as MaskedField } from "./masked-field";
 export { default as PhoneField } from "./phone-field";
 export { CpfField, CnpjField, CpfCnpjField } from "./document-field";
 export { default as CepField } from "./cep-field";
-export { default as CurrencyField } from "./currency-field";
+export { default as CurrencyField, NumericMaskInput, useCurrencySeparators } from "./currency-field";
