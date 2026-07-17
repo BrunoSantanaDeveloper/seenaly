@@ -87,6 +87,14 @@ Se um merge do template reverter, re-aplicar (ou subir o fix no template).
 
 CI (GitHub Actions), testes do motor/entitlements, observabilidade
 (Sentry/PostHog), rate-limit nas actions de IA, feedback de utilidade no
-diagnóstico core, adoção de `packages/fields` nos formulários, i18n completo da
-tela `/settings/billing` (hoje EN do template), análise tag×performance da
-biblioteca de criativos (precisa de dados Meta reais).
+diagnóstico core, análise tag×performance da biblioteca de criativos
+(precisa de dados Meta reais).
+
+Formulários (auditoria 2026-07-17; máscaras/autofill/senha já resolvidos):
+- Taxonomias de texto livre do criativo (`format`, `proofType`, `emotion`,
+  `visualStyle`, `funnelStage`) e `conversionType`/`funnelStage` do produto
+  precisam do design slug-canônico + label localizado (como o módulo Organic)
+  antes de virarem autocomplete — strings traduzidas como valor envenenariam
+  a comparabilidade entre idiomas.
+- Datas de funil/experimentos usam `<input type="date">` nativo; migrar para
+  MUI X Date Pickers Pro (range de período, formato pt-BR garantido).
