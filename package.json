@@ -22,7 +22,7 @@
     "db:seed-plans": "node scripts/seed-mock-plans.mjs",
     "db:grant-credits": "tsx scripts/grant-monthly-credits.mts",
     "db:sync-assistants": "tsx scripts/sync-assistants.mts",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "pre-commit": "lint-staged",
     "typecheck": "npm run typecheck -w @flyee/web"
   },
