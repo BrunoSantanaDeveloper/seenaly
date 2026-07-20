@@ -23,6 +23,7 @@
     "@flyee/backup": "*",
     "@flyee/billing": "*",
     "@flyee/connectors": "*",
+    "@flyee/content": "*",
     "@flyee/db": "*",
     "@flyee/design-tokens": "*",
     "@flyee/documents": "*",
