@@ -4,6 +4,8 @@ import { computeFunnelRates, type FunnelCounts } from "../funnel/types";
 import { mapProductRow } from "../products/lib/map";
 import type { ProductWithChildren } from "../products/types";
 
+import { recordAudit } from "@/lib/audit";
+import { buildCampaignBrief } from "@/lib/campaign-data";
 import { DIAGNOSIS_JSON_SCHEMA, DIAGNOSIS_SCHEMA_NAME, isDiagnosisOutput } from "@/lib/diagnosis/schema";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
@@ -11,11 +13,44 @@ import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@f
 
 export type GenerateResult = { ok: true; id: string } | { ok: false; error: string };
 
+export type DiagnosisRating = "useful" | "not_useful" | "incorrect";
+export type FeedbackResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Record whether a diagnosis was useful — the signal that lets us measure and
+ * tune the engine (docs analysis 2026-07-19). One rating per user per diagnosis
+ * (upsert); RLS confirms the diagnosis belongs to the caller's org.
+ */
+export async function recordDiagnosisFeedback(
+  orgId: string,
+  diagnosisId: string,
+  rating: DiagnosisRating,
+): Promise<FeedbackResult> {
+  if (!(["useful", "not_useful", "incorrect"] as const).includes(rating)) {
+    return { ok: false, error: "Avaliação inválida." };
+  }
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { ok: false, error: "Sessão expirada." };
+
+  const { error } = await supabase
+    .from("diagnosis_feedback")
+    .upsert(
+      { org_id: orgId, diagnosis_id: diagnosisId, user_id: user.user.id, rating },
+      { onConflict: "diagnosis_id,user_id" },
+    );
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(supabase, "diagnosis.feedback_recorded", {
+    orgId,
+    entityType: "diagnosis",
+    entityId: diagnosisId,
+    metadata: { rating },
+  });
+  return { ok: true };
+}
+
 const ASSISTANT_SLUG = "diagnosis-engine";
-/** Trailing window summarized for the engine when campaign data exists. */
-const CAMPAIGN_WINDOW_DAYS = 30;
-/** Guard against pulling an unbounded ad x day result set into memory. */
-const MAX_INSIGHT_ROWS = 5000;
 /** Most recent tagged creatives summarized for the engine. */
 const MAX_CREATIVES = 20;
 /** Most recent experiments summarized for the engine (memory feedback loop). */
@@ -46,98 +81,6 @@ interface ExperimentSummaryRow {
   result: string | null;
   conclusion: string | null;
   next_step: string | null;
-}
-
-interface CampaignSummary {
-  windowStart: string;
-  windowEnd: string;
-  spend: number;
-  impressions: number;
-  clicks: number;
-  linkClicks: number;
-  purchases: number;
-  purchaseValue: number;
-  ctr: number | null;
-  cpc: number | null;
-  cpa: number | null;
-  roas: number | null;
-  frequency: number | null;
-  adsWithSpend: number;
-  /** The insight query hit MAX_INSIGHT_ROWS — the aggregates are a floor, not the full window. */
-  truncated: boolean;
-}
-
-const shiftDays = (days: number): string => {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-
-/**
- * Aggregate the trailing window of ad x day insights for the product's
- * connection. Returns null when there is no connection or no rows — the
- * cold-start path, which is a valid diagnosis input, not an error.
- */
-async function summarizeCampaignData(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  connectionId: string,
-): Promise<CampaignSummary | null> {
-  const windowStart = shiftDays(-CAMPAIGN_WINDOW_DAYS);
-  const windowEnd = shiftDays(0);
-
-  const { data } = await supabase
-    .from("meta_insights_daily")
-    .select("spend, impressions, clicks, inline_link_clicks, purchases, purchase_value, frequency, ad_id")
-    .eq("connection_id", connectionId)
-    .gte("date", windowStart)
-    .lte("date", windowEnd)
-    .limit(MAX_INSIGHT_ROWS);
-
-  if (!data?.length) return null;
-
-  const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
-  const adsWithSpend = new Set<string>();
-  let spend = 0,
-    impressions = 0,
-    clicks = 0,
-    linkClicks = 0,
-    purchases = 0,
-    purchaseValue = 0,
-    frequencySum = 0,
-    frequencyCount = 0;
-
-  for (const row of data) {
-    const rowSpend = num(row.spend);
-    spend += rowSpend;
-    impressions += num(row.impressions);
-    clicks += num(row.clicks);
-    linkClicks += num(row.inline_link_clicks);
-    purchases += num(row.purchases);
-    purchaseValue += num(row.purchase_value);
-    if (row.frequency !== null && row.frequency !== undefined) {
-      frequencySum += num(row.frequency);
-      frequencyCount += 1;
-    }
-    if (rowSpend > 0 && row.ad_id) adsWithSpend.add(String(row.ad_id));
-  }
-
-  return {
-    windowStart,
-    windowEnd,
-    spend,
-    impressions,
-    clicks,
-    linkClicks,
-    purchases,
-    purchaseValue,
-    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
-    cpc: clicks > 0 ? spend / clicks : null,
-    cpa: purchases > 0 ? spend / purchases : null,
-    roas: spend > 0 ? purchaseValue / spend : null,
-    frequency: frequencyCount > 0 ? frequencySum / frequencyCount : null,
-    adsWithSpend: adsWithSpend.size,
-    truncated: data.length >= MAX_INSIGHT_ROWS,
-  };
 }
 
 const line = (label: string, value: unknown): string | null =>
@@ -175,37 +118,6 @@ function productContextBlock(product: ProductWithChildren): string {
     );
   }
   return rows.join("\n");
-}
-
-function campaignBlock(summary: CampaignSummary | null): string {
-  if (!summary) {
-    return [
-      "NÃO HÁ DADOS DE CAMPANHA.",
-      "Nenhuma conta Meta conectada, ou nenhum dado sincronizado ainda.",
-      "Isto NÃO impede o diagnóstico: oriente a partir do passo 0 usando o contexto do produto e a documentação oficial.",
-      "Marque insufficient_data=true e explique qual volume mínimo buscar antes de concluir qualquer coisa.",
-    ].join("\n");
-  }
-  const round = (v: number | null, digits = 2) => (v === null ? "n/d" : v.toFixed(digits));
-  return [
-    `Janela: ${summary.windowStart} a ${summary.windowEnd} (últimos ${CAMPAIGN_WINDOW_DAYS} dias)`,
-    summary.truncated
-      ? `ATENÇÃO: volume de linhas atingiu o limite (${MAX_INSIGHT_ROWS}); estes totais são um PISO, não a janela completa — trate valores absolutos (gasto, compras) como subestimados e priorize as taxas.`
-      : null,
-    `- Anúncios com veiculação: ${summary.adsWithSpend}`,
-    `- Gasto: ${round(summary.spend)}`,
-    `- Impressões: ${summary.impressions}`,
-    `- Cliques: ${summary.clicks} (cliques no link: ${summary.linkClicks})`,
-    `- CTR: ${round(summary.ctr)}%`,
-    `- CPC: ${round(summary.cpc)}`,
-    `- Frequência média: ${round(summary.frequency)}`,
-    `- Compras: ${summary.purchases}`,
-    `- Valor de conversão: ${round(summary.purchaseValue)}`,
-    `- CPA: ${round(summary.cpa)}`,
-    `- ROAS: ${round(summary.roas)}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 /**
@@ -298,11 +210,11 @@ function funnelBlock(snapshot: FunnelSnapshotRow | null): string {
  * hook, audience) and post-click ones (conversion rate ranking, optimization
  * event, pixel/CAPI), because the bottleneck is often not in the ads manager.
  */
-function retrievalQuery(product: ProductWithChildren, summary: CampaignSummary | null): string {
+function retrievalQuery(product: ProductWithChildren, hadCampaignData: boolean): string {
   const base = [product.conversionType, product.funnelStage, product.optimizationEvent].filter(Boolean).join(" ");
   const postClick =
     "taxa de conversão pós-clique, conversion rate ranking, qualidade da página de destino, evento de otimização correto, pixel e API de Conversões";
-  return summary
+  return hadCampaignData
     ? `diagnóstico de gargalo em campanha de ${base}: fase de aprendizado, fadiga de criativo, CTR CPC e CPA, estratégia de lance, diagnóstico de relevância (quality, engagement, conversion rate ranking), ${postClick}`
     : `como estruturar a primeira campanha de ${base}: qual evento de otimização escolher, fase de aprendizado e volume mínimo de eventos, estrutura de conta, diversificação de criativo, ${postClick}`;
 }
@@ -392,8 +304,21 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     return { ok: false, error: "Créditos insuficientes para gerar um diagnóstico." };
   }
 
-  // 4. Campaign data, when the product is bridged to a synced connection.
-  const summary = product.connectionId ? await summarizeCampaignData(supabase, product.connectionId) : null;
+  // 4. Campaign data via the platform's brief provider. The engine stays
+  // platform-agnostic: Meta Ads is the only provider today, but a new platform
+  // (Google/TikTok) registers its own CampaignBriefProvider and this call, the
+  // brief and the prompt are unchanged. No connection or no synced rows → the
+  // cold-start brief (a valid input, not an error — maturity spectrum).
+  let briefConnection: { id: string; provider: string } | null = null;
+  if (product.connectionId) {
+    const { data: conn } = await supabase
+      .from("connections")
+      .select("id, provider")
+      .eq("id", product.connectionId)
+      .maybeSingle();
+    if (conn) briefConnection = { id: conn.id as string, provider: conn.provider as string };
+  }
+  const campaignBrief = await buildCampaignBrief(supabase, briefConnection);
 
   // 5. Ground in the knowledge base: official Meta docs (trust 1) + the
   // authored growth playbook (CRO/checkout/offer/creative, per-doc trust).
@@ -409,7 +334,7 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
   const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
   const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
   try {
-    const query = retrievalQuery(product, summary);
+    const query = retrievalQuery(product, campaignBrief.hadData);
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
@@ -434,7 +359,7 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     funnelBlock((funnelRow as FunnelSnapshotRow | null) ?? null),
     "",
     "## Dados de campanha",
-    campaignBlock(summary),
+    campaignBrief.block,
     buildKnowledgeContext(excerpts),
     "",
     "## Tarefa",
@@ -479,6 +404,13 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
 
   // 8. Persist — a diagnosis you cannot revisit teaches nothing (phase 5 seed).
   const { data: user } = await supabase.auth.getUser();
+  // When to bring the user back to re-read this (the review-reminder cron reads
+  // next_review_at). Clamp the model's day count to a sane window; skip when absent.
+  const reviewDays =
+    typeof output.next_review_days === "number" && output.next_review_days > 0
+      ? Math.min(Math.round(output.next_review_days), 90)
+      : null;
+  const nextReviewAt = reviewDays ? new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString() : null;
   const { data: created, error: insertError } = await supabase
     .from("diagnoses")
     .insert({
@@ -491,9 +423,10 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
       output,
       confidence: output.confidence,
       insufficient_data: output.insufficient_data,
-      had_campaign_data: Boolean(summary),
-      data_window_start: summary?.windowStart ?? null,
-      data_window_end: summary?.windowEnd ?? null,
+      had_campaign_data: campaignBrief.hadData,
+      data_window_start: campaignBrief.windowStart,
+      data_window_end: campaignBrief.windowEnd,
+      next_review_at: nextReviewAt,
       knowledge_refs: excerpts.map((excerpt) => ({
         title: excerpt.title,
         source: excerpt.source,

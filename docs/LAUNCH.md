@@ -44,10 +44,21 @@ backups e Organic Growth inteiros não existem no Supabase).
   `ASAAS_*`), criar os preços no provider e gravar os IDs em
   `plans.provider_refs` — o aviso some sozinho (ele lê a lista de providers
   configurados).
-- Gap conhecido: planos `recurring` não concedem créditos automaticamente
-  (créditos só entram via webhook de planos kind=`credits` ou grant manual em
-  `credit_transactions`). Decidir a política de créditos mensais antes do
-  lançamento pago.
+
+### Política de créditos (2026-07-19) — resolvida
+
+O diagnóstico custa 5 créditos e a classificação do Organic 1. Sem crédito, a
+jornada morre no "primeiro diagnóstico". Duas alavancas, ambas em `plans.limits`
+(editáveis em `/admin/billing`, semeadas por `npm run db:seed-plans`):
+
+- **Boas-vindas (Free):** `limits.welcome_credits = 25` (≈5 diagnósticos).
+  Concedido UMA vez na criação da org pela migration `0025` (função
+  `grant_welcome_credits`, chamada pelo trigger `handle_new_organization`).
+- **Mensais (Pro/Scale):** `limits.credits_monthly = 500 / 1500`. Concedidos por
+  mês pelo cron Inngest `billing-monthly-credits` (`packages/billing/src/jobs.ts`);
+  sem chaves Inngest, o operador roda `npm run db:grant-credits` (idempotente por
+  org+mês). Planos `recurring` NÃO recebem crédito por webhook (isso só vale para
+  planos `kind=credits`) — é este cron/atalho que os abastece.
 
 ## 3. E-mail — Resend
 
@@ -67,8 +78,25 @@ inline apenas para execuções manuais).
 - Trilha A (testável antes): system-user token via `/settings/connections`.
 - Trilha B: criar app na Meta, solicitar `ads_read` (+ escopos de Insights),
   passar pelo app review. Só depois o OAuth self-service funciona.
-- Pendências de produto da Fase 1: validar o sync com token real + tela de
-  conferência dos dados sincronizados.
+- Pendência de produto da Fase 1: validar o sync com token real. A **tela de
+  conferência** já existe (2026-07-19): `/settings/connections` mostra contagem
+  de campanhas/anúncios, último dia sincronizado e os totais de 7 dias para
+  comparar com o Gerenciador (`data-check-card.tsx`).
+
+## 5b. Observabilidade — PostHog + Sentry (2026-07-19)
+
+Ambos são no-op sem as chaves; ligar preenchendo em `apps/web/.env` (e na Vercel):
+
+- **PostHog** (funil de ativação): `NEXT_PUBLIC_POSTHOG_KEY` (+ opcional
+  `NEXT_PUBLIC_POSTHOG_HOST`). Só então o `ANALYTICS_PROVIDER` (`lib/analytics.ts`)
+  liga e o banner de consentimento aparece; o SDK só carrega após o aceite.
+  Eventos de ativação já instrumentados: `product_created`,
+  `diagnosis_generated`, `experiment_registered`, `feedback_recorded`.
+- **Sentry** (erros em produção): `SENTRY_DSN` (server) e
+  `NEXT_PUBLIC_SENTRY_DSN` (client), lidos por `instrumentation.ts` /
+  `instrumentation-client.ts` / `app/global-error.tsx`. Upload de sourcemaps
+  ainda NÃO está configurado (sem auth token) — stack traces vêm minificados até
+  lá; o objetivo agora é apenas enxergar os erros do beta.
 
 ## 6. Legal (antes de cobrar)
 
@@ -83,18 +111,30 @@ versionado pode usar `packages/audit` (consent terms).
 (`outputDimensionality: 768`) porque o Google aposentou `text-embedding-004`.
 Se um merge do template reverter, re-aplicar (ou subir o fix no template).
 
+## Migrations e scripts (atualizado 2026-07-19)
+
+- Migrations vão até **`0026`**. Aplicar as pendentes com `npm run db:migrate`
+  (marcadores: `grant_welcome_credits` na 0025, `diagnosis_feedback` na 0026).
+- `npm run db:seed-plans` — planos + limits (welcome/monthly credits) + move a
+  org e concede créditos de beta.
+- `npm run db:grant-credits` — concede os créditos mensais dos planos pagos
+  (fallback do cron Inngest; idempotente por org+mês).
+- `npm run db:sync-assistants` — re-sincroniza a linha `diagnosis-engine` a
+  partir do prompt canônico da migration `0012`. **Rodar após QUALQUER edição do
+  prompt/config em 0012** (o INSERT da 0012 não roda live). Substitui os scripts
+  temporários usados antes.
+
 ## Follow-ups conhecidos (fora do escopo do lançamento beta)
 
-CI (GitHub Actions), testes do motor/entitlements, observabilidade
-(Sentry/PostHog), rate-limit nas actions de IA, feedback de utilidade no
-diagnóstico core, análise tag×performance da biblioteca de criativos
-(precisa de dados Meta reais).
+CI (GitHub Actions), testes do motor/entitlements, rate-limit nas actions de IA,
+análise tag×performance da biblioteca de criativos (a ponte anúncio↔criativo já
+alimenta o briefing; a análise agregada ainda precisa de dados Meta reais).
 
-Formulários (auditoria 2026-07-17; máscaras/autofill/senha já resolvidos):
-- Taxonomias de texto livre do criativo (`format`, `proofType`, `emotion`,
-  `visualStyle`, `funnelStage`) e `conversionType`/`funnelStage` do produto
-  precisam do design slug-canônico + label localizado (como o módulo Organic)
-  antes de virarem autocomplete — strings traduzidas como valor envenenariam
-  a comparabilidade entre idiomas.
+Resolvidos em 2026-07-19 (antes eram follow-ups): créditos de boas-vindas +
+mensais, lembrete de `next_review` + nudge pós-experimento, feedback de utilidade
+no diagnóstico core, observabilidade (PostHog+Sentry), taxonomia slug-canônica do
+criativo/produto, tela de conferência dos dados Meta.
+
+Formulários (auditoria 2026-07-17; máscaras/autofill/senha/taxonomias resolvidos):
 - Datas de funil/experimentos usam `<input type="date">` nativo; migrar para
   MUI X Date Pickers Pro (range de período, formato pt-BR garantido).

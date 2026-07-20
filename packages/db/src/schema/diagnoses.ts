@@ -1,4 +1,4 @@
-import { boolean, date, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import { connections } from "./connectors";
 import { organizations } from "./organizations";
@@ -39,6 +39,10 @@ export const diagnoses = pgTable(
     dataWindowEnd: date("data_window_end"),
     knowledgeRefs: jsonb("knowledge_refs").notNull().default([]),
 
+    // Review loop (migration 0026): when to re-read + when the reminder fired.
+    nextReviewAt: timestamp("next_review_at", { withTimezone: true }),
+    reviewNotifiedAt: timestamp("review_notified_at", { withTimezone: true }),
+
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -50,3 +54,33 @@ export const diagnoses = pgTable(
 );
 
 export type Diagnosis = typeof diagnoses.$inferSelect;
+
+/**
+ * Usefulness feedback on a diagnosis (migration 0026), mirroring the Organic
+ * module's recommendation feedback. One rating per user per diagnosis.
+ */
+export const diagnosisFeedback = pgTable(
+  "diagnosis_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    diagnosisId: uuid("diagnosis_id")
+      .notNull()
+      .references(() => diagnoses.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    rating: text("rating").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("diagnosis_feedback_org_idx").on(table.orgId, table.createdAt),
+    unique("diagnosis_feedback_diagnosis_user_key").on(table.diagnosisId, table.userId),
+  ],
+);
+
+export type DiagnosisFeedback = typeof diagnosisFeedback.$inferSelect;

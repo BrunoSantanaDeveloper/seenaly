@@ -81,7 +81,7 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 | 2 | **Modelo de contexto do produto** (o coração; independe de dados): schema de produto/oferta/economia/funil + UI de cadastro guiado (`SetupWizard`) | schema + UI prontos |
 | 2.5 | **Home do Seenaly** (`/home`, o `appRoot` pós-login): tela goal-first que responde "o que faço agora?" — checklist de ativação, saúde do contexto do produto, estado dos dados da Meta e o destino (diagnóstico). Substitui o dashboard demo do template como landing | em andamento |
 | 3 | Motor de diagnóstico: assistente grounded que **degrada graciosamente** (contexto sempre; conhecimento sempre; dados Meta se houver) com `generateStructured` no formato fixo — primeiro produto vendável, já para quem tem zero campanhas | **implementado** (Gemini `gemini-2.5-flash`, nível de produto, 5 créditos); migration `0012` pendente de aplicação |
-| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | **biblioteca implementada** (migration `0013`, UI `/creatives` agrupada por etapa do teste, taxonomia gancho/ângulo/prova, integrada ao briefing do diagnóstico); análise tag×performance com dados Meta pendente |
+| 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | **biblioteca implementada** (migration `0013`, UI `/creatives` agrupada por etapa do teste, taxonomia **slug-canônica** gancho/ângulo/prova, integrada ao briefing do diagnóstico). O briefing profundo (2026-07-19) já **liga o anúncio Meta ao criativo etiquetado** (`connection_id`+`meta_creative_id`) e leva suas tags para o motor; a análise agregada tag×performance ainda depende de dados Meta reais |
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | **implementada** (migration `0014`, UI `/experiments` journal por status, "registrar diagnóstico como experimento", experimentos concluídos injetados no briefing do motor — loop de aprendizado verificado: não re-testa o refutado) |
 | 6 | Camada de funil/vendas reais | **implementada** (migration `0015`, snapshots manuais por produto/período, UI `/funnel` com breakdown por estágio, injetada no briefing do motor — verificado que discrimina página × checkout × oferta pelas taxas). Integrações de plataforma (Hotmart/Kiwify/webhooks) ficam como enriquecimento futuro na mesma tabela |
 
@@ -91,6 +91,31 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 - Integração Meta Ads → `packages/connectors` (+ tabelas novas em `packages/db`) com sync via `packages/jobs` (Inngest)
 - Assistente e formato fixo → `packages/ai` (`generateStructured` com JSON Schema; grounding via `config.knowledge`)
 - Monetização por uso → `packages/billing` (créditos por mensagem)
+
+## Multi-plataforma de mídia paga (direção de escala)
+
+Meta Ads é a **primeira** plataforma, não a única. O produto foi construído para
+crescer para Google Ads, TikTok Ads e outras — cada uma como fase própria,
+**somente depois** de o copiloto Meta estar maduro. Invariantes de arquitetura
+(espelham o modelo do Organic Growth, para não repetir seus erros):
+
+- Cada plataforma traz um `Connector` registrado no framework existente
+  (`packages/connectors` + `apps/web/src/lib/connectors.ts`), tabelas próprias
+  `<provider>_*` em `packages/db` (métricas de redes diferentes têm semânticas
+  diferentes — **nunca normalizar cru**), um corpus de conhecimento oficial
+  próprio (trust 1, coleção própria na knowledge base) e uma implementação de
+  `CampaignBriefProvider` em `apps/web/src/lib/campaign-data/` (hoje só `meta.ts`).
+- **Métricas de plataformas distintas nunca são comparadas como equivalentes.** O
+  motor diagnostica por plataforma; o **contexto do produto** é o denominador
+  comum entre elas. Uma conexão → um provider de briefing → um bloco no briefing.
+- O motor de diagnóstico **não muda** quando uma plataforma nova chega: ele pede
+  o briefing ao registry pela `connections.provider` e recebe texto pronto.
+- `products.connection_id` é 1:1 hoje; vira uma tabela de junção
+  `product_connections` (N:M) quando a segunda plataforma entrar — migração
+  conhecida e adiada de propósito (não custa nada agora e evita over-engineering).
+- O campo `evidence.source` do schema ganha um valor por plataforma (`meta_docs`
+  hoje; `google_docs`/`tiktok_docs` no futuro) — nunca um genérico que apague a
+  origem da regra citada.
 
 ## Organic Growth — inteligência de conteúdo orgânico
 

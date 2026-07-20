@@ -32,6 +32,8 @@ import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiPlus from "@/icons/nexture/ni-plus";
+import { track } from "@/lib/analytics";
+import { CONVERSION_TYPES, CREATIVE_FUNNEL_STAGES } from "@/lib/creative-taxonomy";
 import { createClient } from "@flyee/auth/client";
 
 interface FormValues {
@@ -164,6 +166,8 @@ export default function ProductForm({
   variant?: "sections" | "wizard";
 }) {
   const t = useTranslations("products");
+  // Funnel labels are shared with the Organic module (one funnel language).
+  const tf = useTranslations("organicGrowth");
   const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +214,7 @@ export default function ProductForm({
         setError(result.error);
         return;
       }
+      if (!product?.id) track("product_created");
       router.push(`/products/${result.id}`);
       router.refresh();
     },
@@ -266,6 +271,44 @@ export default function ProductForm({
             {err}
           </Typography>
         )}
+      </FormControl>
+    );
+  };
+
+  // Canonical taxonomy select: stores a slug, renders a localized label, and
+  // keeps any legacy free-text value selectable until the user picks a slug.
+  const taxSelect = (
+    name: keyof FormValues,
+    label: string,
+    options: readonly string[],
+    labelFor: (slug: string) => string,
+  ) => {
+    const value = formik.values[name] as string;
+    const isLegacy = value !== "" && !options.includes(value);
+    return (
+      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+        <FormLabel component="label">{label}</FormLabel>
+        <Select
+          name={name}
+          value={value}
+          displayEmpty
+          variant="standard"
+          IconComponent={NiChevronDownSmall}
+          onChange={formik.handleChange}
+          renderValue={(v) => {
+            const sv = v as string;
+            if (sv === "") return <span className="text-text-secondary">{t("taxonomy-unset")}</span>;
+            return options.includes(sv) ? labelFor(sv) : sv;
+          }}
+        >
+          <MenuItem value="">{t("taxonomy-unset")}</MenuItem>
+          {isLegacy && <MenuItem value={value}>{value}</MenuItem>}
+          {options.map((slug) => (
+            <MenuItem key={slug} value={slug}>
+              {labelFor(slug)}
+            </MenuItem>
+          ))}
+        </Select>
       </FormControl>
     );
   };
@@ -363,8 +406,8 @@ export default function ProductForm({
 
   const funnelBlock = (
     <>
-      {text("conversionType", t("field-conversionType"))}
-      {text("funnelStage", t("field-funnelStage"))}
+      {taxSelect("conversionType", t("field-conversionType"), CONVERSION_TYPES, (slug) => t(`conversion-${slug}`))}
+      {taxSelect("funnelStage", t("field-funnelStage"), CREATIVE_FUNNEL_STAGES, (slug) => tf(`funnel-${slug}`))}
       {text("landingPageUrl", t("field-landingPageUrl"), { type: "url" })}
       {text("landingConversionRate", t("field-landingConversionRate"), { mask: "percent" })}
       <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>

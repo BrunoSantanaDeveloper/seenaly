@@ -26,6 +26,7 @@ import NiCamera from "@/icons/nexture/ni-camera";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiPlus from "@/icons/nexture/ni-plus";
 import NiTag from "@/icons/nexture/ni-tag";
+import { isCreativeFormat } from "@/lib/creative-taxonomy";
 import { createClient } from "@flyee/auth/client";
 
 /**
@@ -190,6 +191,7 @@ export default function CreativesPage() {
             creatives={rows}
             columnLabel={(status) => t(`status-${status}`)}
             angleLabel={t("field-angle")}
+            formatLabel={(value) => (isCreativeFormat(value) ? t(`format-${value}`) : value)}
           />
         )}
       </Grid>

@@ -24,8 +24,10 @@ import {
   Typography,
 } from "@mui/material";
 
+import EmptyState from "@/components/product/empty-state";
 import { NumericMaskInput, useCurrencySeparators } from "@/components/product/fields";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
+import NiFlask from "@/icons/nexture/ni-flask";
 import { createClient } from "@flyee/auth/client";
 
 interface FormValues {
@@ -94,6 +96,7 @@ export default function ExperimentForm({
   const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [concluded, setConcluded] = useState(false);
   const [creatives, setCreatives] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -141,6 +144,13 @@ export default function ExperimentForm({
       });
       if (!result.ok) {
         setError(result.error);
+        return;
+      }
+      // Concluding an experiment changed the memory the engine reads — offer a
+      // fresh diagnosis in place instead of silently returning to the list.
+      if (result.justConcluded) {
+        setConcluded(true);
+        router.refresh();
         return;
       }
       router.push("/experiments");
@@ -201,6 +211,18 @@ export default function ExperimentForm({
       </CardContent>
     </Card>
   );
+
+  if (concluded) {
+    return (
+      <EmptyState
+        icon={<NiFlask />}
+        title={t("concluded-title")}
+        description={t("concluded-body")}
+        action={{ label: t("concluded-cta-diagnosis"), href: "/diagnosis" }}
+        secondaryAction={{ label: t("concluded-cta-back"), href: "/experiments" }}
+      />
+    );
+  }
 
   return (
     <Box component="form" onSubmit={formik.handleSubmit} className="flex flex-col">

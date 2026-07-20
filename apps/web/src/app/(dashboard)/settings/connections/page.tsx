@@ -3,6 +3,7 @@
 import SettingsMenu from "../components/settings-menu";
 import { useOrganization } from "../organization/components/use-organization";
 import ConnectionsCard from "./components/connections-card";
+import DataCheckCard from "./components/data-check-card";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -104,6 +105,7 @@ export default function ConnectionsSettings() {
         )}
 
         {currentOrg && <ConnectionsCard orgId={currentOrg.id} />}
+        {currentOrg && <DataCheckCard orgId={currentOrg.id} />}
 
         <Drawer open={openDrawer} anchor="right" onClose={toggleDrawer(false)}>
           <Box className="min-w-80 p-7">

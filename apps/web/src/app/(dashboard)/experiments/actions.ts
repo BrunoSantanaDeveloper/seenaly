@@ -5,7 +5,7 @@ import type { ExperimentInput } from "./types";
 import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
 import { createClient } from "@flyee/auth/server";
 
-export type SaveResult = { ok: true; id: string } | { ok: false; error: string };
+export type SaveResult = { ok: true; id: string; justConcluded?: boolean } | { ok: false; error: string };
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
@@ -37,9 +37,14 @@ export async function saveExperiment(input: ExperimentInput): Promise<SaveResult
   };
 
   let experimentId = input.id;
+  // A transition INTO concluded is the moment the experiment memory changed —
+  // the best time to nudge a fresh diagnosis that builds on the new learning.
+  let justConcluded = false;
   if (experimentId) {
+    const { data: prior } = await supabase.from("experiments").select("status").eq("id", experimentId).maybeSingle();
     const { error } = await supabase.from("experiments").update(row).eq("id", experimentId);
     if (error) return { ok: false, error: error.message };
+    justConcluded = input.status === "concluded" && prior?.status !== "concluded";
   } else {
     const { data: user } = await supabase.auth.getUser();
     const { data: created, error } = await supabase
@@ -49,6 +54,7 @@ export async function saveExperiment(input: ExperimentInput): Promise<SaveResult
       .single();
     if (error || !created) return { ok: false, error: error?.message ?? "Falha ao salvar o experimento." };
     experimentId = created.id as string;
+    justConcluded = input.status === "concluded";
   }
 
   // Replace the creative links (small, fully-owned set).
@@ -62,7 +68,7 @@ export async function saveExperiment(input: ExperimentInput): Promise<SaveResult
     if (error) return { ok: false, error: error.message };
   }
 
-  return { ok: true, id: experimentId };
+  return { ok: true, id: experimentId, justConcluded };
 }
 
 /** Delete an experiment (creative links cascade). RLS enforces org membership. */

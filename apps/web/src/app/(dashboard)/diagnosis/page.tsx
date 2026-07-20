@@ -2,7 +2,7 @@
 
 import { registerExperimentFromDiagnosis } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
-import { generateDiagnosis } from "./actions";
+import { type DiagnosisRating, generateDiagnosis, recordDiagnosisFeedback } from "./actions";
 import DiagnosisCard, { type DiagnosisMeta } from "./components/diagnosis-card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
+import { track } from "@/lib/analytics";
 import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
 import { createClient } from "@flyee/auth/client";
 
@@ -42,11 +43,13 @@ export default function DiagnosisPage() {
   const t = useTranslations("diagnosis");
   const td = useTranslations("dashboard");
   const router = useRouter();
-  const { configured, loading, loadError, orgs, currentOrg } = useOrganization();
+  const { configured, loading, loadError, userId, orgs, currentOrg } = useOrganization();
 
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [rows, setRows] = useState<DiagnosisRow[]>([]);
+  const [feedbackByDiagnosis, setFeedbackByDiagnosis] = useState<Record<string, DiagnosisRating>>({});
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -75,6 +78,7 @@ export default function DiagnosisPage() {
   const loadDiagnoses = useCallback(async () => {
     if (!selectedProductId) {
       setRows([]);
+      setFeedbackByDiagnosis({});
       setLoaded(true);
       return;
     }
@@ -86,9 +90,48 @@ export default function DiagnosisPage() {
       .eq("product_id", selectedProductId)
       .order("created_at", { ascending: false })
       .limit(10);
-    setRows((data as DiagnosisRow[]) ?? []);
+    const list = (data as DiagnosisRow[]) ?? [];
+    setRows(list);
+
+    // This user's own ratings on those diagnoses, to render the active choice.
+    if (list.length > 0 && userId) {
+      const { data: fb } = await supabase
+        .from("diagnosis_feedback")
+        .select("diagnosis_id, rating")
+        .eq("user_id", userId)
+        .in(
+          "diagnosis_id",
+          list.map((r) => r.id),
+        );
+      const map: Record<string, DiagnosisRating> = {};
+      for (const row of (fb as { diagnosis_id: string; rating: DiagnosisRating }[]) ?? []) {
+        map[row.diagnosis_id] = row.rating;
+      }
+      setFeedbackByDiagnosis(map);
+    } else {
+      setFeedbackByDiagnosis({});
+    }
     setLoaded(true);
-  }, [selectedProductId]);
+  }, [selectedProductId, userId]);
+
+  const submitFeedback = async (diagnosisId: string, rating: DiagnosisRating) => {
+    if (!currentOrg) return;
+    const previous = feedbackByDiagnosis[diagnosisId];
+    setFeedbackByDiagnosis((prev) => ({ ...prev, [diagnosisId]: rating })); // optimistic
+    setFeedbackBusy(true);
+    const result = await recordDiagnosisFeedback(currentOrg.id, diagnosisId, rating);
+    setFeedbackBusy(false);
+    if (result.ok) track("feedback_recorded", { rating });
+    if (!result.ok) {
+      setFeedbackByDiagnosis((prev) => {
+        const next = { ...prev };
+        if (previous) next[diagnosisId] = previous;
+        else delete next[diagnosisId];
+        return next;
+      });
+      setError(result.error);
+    }
+  };
 
   useEffect(() => {
     loadProducts();
@@ -108,6 +151,7 @@ export default function DiagnosisPage() {
         setError(result.error);
         return;
       }
+      track("diagnosis_generated");
       await loadDiagnoses();
     } finally {
       setBusy(false);
@@ -233,6 +277,9 @@ export default function DiagnosisPage() {
                   knowledgeRefs: latest.knowledge_refs ?? [],
                 } satisfies DiagnosisMeta
               }
+              feedback={feedbackByDiagnosis[latest.id] ?? null}
+              onFeedback={(rating) => submitFeedback(latest.id, rating)}
+              feedbackBusy={feedbackBusy}
             />
             {/* Close the loop: turn the recommendation into a tracked experiment. */}
             <Box className="mt-3">
@@ -245,8 +292,10 @@ export default function DiagnosisPage() {
                   setRegistering(true);
                   const result = await registerExperimentFromDiagnosis(latest.id);
                   setRegistering(false);
-                  if (result.ok) router.push(`/experiments/${result.id}`);
-                  else setError(result.error);
+                  if (result.ok) {
+                    track("experiment_registered");
+                    router.push(`/experiments/${result.id}`);
+                  } else setError(result.error);
                 }}
               >
                 {registering ? t("registering-experiment") : t("register-experiment")}

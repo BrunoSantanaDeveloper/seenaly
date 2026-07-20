@@ -2,10 +2,13 @@
 
 import { useTranslations } from "next-intl";
 
-import { Alert, Box, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 
 import NiPulse from "@/icons/nexture/ni-pulse";
 import type { Confidence, DiagnosisOutput, EvidenceSource } from "@/lib/diagnosis/schema";
+
+/** Usefulness rating on a diagnosis — the signal that lets us tune the engine. */
+export type DiagnosisRating = "useful" | "not_useful" | "incorrect";
 
 const CONFIDENCE_COLOR: Record<Confidence, "warning" | "primary" | "success"> = {
   baixa: "warning",
@@ -33,7 +36,20 @@ export interface DiagnosisMeta {
  * "insufficient data" diagnosis is displayed as a valid, honest outcome —
  * never dressed up as a confident recommendation.
  */
-export default function DiagnosisCard({ output, meta }: { output: DiagnosisOutput; meta: DiagnosisMeta }) {
+export default function DiagnosisCard({
+  output,
+  meta,
+  feedback,
+  onFeedback,
+  feedbackBusy,
+}: {
+  output: DiagnosisOutput;
+  meta: DiagnosisMeta;
+  /** Current user's rating, when the card is interactive. */
+  feedback?: DiagnosisRating | null;
+  onFeedback?: (rating: DiagnosisRating) => void;
+  feedbackBusy?: boolean;
+}) {
   const t = useTranslations("diagnosis");
 
   const section = (title: string, body: React.ReactNode) => (
@@ -171,6 +187,29 @@ export default function DiagnosisCard({ output, meta }: { output: DiagnosisOutpu
         <Typography variant="body2" className="text-text-secondary">
           {t("generated-at", { when: new Date(meta.createdAt).toLocaleString() })}
         </Typography>
+
+        {onFeedback && (
+          <>
+            <Divider />
+            <Box className="flex flex-row flex-wrap items-center gap-1">
+              <Typography variant="body2" className="text-text-secondary mr-1">
+                {t("feedback-question")}
+              </Typography>
+              {(["useful", "not_useful", "incorrect"] as DiagnosisRating[]).map((value) => (
+                <Button
+                  key={value}
+                  size="small"
+                  color={feedback === value ? "primary" : "grey"}
+                  variant={feedback === value ? "outlined" : "text"}
+                  disabled={feedbackBusy}
+                  onClick={() => onFeedback(value)}
+                >
+                  {t(`feedback-${value}`)}
+                </Button>
+              ))}
+            </Box>
+          </>
+        )}
       </CardContent>
     </Card>
   );

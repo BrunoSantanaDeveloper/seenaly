@@ -65,7 +65,7 @@ Decision Intelligence applied to Meta Ads, creatives and sales funnels: the syst
 
 ## Platform (confirmed decisions)
 
-- Deploy: Vercel. Database/auth/storage: Supabase (Postgres + RLS, Auth, Storage; pgvector for RAG). ORM: Drizzle (`packages/db`).
+- Deploy: Vercel, via GitHub Actions only (`.github/workflows/deploy.yml` — quality gate + preview on PRs, production on `main`; Vercel's Git integration stays disabled; setup/secrets in `docs/DEPLOY.md`). Database/auth/storage: Supabase (Postgres + RLS, Auth, Storage; pgvector for RAG). ORM: Drizzle (`packages/db`).
 - Auth model: multi-tenant organizations (default template model).
 - Billing: Stripe/Asaas behind an interface (`packages/billing`). Email: Resend + React Email (`packages/email`). Jobs/cron: Inngest (`packages/jobs`). AI: Anthropic/Gemini/OpenRouter behind a provider interface (`packages/ai`).
 - Do not reintroduce Cloudflare-specific services (Workers, D1, R2, Workers AI).

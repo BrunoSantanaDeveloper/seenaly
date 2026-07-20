@@ -24,6 +24,13 @@ import {
 
 import { NumericMaskInput, useCurrencySeparators } from "@/components/product/fields";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
+import {
+  CREATIVE_EMOTIONS,
+  CREATIVE_FORMATS,
+  CREATIVE_FUNNEL_STAGES,
+  PROOF_TYPES,
+  VISUAL_STYLES,
+} from "@/lib/creative-taxonomy";
 
 interface FormValues {
   name: string;
@@ -102,6 +109,8 @@ export default function CreativeForm({
   creative?: CreativeWithId;
 }) {
   const t = useTranslations("creatives");
+  // Funnel labels are shared with the Organic module (one funnel language).
+  const tf = useTranslations("organicGrowth");
   const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +168,44 @@ export default function CreativeForm({
       router.refresh();
     },
   });
+
+  // Canonical taxonomy select: stores a slug, renders a localized label, and
+  // keeps any legacy free-text value selectable until the user picks a slug.
+  const taxSelect = (
+    name: keyof FormValues,
+    label: string,
+    options: readonly string[],
+    labelFor: (slug: string) => string,
+  ) => {
+    const value = formik.values[name] as string;
+    const isLegacy = value !== "" && !options.includes(value);
+    return (
+      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+        <FormLabel component="label">{label}</FormLabel>
+        <Select
+          name={name}
+          value={value}
+          displayEmpty
+          variant="standard"
+          IconComponent={NiChevronDownSmall}
+          onChange={formik.handleChange}
+          renderValue={(v) => {
+            const sv = v as string;
+            if (sv === "") return <span className="text-text-secondary">{t("taxonomy-unset")}</span>;
+            return options.includes(sv) ? labelFor(sv) : sv;
+          }}
+        >
+          <MenuItem value="">{t("taxonomy-unset")}</MenuItem>
+          {isLegacy && <MenuItem value={value}>{value}</MenuItem>}
+          {options.map((slug) => (
+            <MenuItem key={slug} value={slug}>
+              {labelFor(slug)}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    );
+  };
 
   const text = (
     name: keyof FormValues,
@@ -237,8 +284,8 @@ export default function CreativeForm({
               <MenuItem value="archived">{t("status-archived")}</MenuItem>
             </Select>
           </FormControl>
-          {text("format", t("field-format"))}
-          {text("funnelStage", t("field-funnelStage"))}
+          {taxSelect("format", t("field-format"), CREATIVE_FORMATS, (slug) => t(`format-${slug}`))}
+          {taxSelect("funnelStage", t("field-funnelStage"), CREATIVE_FUNNEL_STAGES, (slug) => tf(`funnel-${slug}`))}
           {text("durationSeconds", t("field-duration"), { mask: "integer" })}
         </>,
       )}
@@ -263,9 +310,9 @@ export default function CreativeForm({
           {text("hook", t("field-hook"), { multiline: true })}
           {text("firstScene", t("field-firstScene"))}
           {text("cta", t("field-cta"))}
-          {text("proofType", t("field-proofType"))}
-          {text("visualStyle", t("field-visualStyle"))}
-          {text("emotion", t("field-emotion"))}
+          {taxSelect("proofType", t("field-proofType"), PROOF_TYPES, (slug) => t(`proof-${slug}`))}
+          {taxSelect("visualStyle", t("field-visualStyle"), VISUAL_STYLES, (slug) => t(`visual-${slug}`))}
+          {taxSelect("emotion", t("field-emotion"), CREATIVE_EMOTIONS, (slug) => t(`emotion-${slug}`))}
         </>,
       )}
 

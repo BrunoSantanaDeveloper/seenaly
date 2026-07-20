@@ -7,11 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./public": "./src/public.ts",
+    "./jobs": "./src/jobs.ts",
     "./stripe": "./src/providers/stripe.ts",
     "./asaas": "./src/providers/asaas.ts"
   },
   "dependencies": {
     "@flyee/auth": "*",
+    "@flyee/jobs": "*",
+    "@supabase/supabase-js": "^2.50.0",
     "stripe": "^18.0.0"
   }
 }

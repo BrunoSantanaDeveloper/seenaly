@@ -28,7 +28,7 @@ const PLANS = [
   {
     slug: "free",
     name: "Free",
-    description: "Comece grátis: contexto de produto, diagnóstico guiado e memória de experimentos.",
+    description: "Comece grátis: contexto de produto, diagnóstico guiado e memória de experimentos. 25 créditos de boas-vindas.",
     kind: "recurring",
     period: "monthly",
     price_cents: 0,
@@ -36,13 +36,14 @@ const PLANS = [
     is_free: true,
     is_active: true,
     trial_days: 0,
-    limits: { members: 1 },
+    // welcome_credits: granted once at org creation (migration 0025 → grant_welcome_credits).
+    limits: { members: 1, welcome_credits: 25 },
     sort: 0,
   },
   {
     slug: "pro",
     name: "Pro",
-    description: "Para quem roda tráfego todo dia: Organic Growth incluído e diagnósticos com dados da conta.",
+    description: "Para quem roda tráfego todo dia: Organic Growth incluído, diagnósticos com dados da conta e 500 créditos por mês.",
     kind: "recurring",
     period: "monthly",
     price_cents: 19700,
@@ -50,13 +51,14 @@ const PLANS = [
     is_free: false,
     is_active: true,
     trial_days: 14,
-    limits: { members: 3, organic_growth: true, organic_social_accounts: 1 },
+    // credits_monthly: granted each month by the billing cron / db:grant-credits.
+    limits: { members: 3, organic_growth: true, organic_social_accounts: 1, credits_monthly: 500 },
     sort: 1,
   },
   {
     slug: "scale",
     name: "Scale",
-    description: "Para equipes e contas maiores: mais assentos, mais contas orgânicas, mesmo motor de decisão.",
+    description: "Para equipes e contas maiores: mais assentos, mais contas orgânicas e 1500 créditos por mês.",
     kind: "recurring",
     period: "monthly",
     price_cents: 49700,
@@ -64,7 +66,7 @@ const PLANS = [
     is_free: false,
     is_active: true,
     trial_days: 14,
-    limits: { members: 10, organic_growth: true, organic_social_accounts: 3 },
+    limits: { members: 10, organic_growth: true, organic_social_accounts: 3, credits_monthly: 1500 },
     sort: 2,
   },
 ];

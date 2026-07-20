@@ -31,10 +31,13 @@ export default function CreativesBoard({
   creatives,
   columnLabel,
   angleLabel,
+  formatLabel,
 }: {
   creatives: CreativeCard[];
   columnLabel: (status: CreativeStatus) => string;
   angleLabel: string;
+  /** Resolve a format slug to its localized label (falls back to the raw value). */
+  formatLabel?: (value: string) => string;
 }) {
   // Only render lanes that hold something; keep a meaningful order.
   const order: CreativeStatus[] = ["winner", "testing", "idea", "paused", "archived"];
@@ -65,7 +68,14 @@ export default function CreativesBoard({
                       <Typography variant="subtitle1" className="grow truncate">
                         {creative.name}
                       </Typography>
-                      {creative.format && <Chip label={creative.format} size="small" variant="outlined" color="grey" />}
+                      {creative.format && (
+                        <Chip
+                          label={formatLabel ? formatLabel(creative.format) : creative.format}
+                          size="small"
+                          variant="outlined"
+                          color="grey"
+                        />
+                      )}
                     </Box>
                     {creative.angle && (
                       <Typography variant="body2" className="text-text-secondary">

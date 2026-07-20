@@ -136,6 +136,15 @@ export default function PlansGrid({ orgId, subscription, plans, modules, provide
                               : ""}
                         </Typography>
                       </Typography>
+                      {plan.creditsMonthly ? (
+                        <Chip
+                          label={t("plans-credits-monthly", { count: plan.creditsMonthly })}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          className="self-start"
+                        />
+                      ) : null}
                       {plan.description && (
                         <Typography variant="body2" className="text-text-secondary grow">
                           {plan.description}

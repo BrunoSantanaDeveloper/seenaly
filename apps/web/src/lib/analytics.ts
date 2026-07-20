@@ -4,16 +4,14 @@ import { LOCAL_STORAGE_KEYS } from "@/constants";
 
 /**
  * Product analytics behind an interface (flyee provider pattern — same as
- * billing/whatsapp/AI). The TEMPLATE SHIPS NO PROVIDER: `ANALYTICS_PROVIDER`
- * is null, no analytics script ever loads, and the cookie-consent banner
- * stays hidden (essential cookies — Supabase session, locale — are exempt
- * from consent under LGPD/GDPR, so a banner with nothing to control would
- * be theater).
+ * billing/whatsapp/AI). Seenaly ships a PostHog provider, but it only activates
+ * when `NEXT_PUBLIC_POSTHOG_KEY` is set: without the key `ANALYTICS_PROVIDER`
+ * is null, no script loads, and the cookie-consent banner stays hidden
+ * (essential cookies — Supabase session, locale — are consent-exempt under
+ * LGPD/GDPR, so a banner with nothing to control would be theater).
  *
- * Derived projects: implement the interface with your SDK (PostHog,
- * Plausible, GA4, …) and assign it below. That single assignment activates
- * the consent banner, and `init()` runs ONLY after the user grants consent
- * — the gating is real by construction, not by promise.
+ * The SDK is dynamically imported inside init(), which runs ONLY after the
+ * user grants consent — the gating is real by construction, not by promise.
  */
 export interface AnalyticsProvider {
   /** Load/boot the SDK. Called once, only after consent is granted. */
@@ -22,7 +20,27 @@ export interface AnalyticsProvider {
   pageView?(path: string): void;
 }
 
-export const ANALYTICS_PROVIDER: AnalyticsProvider | null = null;
+function createPostHogProvider(): AnalyticsProvider | null {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (!key) return null;
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+  let ph: Awaited<typeof import("posthog-js")>["default"] | null = null;
+  return {
+    async init() {
+      const mod = await import("posthog-js");
+      ph = mod.default;
+      ph.init(key, { api_host: host, capture_pageview: true, persistence: "localStorage" });
+    },
+    track(event, props) {
+      ph?.capture(event, props);
+    },
+    pageView(path) {
+      ph?.capture("$pageview", { $current_url: path });
+    },
+  };
+}
+
+export const ANALYTICS_PROVIDER: AnalyticsProvider | null = createPostHogProvider();
 
 /** Bump when the privacy policy changes materially — users are re-asked. */
 export const CONSENT_VERSION = 1;

@@ -34,6 +34,12 @@ export interface DiagnosisOutput {
   confidence: Confidence;
   success_criterion: string;
   next_review: string;
+  /**
+   * Machine-readable companion to `next_review`: in how many days to re-read.
+   * Powers the review-due reminder (diagnoses.next_review_at). Optional so a
+   * model that omits it never invalidates an otherwise-conforming diagnosis.
+   */
+  next_review_days?: number;
   insufficient_data: boolean;
   /**
    * Data that would sharpen the diagnosis or separate competing hypotheses
@@ -80,6 +86,13 @@ export const DIAGNOSIS_JSON_SCHEMA: Record<string, unknown> = {
     confidence: { type: "string", enum: ["baixa", "media", "alta"] },
     success_criterion: { type: "string", description: "Como saber, de forma mensurável, se funcionou." },
     next_review: { type: "string", description: "Quando reavaliar (janela de tempo ou volume de eventos)." },
+    next_review_days: {
+      type: "integer",
+      minimum: 1,
+      maximum: 90,
+      description:
+        "Em quantos dias reavaliar, coerente com next_review. Use o menor prazo razoável para acumular sinal (ex.: 7 para fadiga de criativo, 14 para volume de conversão).",
+    },
     insufficient_data: {
       type: "boolean",
       description:
@@ -101,6 +114,7 @@ export const DIAGNOSIS_JSON_SCHEMA: Record<string, unknown> = {
     "confidence",
     "success_criterion",
     "next_review",
+    "next_review_days",
     "insufficient_data",
     "missing_data",
   ],
@@ -120,6 +134,7 @@ export function isDiagnosisOutput(value: unknown): value is DiagnosisOutput {
     (output.confidence === "baixa" || output.confidence === "media" || output.confidence === "alta") &&
     typeof output.success_criterion === "string" &&
     typeof output.next_review === "string" &&
+    (typeof output.next_review_days === "number" || output.next_review_days === undefined) &&
     typeof output.insufficient_data === "boolean" &&
     typeof output.missing_data === "string"
   );

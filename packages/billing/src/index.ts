@@ -3,6 +3,7 @@ import { StripeProvider } from "./providers/stripe";
 import type { BillingProviderName, PaymentProvider } from "./types";
 
 export * from "./types";
+export * from "./credits";
 
 export const isStripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
 export const isAsaasConfigured = Boolean(process.env.ASAAS_API_KEY);

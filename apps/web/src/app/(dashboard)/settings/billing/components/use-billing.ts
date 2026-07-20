@@ -32,6 +32,8 @@ export interface PlanRow {
   priceCents: number;
   currency: string;
   creditAmount: number | null;
+  /** Monthly credit allowance for recurring plans, from limits.credits_monthly. */
+  creditsMonthly: number | null;
   trialDays: number;
   isFree: boolean;
 }
@@ -174,6 +176,7 @@ export function useBilling() {
         priceCents: p.price_cents,
         currency: p.currency,
         creditAmount: p.credit_amount,
+        creditsMonthly: (p.limits as { credits_monthly?: number } | null)?.credits_monthly ?? null,
         trialDays: p.trial_days,
         isFree: p.is_free,
       })),
