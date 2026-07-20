@@ -11,6 +11,9 @@ concurrency:
 
 env:
   HUSKY: "0"
+  # Large app (Next.js + MUI X Premium); the build/typecheck exceed Node's ~2GB
+  # default heap. ubuntu-latest has 16GB — raise the ceiling so it doesn't OOM.
+  NODE_OPTIONS: "--max-old-space-size=6144"
 
 jobs:
   quality:
