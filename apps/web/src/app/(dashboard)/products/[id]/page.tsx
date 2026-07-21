@@ -25,16 +25,21 @@ export default function EditProductPage() {
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: row }, { data: objections }, { data: proofs }] = await Promise.all([
+    const [{ data: row }, { data: objections }, { data: proofs }, { data: plans }] = await Promise.all([
       supabase.from("products").select("*").eq("id", id).maybeSingle(),
       supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
       supabase.from("product_proofs").select("kind, content").eq("product_id", id).order("created_at"),
+      supabase
+        .from("product_plans")
+        .select("name, price, period, quantity, share_pct, is_primary, sort")
+        .eq("product_id", id)
+        .order("sort"),
     ]);
     if (!row) {
       setNotFound(true);
       return;
     }
-    setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [] }));
+    setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [], plans: plans ?? [] }));
   }, [id]);
 
   useEffect(() => {

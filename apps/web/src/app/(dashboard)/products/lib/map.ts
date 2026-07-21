@@ -1,12 +1,25 @@
 import type { ProductStatus, ProductWithChildren } from "../types";
 
+import type { BillingPeriod, PricingInputs, PricingPlanRow } from "@/lib/pricing";
+
 /** Postgres `numeric` arrives as a string over PostgREST. */
 const num = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
+export interface ProductPlanRowData {
+  name: string | null;
+  price: unknown;
+  period: string | null;
+  quantity: unknown;
+  share_pct: unknown;
+  is_primary: boolean | null;
+  sort: number | null;
+}
+
 export interface ProductRowChildren {
   objections?: { content: string }[];
   proofs?: { kind: string | null; content: string }[];
+  plans?: ProductPlanRowData[];
 }
 
 /**
@@ -15,7 +28,7 @@ export interface ProductRowChildren {
  */
 export function mapProductRow(
   row: Record<string, unknown>,
-  { objections = [], proofs = [] }: ProductRowChildren = {},
+  { objections = [], proofs = [], plans = [] }: ProductRowChildren = {},
 ): ProductWithChildren {
   return {
     id: String(row.id),
@@ -41,6 +54,18 @@ export function mapProductRow(
     notes: str(row.notes),
     connectionId: (row.connection_id as string | null) ?? null,
     metaAccountId: str(row.meta_account_id),
+    pricingModel: str(row.pricing_model),
+    pricingInputs: (row.pricing_inputs as PricingInputs | null) ?? {},
+    plans: plans.map(
+      (plan): PricingPlanRow => ({
+        name: plan.name ?? "",
+        price: num(plan.price),
+        period: (plan.period as BillingPeriod | null) ?? "",
+        quantity: num(plan.quantity),
+        sharePct: num(plan.share_pct),
+        isPrimary: Boolean(plan.is_primary),
+      }),
+    ),
     objections: objections.map((item) => item.content),
     proofs: proofs.map((item) => ({ kind: item.kind ?? "", content: item.content })),
   };

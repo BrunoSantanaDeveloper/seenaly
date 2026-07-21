@@ -86,6 +86,15 @@ interface ExperimentSummaryRow {
 const line = (label: string, value: unknown): string | null =>
   value === null || value === undefined || value === "" ? null : `- ${label}: ${value}`;
 
+const PERIOD_LABEL: Record<string, string> = {
+  weekly: "semanal",
+  monthly: "mensal",
+  quarterly: "trimestral",
+  semiannual: "semestral",
+  annual: "anual",
+  one_time: "pagamento único",
+};
+
 /** The product context block — always present, the heart of every diagnosis. */
 function productContextBlock(product: ProductWithChildren): string {
   const rows = [
@@ -108,6 +117,32 @@ function productContextBlock(product: ProductWithChildren): string {
     line("Evento de otimização", product.optimizationEvent),
     line("Observações", product.notes),
   ].filter(Boolean);
+
+  // How the offer is charged — lets the engine reason about period (annual vs
+  // monthly), payback, and lead ≠ sale instead of guessing from one price.
+  if (product.pricingModel) {
+    rows.push(`- Modelo de cobrança: ${product.pricingModel}`);
+  }
+  if (product.plans?.length) {
+    const plans = product.plans
+      .filter((plan) => plan.price != null || plan.name)
+      .map((plan) => {
+        const parts = [
+          plan.name || "(sem nome)",
+          plan.price != null ? `${plan.price}` : null,
+          plan.period ? (PERIOD_LABEL[plan.period] ?? plan.period) : null,
+          plan.quantity != null ? `${plan.quantity} un.` : null,
+          plan.sharePct != null ? `${plan.sharePct}% dos clientes` : null,
+          plan.isPrimary ? "ANUNCIADO" : null,
+        ].filter(Boolean);
+        return parts.join(" · ");
+      });
+    if (plans.length > 0) rows.push(`- Planos/pacotes: ${plans.join(" | ")}`);
+  }
+  const pricingInputEntries = Object.entries(product.pricingInputs ?? {}).filter(([, value]) => value != null);
+  if (pricingInputEntries.length > 0) {
+    rows.push(`- Parâmetros de cobrança: ${pricingInputEntries.map(([key, value]) => `${key}=${value}`).join("; ")}`);
+  }
 
   if (product.objections.length > 0) {
     rows.push(`- Objeções: ${product.objections.join("; ")}`);
@@ -235,6 +270,7 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     { data: row },
     { data: objections },
     { data: proofs },
+    { data: planRows },
     { data: creativeRows },
     { data: experimentRows },
     { data: funnelRow },
@@ -242,6 +278,11 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     supabase.from("products").select("*").eq("id", productId).maybeSingle(),
     supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
     supabase.from("product_proofs").select("kind, content").eq("product_id", productId).order("created_at"),
+    supabase
+      .from("product_plans")
+      .select("name, price, period, quantity, share_pct, is_primary, sort")
+      .eq("product_id", productId)
+      .order("sort"),
     supabase
       .from("creatives")
       .select("name, status, format, angle, hook, proof_type, emotion, result_summary")
@@ -269,7 +310,11 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
       .maybeSingle(),
   ]);
   if (!row) return { ok: false, error: "Produto não encontrado." };
-  const product = mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [] });
+  const product = mapProductRow(row, {
+    objections: objections ?? [],
+    proofs: proofs ?? [],
+    plans: planRows ?? [],
+  });
 
   // 2. SaaS gate: active subscription. Credits are only DEBITED after a valid
   // diagnosis is produced (step 7) — a failed RAG/LLM call must never charge the

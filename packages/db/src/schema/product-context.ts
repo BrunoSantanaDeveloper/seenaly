@@ -1,4 +1,4 @@
-import { index, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { connections } from "./connectors";
 import { organizations } from "./organizations";
@@ -40,6 +40,11 @@ export const products = pgTable(
     landingConversionRate: numeric("landing_conversion_rate"),
     optimizationEvent: text("optimization_event"),
     notes: text("notes"),
+
+    // How the offer is charged (migration 0027). These are INPUT: the economics
+    // columns above are derived from them by lib/pricing.ts.
+    pricingModel: text("pricing_model"),
+    pricingInputs: jsonb("pricing_inputs").notNull().default({}),
 
     // Optional bridge to synced Meta data (never required).
     connectionId: uuid("connection_id").references(() => connections.id, { onDelete: "set null" }),
@@ -84,6 +89,35 @@ export const productProofs = pgTable(
   (table) => [index("product_proofs_product_idx").on(table.productId)],
 );
 
+/**
+ * Repeatable pricing rows (migration 0027): subscription tiers, credit packs
+ * or offer-ladder items, depending on `products.pricing_model`.
+ */
+export const productPlans = pgTable(
+  "product_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    name: text("name"),
+    price: numeric("price"),
+    /** weekly | monthly | quarterly | semiannual | annual | one_time */
+    period: text("period"),
+    /** Credits/units in a pack, or units in a ladder item. */
+    quantity: numeric("quantity"),
+    /** Share of paying customers on this row (0-100) — blended ticket input. */
+    sharePct: numeric("share_pct"),
+    /** The row the ad anchors on (the advertised / entry offer). */
+    isPrimary: boolean("is_primary").notNull().default(false),
+    sort: integer("sort").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("product_plans_product_idx").on(table.productId, table.sort)],
+);
+
 export type Product = typeof products.$inferSelect;
 export type ProductObjection = typeof productObjections.$inferSelect;
 export type ProductProof = typeof productProofs.$inferSelect;
+export type ProductPlan = typeof productPlans.$inferSelect;

@@ -1,5 +1,7 @@
 /** Shared shapes for the product context model (docs/PRODUCT.md, Fase 2). */
 
+import type { PricingInputs, PricingPlanRow } from "@/lib/pricing";
+
 export type ProductStatus = "draft" | "active" | "archived";
 
 export interface ProductProofInput {
@@ -15,7 +17,9 @@ export interface ProductInput {
   status: ProductStatus;
   description: string;
 
-  // Economics — null when the field is left blank.
+  // Economics — null when the field is left blank. These are what the
+  // diagnosis engine reads; when a pricing model is set they are DERIVED from
+  // it (lib/pricing.ts) unless the user typed a value explicitly.
   currency: string;
   price: number | null;
   unitCost: number | null;
@@ -24,6 +28,11 @@ export interface ProductInput {
   ltv: number | null;
   targetCac: number | null;
   monthlyBudget: number | null;
+
+  // How the offer is charged (migration 0027) — the INPUT behind the economics.
+  pricingModel: string;
+  pricingInputs: PricingInputs;
+  plans: PricingPlanRow[];
 
   // Positioning & funnel.
   conversionType: string;

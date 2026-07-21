@@ -39,6 +39,8 @@ export async function saveProduct(input: ProductInput): Promise<SaveResult> {
     notes: input.notes || null,
     connection_id: input.connectionId,
     meta_account_id: input.metaAccountId || null,
+    pricing_model: input.pricingModel || null,
+    pricing_inputs: input.pricingInputs ?? {},
   };
 
   let productId = input.id;
@@ -58,12 +60,32 @@ export async function saveProduct(input: ProductInput): Promise<SaveResult> {
   }
 
   // Replace child lists (simplest correct model for a small, fully-owned set).
-  const [{ error: objDelError }, { error: proofDelError }] = await Promise.all([
+  const [{ error: objDelError }, { error: proofDelError }, { error: planDelError }] = await Promise.all([
     supabase.from("product_objections").delete().eq("product_id", productId),
     supabase.from("product_proofs").delete().eq("product_id", productId),
+    supabase.from("product_plans").delete().eq("product_id", productId),
   ]);
   if (objDelError) return { ok: false, error: objDelError.message };
   if (proofDelError) return { ok: false, error: proofDelError.message };
+  if (planDelError) return { ok: false, error: planDelError.message };
+
+  // Pricing rows (tiers / packs / ladder items) — a row counts once it has a price.
+  const plans = (input.plans ?? []).filter((plan) => plan.price !== null || plan.name.trim());
+  if (plans.length > 0) {
+    const { error } = await supabase.from("product_plans").insert(
+      plans.map((plan, index) => ({
+        product_id: productId,
+        name: plan.name.trim() || null,
+        price: plan.price,
+        period: plan.period || null,
+        quantity: plan.quantity,
+        share_pct: plan.sharePct,
+        is_primary: plan.isPrimary,
+        sort: index,
+      })),
+    );
+    if (error) return { ok: false, error: error.message };
+  }
 
   const objections = input.objections.map((content) => content.trim()).filter(Boolean);
   if (objections.length > 0) {
