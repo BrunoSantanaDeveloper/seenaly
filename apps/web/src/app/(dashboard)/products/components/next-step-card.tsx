@@ -7,27 +7,36 @@ import { useTranslations } from "next-intl";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 
 /**
  * Job: the user just finished creating a product and asks "what now?".
  *
- * The answer is NOT "fill more fields" — it is the aha moment: run the first
- * diagnosis. A completeness percentage alone was the wrong hero: it points at
- * form-filling, and a beginner can never reach 100% (they don't have every
- * number), so it reads as permanent failure. Here the ONE next action leads,
- * and remaining context is offered as "what would sharpen it" — each item with
- * the reason it matters, never as a score to chase.
+ * The answer is NOT "fill more fields" — it is the aha moment. A completeness
+ * percentage alone was the wrong hero: it points at form-filling, and a
+ * beginner can never reach 100% (they don't have every number), so it reads as
+ * permanent failure. Here the ONE next action leads, and remaining context is
+ * offered as "what would sharpen it" — each item with the reason it matters,
+ * never as a score to chase.
+ *
+ * Which action is "the one" follows the journey in docs/PRODUCT.md phase 7:
+ * readiness comes BEFORE the campaign diagnosis. Auditing the structure costs
+ * no media budget, so a user who has not done it is sent there first; once a
+ * verdict exists, the diagnosis takes over as the primary action.
  */
 export default function ProductNextStepCard({
   productId,
   ready,
   missing,
+  hasReadiness,
 }: {
   productId: string;
   /** Essential context (name + promise + audience) is filled. */
   ready: boolean;
   /** Context fields still empty, most valuable first. */
   missing: CompletenessField[];
+  /** A readiness verdict already exists for this product. */
+  hasReadiness: boolean;
 }) {
   const t = useTranslations("products");
   // Only the few that actually change the answer — a long list is noise.
@@ -42,24 +51,68 @@ export default function ProductNextStepCard({
           </span>
           <Box className="grow">
             <Typography variant="h5" component="h2" className="card-title mb-0">
-              {ready ? t("next-step-title-ready") : t("next-step-title-incomplete")}
+              {!hasReadiness
+                ? t("next-step-title-readiness")
+                : ready
+                  ? t("next-step-title-ready")
+                  : t("next-step-title-incomplete")}
             </Typography>
             <Typography variant="body2" className="text-text-secondary">
-              {ready ? t("next-step-body-ready") : t("next-step-body-incomplete")}
+              {!hasReadiness
+                ? t("next-step-body-readiness")
+                : ready
+                  ? t("next-step-body-ready")
+                  : t("next-step-body-incomplete")}
             </Typography>
           </Box>
         </Box>
 
         <Box className="flex flex-row flex-wrap gap-2">
-          <Button
-            variant="contained"
-            color="primary"
-            href={`/diagnosis?product=${productId}`}
-            LinkComponent={Link}
-            startIcon={<NiPulse size="small" />}
-          >
-            {t("next-step-cta")}
-          </Button>
+          {hasReadiness ? (
+            <>
+              <Button
+                variant="contained"
+                color="primary"
+                href={`/diagnosis?product=${productId}`}
+                LinkComponent={Link}
+                startIcon={<NiPulse size="small" />}
+              >
+                {t("next-step-cta")}
+              </Button>
+              <Button
+                variant="outlined"
+                color="grey"
+                href={`/readiness?product=${productId}`}
+                LinkComponent={Link}
+                startIcon={<NiShieldCheck size="small" />}
+              >
+                {t("next-step-cta-readiness-again")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                color="primary"
+                href={`/readiness?product=${productId}`}
+                LinkComponent={Link}
+                startIcon={<NiShieldCheck size="small" />}
+              >
+                {t("next-step-cta-readiness")}
+              </Button>
+              {/* Readiness is the recommendation, never a gate — the campaign
+                  diagnosis stays one click away for whoever wants it now. */}
+              <Button
+                variant="text"
+                color="grey"
+                href={`/diagnosis?product=${productId}`}
+                LinkComponent={Link}
+                startIcon={<NiPulse size="small" />}
+              >
+                {t("next-step-cta")}
+              </Button>
+            </>
+          )}
         </Box>
 
         {suggestions.length > 0 && (

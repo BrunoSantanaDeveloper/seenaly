@@ -24,23 +24,32 @@ export default function EditProductPage() {
 
   const [product, setProduct] = useState<ProductWithChildren | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // Drives which next action leads: readiness precedes the campaign diagnosis.
+  const [hasReadiness, setHasReadiness] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: row }, { data: objections }, { data: proofs }, { data: plans }] = await Promise.all([
-      supabase.from("products").select("*").eq("id", id).maybeSingle(),
-      supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
-      supabase.from("product_proofs").select("kind, content").eq("product_id", id).order("created_at"),
-      supabase
-        .from("product_plans")
-        .select("name, price, period, quantity, share_pct, is_primary, sort")
-        .eq("product_id", id)
-        .order("sort"),
-    ]);
+    const [{ data: row }, { data: objections }, { data: proofs }, { data: plans }, { count: readinessCount }] =
+      await Promise.all([
+        supabase.from("products").select("*").eq("id", id).maybeSingle(),
+        supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
+        supabase.from("product_proofs").select("kind, content").eq("product_id", id).order("created_at"),
+        supabase
+          .from("product_plans")
+          .select("name, price, period, quantity, share_pct, is_primary, sort")
+          .eq("product_id", id)
+          .order("sort"),
+        supabase
+          .from("diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", id)
+          .eq("scope", "readiness"),
+      ]);
     if (!row) {
       setNotFound(true);
       return;
     }
+    setHasReadiness((readinessCount ?? 0) > 0);
     setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [], plans: plans ?? [] }));
   }, [id]);
 
@@ -85,7 +94,12 @@ export default function EditProductPage() {
           <>
             {/* "What now?" leads; editing the context is secondary. */}
             <Grid size={12}>
-              <ProductNextStepCard productId={product.id} ready={completeness!.ready} missing={completeness!.missing} />
+              <ProductNextStepCard
+                productId={product.id}
+                ready={completeness!.ready}
+                missing={completeness!.missing}
+                hasReadiness={hasReadiness}
+              />
             </Grid>
             <Grid size={12}>
               <Box>

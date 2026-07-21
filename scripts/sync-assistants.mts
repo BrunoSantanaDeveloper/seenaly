@@ -1,11 +1,14 @@
 /**
- * Sync the live `diagnosis-engine` assistant row with migration 0012.
+ * Sync the live engine assistant rows with their migrations.
  *
- * The engine's system prompt + config live in packages/db/migrations/0012_diagnoses.sql
- * as the canonical source, but that migration's INSERT never ran live (the
- * table pre-existed, and apply-migrations deletes the seed row before applying
- * 0012 — see its PRE_APPLY_FIXUPS). So the row is kept in sync from here with a
- * service-role UPDATE. Run this after ANY edit to the 0012 prompt/config.
+ * Each engine's system prompt + config live in its migration as the canonical
+ * source, but a migration's INSERT may never run live (the table can pre-exist,
+ * and apply-migrations deletes the seed row before applying 0012 — see its
+ * PRE_APPLY_FIXUPS). So the rows are kept in sync from here with a service-role
+ * UPDATE. Run this after ANY edit to an engine prompt/config.
+ *
+ * The prompts ARE the product (docs/PRODUCT.md: instruction-driven assistants,
+ * tunable at runtime in /admin/ai) — editing one must not require a deploy.
  *
  * Usage:  npm run db:sync-assistants
  *
@@ -19,8 +22,12 @@ import process from "node:process";
 import { createClient } from "@supabase/supabase-js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const MIGRATION = path.join(ROOT, "packages", "db", "migrations", "0012_diagnoses.sql");
-const SLUG = "diagnosis-engine";
+
+/** Every instruction-driven engine and the migration that defines it. */
+const ENGINES = [
+  { slug: "diagnosis-engine", migration: "0012_diagnoses.sql" },
+  { slug: "readiness-engine", migration: "0028_readiness.sql" },
+] as const;
 
 /** Minimal .env loader — never overrides variables already set in the environment. */
 async function loadEnv(file: string) {
@@ -43,10 +50,10 @@ interface EngineFields {
   config: unknown;
 }
 
-/** Extract the engine's fields from the 0012 INSERT (canonical source). */
-function parseEngine(sql: string): EngineFields {
+/** Extract an engine's fields from its migration INSERT (canonical source). */
+function parseEngine(sql: string, file: string): EngineFields {
   const prompt = /\$prompt\$([\s\S]*?)\$prompt\$/.exec(sql);
-  if (!prompt) throw new Error("Could not find the $prompt$...$prompt$ block in 0012.");
+  if (!prompt) throw new Error(`Could not find the $prompt$...$prompt$ block in ${file}.`);
   const system_prompt = prompt[1];
 
   // provider, model are the two quoted values immediately before the prompt.
@@ -85,27 +92,37 @@ async function main() {
   }
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  const sql = await readFile(MIGRATION, "utf8");
-  const fields = parseEngine(sql);
+  for (const engine of ENGINES) {
+    const sql = await readFile(path.join(ROOT, "packages", "db", "migrations", engine.migration), "utf8");
+    const fields = parseEngine(sql, engine.migration);
 
-  const { error } = await supabase
-    .from("assistants")
-    .update({
-      provider: fields.provider,
-      model: fields.model,
-      system_prompt: fields.system_prompt,
-      temperature: fields.temperature,
-      max_tokens: fields.max_tokens,
-      credits_per_message: fields.credits_per_message,
-      config: fields.config,
-      is_active: true,
-    })
-    .eq("slug", SLUG);
-  if (error) throw new Error(`Updating ${SLUG} failed: ${error.message}`);
+    const { data, error } = await supabase
+      .from("assistants")
+      .update({
+        provider: fields.provider,
+        model: fields.model,
+        system_prompt: fields.system_prompt,
+        temperature: fields.temperature,
+        max_tokens: fields.max_tokens,
+        credits_per_message: fields.credits_per_message,
+        config: fields.config,
+        is_active: true,
+      })
+      .eq("slug", engine.slug)
+      .select("slug");
+    if (error) throw new Error(`Updating ${engine.slug} failed: ${error.message}`);
 
-  console.log(
-    `Synced '${SLUG}' from 0012: model=${fields.model}, max_tokens=${fields.max_tokens}, credits=${fields.credits_per_message}, prompt=${fields.system_prompt.length} chars.`,
-  );
+    // No row yet = its migration has not been applied. Say so plainly rather
+    // than reporting a sync that silently touched nothing.
+    if (!data || data.length === 0) {
+      console.warn(`SKIP '${engine.slug}' — no such row live. Apply ${engine.migration} first (npm run db:migrate).`);
+      continue;
+    }
+
+    console.log(
+      `Synced '${engine.slug}' from ${engine.migration}: model=${fields.model}, max_tokens=${fields.max_tokens}, credits=${fields.credits_per_message}, prompt=${fields.system_prompt.length} chars.`,
+    );
+  }
 }
 
 main().catch((error: unknown) => {

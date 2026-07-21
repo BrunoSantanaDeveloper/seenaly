@@ -34,7 +34,7 @@ Ads Manager · automação de tráfego pago · dashboard de marketing · ferrame
    - **Critério de sucesso** — como saber se funcionou
    - **Próxima leitura** — quando reavaliar
 6. **Espectro de maturidade — o valor nunca fica atrás da conexão Meta.** O sistema serve desde o iniciante sem nenhuma campanha (nem conta Meta) até a empresa com histórico rico, degradando graciosamente. É a forma extrema do princípio nº 4:
-   - **Zero dados**: guia do passo 0 usando **contexto do produto + conhecimento oficial** — que evento otimizar, como estruturar a 1ª campanha, que criativo/oferta testar primeiro. Nenhum dado de campanha necessário.
+   - **Zero dados**: guia do passo 0 usando **contexto do produto + conhecimento**. O artefato concreto é o **Diagnóstico de Prontidão** (a estrutura está pronta para converter tráfego pago? — oferta, página, checkout, mensuração, funil, descoberta orgânica), além de que evento otimizar, como estruturar a 1ª campanha e que criativo/oferta testar primeiro. Nenhum dado de campanha necessário.
    - **Campanha nova (conta conectada)**: "ainda não há base para concluir" — fase de aprendizado, volume mínimo.
    - **Histórico rico**: diagnóstico completo com evidências, rankings de relevância, fadiga, memória de experimentos.
 
@@ -49,6 +49,31 @@ Ads Manager · automação de tráfego pago · dashboard de marketing · ferrame
 5. **Motor de diagnóstico** (o módulo mais valioso): o problema está no criativo ou na oferta? Antes ou depois do clique? Há dados suficientes? Fadiga? CPA alto por CPC caro ou por baixa conversão? Fase de aprendizado? Evento de otimização adequado? Cruza diagnósticos de relevância da Meta com dados do funil.
 
 **Diferencial máximo — memória de experimentos**: todo teste registrado como hipótese → mudança → motivo → período → orçamento → criativos → métricas → resultado → conclusão → próximo passo. Com o tempo a IA deixa de ser só "especialista em Meta Ads" e vira especialista **nos produtos, criativos, públicos e ofertas do cliente**.
+
+## Prontidão antes do tráfego pago — a estrutura é o CAC mais barato
+
+Um iniciante não descobre se vai vender ligando a Meta; descobre se a **estrutura que recebe o tráfego** converte. Tráfego pago barato não vem de clique barato — vem de estrutura que converte: como `CPA = CPC ÷ taxa de conversão pós-clique`, cada ponto de conversão, cada atrito removido no checkout e cada evento de otimização bem instalado derrubam o custo por resultado e encurtam a fase de aprendizado do algoritmo. A pior experiência possível — a que este produto existe para evitar — é queimar orçamento de mídia para **descobrir** uma falha estrutural que o sistema poderia ter apontado de graça, antes do primeiro real gasto.
+
+Por isso o **Diagnóstico de Prontidão** é a porta de entrada da jornada, **antes** da conexão Meta e antes do diagnóstico de campanha. Ele é o próprio motor de diagnóstico apontado para a **estrutura**, não para os dados de mídia: roda com contexto do produto + conhecimento (é a forma concreta do "zero dados" do princípio nº 6), na mesma saída estruturada e com a mesma honestidade (`insufficient_data` / `missing_data`). Não opera nada e não promete ranquear — audita e recomenda **o que consertar, em ordem de alavancagem, antes de gastar**.
+
+Dimensões auditadas (aterradas no `growth-playbook` trust 2–4 e nas docs oficiais trust 1 — nunca genérico):
+
+- **Oferta e preço** — clareza da promessa, equação de valor, garantia, ancoragem, ticket vs. teto do público frio (reusa o modelo de cobrança já capturado no cadastro).
+- **Página e message match** — existe página; a promessa da página bate com a do anúncio; prova, estrutura, CTA.
+- **Checkout** — fricção, número de etapas, meios de pagamento BR (PIX; parcelamento é percepção, não economia).
+- **Mensuração** — pixel/CAPI instalados e evento de otimização definido; **sem sinal, o algoritmo não aprende e o tráfego fica caro** — é o item de maior alavancagem e custo zero.
+- **Funil** — as etapas existem e estão conectadas; vazamentos estruturais conhecidos.
+- **Descoberta (orgânico + busca)** — o produto é encontrável: fundamentos técnicos de SEO (title, meta, canonical, OG, sitemap, dados estruturados, Core Web Vitals) e presença mínima nas redes/Google. Aqui o módulo **Organic Growth** entra como **pré-condição da aquisição paga**, não como app à parte; métricas de redes diferentes nunca são ranqueadas como equivalentes.
+- **Prontidão de mídia** — criativos mínimos por ângulo e a estrutura da 1ª campanha.
+
+O resultado é um **veredito explicável** (checklist e sinais relativos antes de qualquer score proprietário, conforme o invariante de scores do Organic Growth): "pronto para tráfego pago" ou "conserte X, Y, Z antes", cada item com esforço, impacto e a base técnica citada.
+
+**Maturidade, como em todo o resto:**
+
+- **Declarado (padrão, sem scan)** — o veredito sai do contexto do produto e de um intake estrutural leve; nada é pré-requisito além do produto.
+- **Enriquecido (scan opcional)** — um scanner técnico da URL (title/meta/OG/canonical/sitemap/robots/schema, presença de pixel/CAPI, Core Web Vitals via API oficial) vira **evidência trust 1**; é enriquecimento no mesmo padrão do conector Meta — valor nunca fica atrás do scan.
+
+Invariante reforçado: a Prontidão **não é um portão** que trava a conta. É a recomendação de fazer primeiro o que é barato e decisivo. O usuário pode ignorá-la e ir direto ao tráfego pago — mas terá sido avisado, com evidência, de onde o dinheiro vazaria.
 
 ## Recorte inicial
 
@@ -84,6 +109,7 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 | 4 | Biblioteca de criativos etiquetada + análise de padrões vencedores (reusa `meta_creatives`; iniciante pode cadastrar criativos planejados) | **biblioteca implementada** (migration `0013`, UI `/creatives` agrupada por etapa do teste, taxonomia **slug-canônica** gancho/ângulo/prova, integrada ao briefing do diagnóstico). O briefing profundo (2026-07-19) já **liga o anúncio Meta ao criativo etiquetado** (`connection_id`+`meta_creative_id`) e leva suas tags para o motor; a análise agregada tag×performance ainda depende de dados Meta reais |
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | **implementada** (migration `0014`, UI `/experiments` journal por status, "registrar diagnóstico como experimento", experimentos concluídos injetados no briefing do motor — loop de aprendizado verificado: não re-testa o refutado) |
 | 6 | Camada de funil/vendas reais | **implementada** (migration `0015`, snapshots manuais por produto/período, UI `/funnel` com breakdown por estágio, injetada no briefing do motor — verificado que discrimina página × checkout × oferta pelas taxas). Integrações de plataforma (Hotmart/Kiwify/webhooks) ficam como enriquecimento futuro na mesma tabela |
+| 7 | **Camada de Prontidão (pré-tráfego)**: modo "prontidão" do motor (mesma engine + formato fixo, grounding no `growth-playbook`), intake estrutural leve reusando o contexto do produto, veredito explicável na Home / pós-cadastro; scanner técnico da URL como enriquecimento opcional (fase B) | **fase A implementada** (2026-07-21) — migration `0028` (tabela `product_readiness` + `diagnoses.scope = 'readiness'` + assistente `readiness-engine`), UI `/readiness` (checklist declarado → veredito priorizado por alavancagem, com esforço × impacto e critério de sucesso por achado), **bloqueadores determinísticos calculados localmente** (grátis, sem LLM, visíveis enquanto o usuário marca) e sequenciamento da jornada (prontidão antes do diagnóstico no card pós-cadastro e no checklist de ativação). É **zero-data** e reusa motor + `growth-playbook` + modelo de cobrança — nenhum domínio novo. **Fase B (scanner técnico da URL) pendente**; migration `0028` pendente de aplicação |
 
 ### Mapa produto → infraestrutura do template
 

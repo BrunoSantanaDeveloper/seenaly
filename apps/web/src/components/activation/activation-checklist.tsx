@@ -21,6 +21,7 @@ export const ACTIVATION_FLOW = "activation";
 interface LiveState {
   hasProduct: boolean;
   hasDepth: boolean;
+  hasReadiness: boolean;
   hasMetaConnection: boolean;
   hasDiagnosis: boolean;
 }
@@ -49,22 +50,36 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [persisted, { data: products }, { data: connections }, { count: diagnoses }] = await Promise.all([
-      getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
-      supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
-      supabase
-        .from("connections")
-        .select("id")
-        .eq("org_id", orgId)
-        .eq("provider", "meta-ads")
-        .eq("status", "connected"),
-      supabase.from("diagnoses").select("id", { count: "exact", head: true }).eq("org_id", orgId),
-    ]);
+    const [persisted, { data: products }, { data: connections }, { count: diagnoses }, { count: readinessVerdicts }] =
+      await Promise.all([
+        getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
+        supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
+        supabase
+          .from("connections")
+          .select("id")
+          .eq("org_id", orgId)
+          .eq("provider", "meta-ads")
+          .eq("status", "connected"),
+        // Readiness verdicts live in the same table (scope = 'readiness') and
+        // must NOT count as the first campaign diagnosis — they are a different
+        // step of the journey.
+        supabase
+          .from("diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId)
+          .neq("scope", "readiness"),
+        supabase
+          .from("diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId)
+          .eq("scope", "readiness"),
+      ]);
     setState(persisted);
     setLive({
       hasProduct: (products ?? []).length > 0,
       // "Enough context to reason with": a promise and a CAC guardrail.
       hasDepth: (products ?? []).some((p) => p.main_promise && p.target_cac !== null),
+      hasReadiness: (readinessVerdicts ?? 0) > 0,
       hasMetaConnection: (connections ?? []).length > 0,
       // The activation moment: the org has received a real diagnosis.
       hasDiagnosis: (diagnoses ?? 0) > 0,
@@ -85,6 +100,9 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
   const steps: OnboardingStep[] = [
     { key: "product-context", title: t("step-product"), href: "/products/new", done: live.hasProduct },
     { key: "context-depth", title: t("step-depth"), href: "/products", done: live.hasDepth },
+    // Before paying for traffic: audit the structure. Costs no media budget,
+    // so it belongs ahead of both the Meta connection and the diagnosis.
+    { key: "readiness", title: t("step-readiness"), href: "/readiness", done: live.hasReadiness },
     {
       key: "connect-meta",
       title: t("step-meta"),

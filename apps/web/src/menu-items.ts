@@ -23,6 +23,17 @@ export const leftMenuItems: MenuItem[] = [
     color: "text-primary",
     href: "/products",
   },
+  // The front door of the journey: audit the structure BEFORE paying for
+  // traffic (docs/PRODUCT.md phase 7). Sits right after the product context it
+  // reads, and ahead of the campaign diagnosis it precedes.
+  {
+    id: "readiness",
+    icon: "NiShieldCheck",
+    label: "menu-readiness",
+    description: "menu-readiness-description",
+    color: "text-primary",
+    href: "/readiness",
+  },
   {
     id: "creatives",
     icon: "NiCamera",

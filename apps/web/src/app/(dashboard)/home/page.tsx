@@ -14,6 +14,7 @@ import ActivationChecklist from "@/components/activation/activation-checklist";
 import EmptyState from "@/components/product/empty-state";
 import NiPlug from "@/icons/nexture/ni-plug";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiTag from "@/icons/nexture/ni-tag";
 import { createClient } from "@flyee/auth/client";
 
@@ -259,6 +260,43 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             )}
+          </Grid>
+        )}
+
+        {/* ---- Before the destination: is the structure ready to be paid for?
+             Comes first because auditing costs no media budget, and a
+             structural leak found here is money not burned later. ---- */}
+        {currentOrg && loaded && (
+          <Grid size={12}>
+            <Card component="section">
+              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <span className="bg-primary/10 text-primary flex h-12 w-12 flex-none items-center justify-center rounded-2xl">
+                  <NiShieldCheck size="medium" />
+                </span>
+                <Box className="flex flex-col items-start gap-1">
+                  <Typography variant="h5" component="h2" className="card-title">
+                    {t("readiness-title")}
+                  </Typography>
+                  <Typography variant="body1" className="text-text-secondary max-w-3xl leading-6">
+                    {t("readiness-body")}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    className="mt-3"
+                    LinkComponent={Link}
+                    href="/readiness"
+                    disabled={!product}
+                  >
+                    {t("readiness-cta")}
+                  </Button>
+                  {!product && (
+                    <Typography variant="body2" className="text-text-secondary mt-1">
+                      {t("diagnosis-needs-product")}
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
           </Grid>
         )}
 
