@@ -21,6 +21,14 @@ export const COMPLETENESS_FIELDS = [
   "proofs",
 ] as const;
 
+/**
+ * The minimum for the engine to be useful (maturity spectrum): what you sell +
+ * the promise + who it's for. Once these are filled the product is "ready to
+ * start"; everything else is enrichment, not a requirement. This keeps a
+ * beginner from reading "20% — you failed" for numbers they don't have yet.
+ */
+export const ESSENTIAL_FIELDS = ["name", "mainPromise", "audience"] as const;
+
 export type CompletenessField = (typeof COMPLETENESS_FIELDS)[number];
 
 function isFilled(values: ProductInput, field: CompletenessField): boolean {
@@ -43,6 +51,8 @@ export interface Completeness {
   filled: number;
   total: number;
   missing: CompletenessField[];
+  /** All essential fields filled — the product is usable, the rest is bonus. */
+  ready: boolean;
 }
 
 export function computeCompleteness(values: ProductInput): Completeness {
@@ -53,5 +63,6 @@ export function computeCompleteness(values: ProductInput): Completeness {
     filled,
     total: COMPLETENESS_FIELDS.length,
     missing,
+    ready: ESSENTIAL_FIELDS.every((field) => isFilled(values, field)),
   };
 }

@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 
 import { NumericMaskInput, useCurrencySeparators } from "@/components/product/fields";
+import OptionalFieldGroup, { type OptionalField } from "@/components/product/optional-fields";
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
@@ -92,7 +93,8 @@ const fromNum = (value: number | null | undefined): string =>
 function initialValues(product?: ProductWithChildren): FormValues {
   return {
     name: product?.name ?? "",
-    status: product?.status ?? "draft",
+    // New products start "active" so they read as real/usable immediately.
+    status: product?.status ?? "active",
     description: product?.description ?? "",
     currency: product?.currency ?? "BRL",
     price: fromNum(product?.price),
@@ -118,6 +120,14 @@ function initialValues(product?: ProductWithChildren): FormValues {
 }
 
 function toInput(values: FormValues, orgId: string, id?: string): ProductInput {
+  const price = toNum(values.price);
+  const unitCost = toNum(values.unitCost);
+  // Derive margin from price + cost when the user didn't type it — don't ask
+  // for the same thing twice (the engine still gets a margin to reason with).
+  let marginPct = toNum(values.marginPct);
+  if (marginPct == null && price != null && price > 0 && unitCost != null) {
+    marginPct = Math.round(((price - unitCost) / price) * 100);
+  }
   return {
     id,
     orgId,
@@ -125,9 +135,9 @@ function toInput(values: FormValues, orgId: string, id?: string): ProductInput {
     status: values.status,
     description: values.description,
     currency: values.currency,
-    price: toNum(values.price),
-    unitCost: toNum(values.unitCost),
-    marginPct: toNum(values.marginPct),
+    price,
+    unitCost,
+    marginPct,
     avgTicket: toNum(values.avgTicket),
     ltv: toNum(values.ltv),
     targetCac: toNum(values.targetCac),
@@ -238,7 +248,14 @@ export default function ProductForm({
   const text = (
     name: keyof FormValues,
     label: string,
-    opts: { multiline?: boolean; type?: string; mask?: "money" | "integer" | "percent"; adornment?: string } = {},
+    opts: {
+      multiline?: boolean;
+      type?: string;
+      mask?: "money" | "integer" | "percent";
+      adornment?: string;
+      /** One-line example/explanation under the field (teaches where to get it). */
+      hint?: string;
+    } = {},
   ) => {
     const err = formik.touched[name] && (formik.errors[name] as string | undefined);
     return (
@@ -266,11 +283,15 @@ export default function ProductForm({
           startAdornment={opts.mask === "money" && opts.adornment ? opts.adornment : undefined}
           endAdornment={opts.mask === "percent" ? "%" : undefined}
         />
-        {err && (
+        {err ? (
           <Typography variant="body2" className="text-error mt-0.5">
             {err}
           </Typography>
-        )}
+        ) : opts.hint ? (
+          <Typography variant="body2" className="text-text-secondary mt-0.5">
+            {opts.hint}
+          </Typography>
+        ) : null}
       </FormControl>
     );
   };
@@ -313,123 +334,204 @@ export default function ProductForm({
     );
   };
 
-  // ---- Content blocks, shared by both variants ----
+  // ---- Field nodes, composed differently per variant ----
 
-  const identityBlock = (
-    <>
-      {text("name", t("field-name"))}
-      {text("description", t("field-description"), { multiline: true })}
-      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
-        <FormLabel component="label">{t("field-status")}</FormLabel>
-        <Select
-          name="status"
-          value={formik.values.status}
-          variant="standard"
-          IconComponent={NiChevronDownSmall}
-          onChange={formik.handleChange}
-        >
-          <MenuItem value="draft">{t("status-draft")}</MenuItem>
-          <MenuItem value="active">{t("status-active")}</MenuItem>
-          <MenuItem value="archived">{t("status-archived")}</MenuItem>
-        </Select>
-      </FormControl>
-    </>
+  const nameField = text("name", t("field-name"));
+  const descriptionField = text("description", t("field-description"), { multiline: true });
+  const statusField = (
+    <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+      <FormLabel component="label">{t("field-status")}</FormLabel>
+      <Select
+        name="status"
+        value={formik.values.status}
+        variant="standard"
+        IconComponent={NiChevronDownSmall}
+        onChange={formik.handleChange}
+      >
+        <MenuItem value="draft">{t("status-draft")}</MenuItem>
+        <MenuItem value="active">{t("status-active")}</MenuItem>
+        <MenuItem value="archived">{t("status-archived")}</MenuItem>
+      </Select>
+    </FormControl>
+  );
+  const promiseField = text("mainPromise", t("field-mainPromise"), { multiline: true, hint: t("hint-mainPromise") });
+  const audienceField = text("audience", t("field-audience"), { multiline: true, hint: t("hint-audience") });
+
+  const currencySelect = (
+    <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+      <FormLabel component="label">{t("field-currency")}</FormLabel>
+      <Select
+        name="currency"
+        value={formik.values.currency}
+        variant="standard"
+        IconComponent={NiChevronDownSmall}
+        onChange={formik.handleChange}
+      >
+        {["BRL", "USD", "EUR"].map((code) => (
+          <MenuItem key={code} value={code}>
+            {code}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 
-  const economicsBlock = (
-    <>
-      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
-        <FormLabel component="label">{t("field-currency")}</FormLabel>
-        <Select
-          name="currency"
-          value={formik.values.currency}
-          variant="standard"
-          IconComponent={NiChevronDownSmall}
-          onChange={formik.handleChange}
-        >
-          {["BRL", "USD", "EUR"].map((code) => (
-            <MenuItem key={code} value={code}>
-              {code}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      {text("price", t("field-price"), { mask: "money", adornment: currencySymbol })}
-      {text("unitCost", t("field-unitCost"), { mask: "money", adornment: currencySymbol })}
-      {text("marginPct", t("field-marginPct"), { mask: "percent" })}
-      {text("avgTicket", t("field-avgTicket"), { mask: "money", adornment: currencySymbol })}
-      {text("ltv", t("field-ltv"), { mask: "money", adornment: currencySymbol })}
-      {text("targetCac", t("field-targetCac"), { mask: "money", adornment: currencySymbol })}
-      {text("monthlyBudget", t("field-monthlyBudget"), { mask: "money", adornment: currencySymbol })}
-    </>
-  );
-
-  const positioningBlock = (
-    <>
-      {text("mainPromise", t("field-mainPromise"), { multiline: true })}
-      {text("audience", t("field-audience"), { multiline: true })}
-      <ListEditor
-        label={t("field-objections")}
-        addLabel={t("add-objection")}
-        items={formik.values.objections}
-        onChange={(next) => formik.setFieldValue("objections", next)}
-        render={(value, onChange) => <Input fullWidth value={value} onChange={(e) => onChange(e.target.value)} />}
-        empty={() => ""}
+  // "Mark what you know": economic context is opt-in, never a wall of numbers.
+  const money = (name: keyof FormValues) =>
+    text(name, t(`field-${name}`), { mask: "money", adornment: currencySymbol, hint: t(`hint-${name}`) });
+  const numberFields: OptionalField[] = [
+    { key: "price", chipLabel: t("field-price"), filled: formik.values.price !== "", node: money("price") },
+    {
+      key: "avgTicket",
+      chipLabel: t("field-avgTicket"),
+      filled: formik.values.avgTicket !== "",
+      node: money("avgTicket"),
+    },
+    {
+      key: "targetCac",
+      chipLabel: t("field-targetCac"),
+      filled: formik.values.targetCac !== "",
+      node: money("targetCac"),
+    },
+    {
+      key: "monthlyBudget",
+      chipLabel: t("field-monthlyBudget"),
+      filled: formik.values.monthlyBudget !== "",
+      node: money("monthlyBudget"),
+    },
+    {
+      key: "marginPct",
+      chipLabel: t("field-marginPct"),
+      filled: formik.values.marginPct !== "",
+      node: text("marginPct", t("field-marginPct"), { mask: "percent", hint: t("hint-marginPct") }),
+    },
+    { key: "unitCost", chipLabel: t("field-unitCost"), filled: formik.values.unitCost !== "", node: money("unitCost") },
+    { key: "ltv", chipLabel: t("field-ltv"), filled: formik.values.ltv !== "", node: money("ltv") },
+  ];
+  // Margin derived from price + cost — shown read-only so we don't ask twice.
+  const derivedMargin = (() => {
+    const p = toNum(formik.values.price);
+    const c = toNum(formik.values.unitCost);
+    return p != null && p > 0 && c != null ? Math.round(((p - c) / p) * 100) : null;
+  })();
+  const numbersBlock = (
+    <Box className="flex flex-col gap-2">
+      {currencySelect}
+      <OptionalFieldGroup
+        fields={numberFields}
+        onRemove={(key) => formik.setFieldValue(key, "")}
+        removeLabel={t("remove-field")}
+        addHint={t("numbers-add-hint")}
       />
-      <Box className="mt-3">
-        <ListEditor
-          label={t("field-proofs")}
-          addLabel={t("add-proof")}
-          items={formik.values.proofs}
-          onChange={(next) => formik.setFieldValue("proofs", next)}
-          render={(value, onChange) => (
-            <Box className="flex grow flex-col gap-1 sm:flex-row">
-              <Input
-                className="sm:w-40"
-                placeholder={t("field-proof-kind")}
-                value={value.kind}
-                onChange={(e) => onChange({ ...value, kind: e.target.value })}
-              />
-              <Input
-                fullWidth
-                placeholder={t("field-proof-content")}
-                value={value.content}
-                onChange={(e) => onChange({ ...value, content: e.target.value })}
-              />
-            </Box>
-          )}
-          empty={() => ({ kind: "", content: "" })}
-        />
-      </Box>
-    </>
+      {derivedMargin != null && formik.values.marginPct === "" && (
+        <Typography variant="body2" className="text-text-secondary">
+          {t("margin-estimated", { pct: derivedMargin })}
+        </Typography>
+      )}
+    </Box>
   );
 
-  const funnelBlock = (
-    <>
-      {taxSelect("conversionType", t("field-conversionType"), CONVERSION_TYPES, (slug) => t(`conversion-${slug}`))}
-      {taxSelect("funnelStage", t("field-funnelStage"), CREATIVE_FUNNEL_STAGES, (slug) => tf(`funnel-${slug}`))}
-      {text("landingPageUrl", t("field-landingPageUrl"), { type: "url" })}
-      {text("landingConversionRate", t("field-landingConversionRate"), { mask: "percent" })}
-      <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
-        <FormLabel component="label">{t("field-optimizationEvent")}</FormLabel>
-        <Autocomplete
-          freeSolo
-          options={META_PIXEL_EVENTS}
-          inputValue={formik.values.optimizationEvent}
-          onInputChange={(_, value) => formik.setFieldValue("optimizationEvent", value)}
-          popupIcon={<NiChevronDownSmall />}
-          clearIcon={<NiCross />}
-          slotProps={{ popper: { className: "outlined" } }}
-          renderInput={(params) => (
-            <TextField {...params} name="optimizationEvent" variant="standard" className="outlined" />
-          )}
-        />
-      </FormControl>
-      {text("notes", t("field-notes"), { multiline: true })}
-    </>
+  const optimizationEventField = (
+    <FormControl className="outlined mb-3" variant="standard" size="small" fullWidth>
+      <FormLabel component="label">{t("field-optimizationEvent")}</FormLabel>
+      <Autocomplete
+        freeSolo
+        options={META_PIXEL_EVENTS}
+        inputValue={formik.values.optimizationEvent}
+        onInputChange={(_, value) => formik.setFieldValue("optimizationEvent", value)}
+        popupIcon={<NiChevronDownSmall />}
+        clearIcon={<NiCross />}
+        slotProps={{ popper: { className: "outlined" } }}
+        renderInput={(params) => (
+          <TextField {...params} name="optimizationEvent" variant="standard" className="outlined" />
+        )}
+      />
+    </FormControl>
+  );
+  const funnelFields: OptionalField[] = [
+    {
+      key: "conversionType",
+      chipLabel: t("field-conversionType"),
+      filled: formik.values.conversionType !== "",
+      node: taxSelect("conversionType", t("field-conversionType"), CONVERSION_TYPES, (slug) => t(`conversion-${slug}`)),
+    },
+    {
+      key: "funnelStage",
+      chipLabel: t("field-funnelStage"),
+      filled: formik.values.funnelStage !== "",
+      node: taxSelect("funnelStage", t("field-funnelStage"), CREATIVE_FUNNEL_STAGES, (slug) => tf(`funnel-${slug}`)),
+    },
+    {
+      key: "landingPageUrl",
+      chipLabel: t("field-landingPageUrl"),
+      filled: formik.values.landingPageUrl !== "",
+      node: text("landingPageUrl", t("field-landingPageUrl"), { type: "url", hint: t("hint-landingPageUrl") }),
+    },
+    {
+      key: "landingConversionRate",
+      chipLabel: t("field-landingConversionRate"),
+      filled: formik.values.landingConversionRate !== "",
+      node: text("landingConversionRate", t("field-landingConversionRate"), { mask: "percent" }),
+    },
+    {
+      key: "optimizationEvent",
+      chipLabel: t("field-optimizationEvent"),
+      filled: formik.values.optimizationEvent !== "",
+      node: optimizationEventField,
+    },
+  ];
+
+  const objectionsEditor = (
+    <ListEditor
+      label={t("field-objections")}
+      addLabel={t("add-objection")}
+      items={formik.values.objections}
+      onChange={(next) => formik.setFieldValue("objections", next)}
+      render={(value, onChange) => <Input fullWidth value={value} onChange={(e) => onChange(e.target.value)} />}
+      empty={() => ""}
+    />
+  );
+  const proofsEditor = (
+    <ListEditor
+      label={t("field-proofs")}
+      addLabel={t("add-proof")}
+      items={formik.values.proofs}
+      onChange={(next) => formik.setFieldValue("proofs", next)}
+      render={(value, onChange) => (
+        <Box className="flex grow flex-col gap-1 sm:flex-row">
+          <Input
+            className="sm:w-40"
+            placeholder={t("field-proof-kind")}
+            value={value.kind}
+            onChange={(e) => onChange({ ...value, kind: e.target.value })}
+          />
+          <Input
+            fullWidth
+            placeholder={t("field-proof-content")}
+            value={value.content}
+            onChange={(e) => onChange({ ...value, content: e.target.value })}
+          />
+        </Box>
+      )}
+      empty={() => ({ kind: "", content: "" })}
+    />
+  );
+  const notesField = text("notes", t("field-notes"), { multiline: true });
+
+  const sellingBlock = (
+    <Box className="flex flex-col gap-4">
+      <OptionalFieldGroup
+        fields={funnelFields}
+        onRemove={(key) => formik.setFieldValue(key, "")}
+        removeLabel={t("remove-field")}
+        addHint={t("funnel-add-hint")}
+      />
+      {objectionsEditor}
+      {proofsEditor}
+    </Box>
   );
 
-  const metaBlock = (
+  const metaField = (
     <FormControl className="outlined" variant="standard" size="small" fullWidth>
       <FormLabel component="label">{t("field-connection")}</FormLabel>
       <Select
@@ -455,12 +557,42 @@ export default function ProductForm({
     </FormControl>
   );
 
-  const blocks = [
-    { key: "identity", title: t("section-identity"), hint: t("hint-identity"), content: identityBlock },
-    { key: "economics", title: t("section-economics"), hint: t("hint-economics"), content: economicsBlock },
-    { key: "positioning", title: t("section-positioning"), hint: t("hint-positioning"), content: positioningBlock },
-    { key: "funnel", title: t("section-funnel"), hint: t("hint-funnel"), content: funnelBlock },
-    { key: "meta", title: t("section-meta"), hint: t("hint-meta"), content: metaBlock },
+  // Edit view shows everything at once (grouped), decluttered by the same opt-in
+  // chips: filled fields render, empty optional ones stay behind "add" chips.
+  const sectionCards = [
+    {
+      key: "identity",
+      title: t("section-identity"),
+      content: (
+        <>
+          {nameField}
+          {descriptionField}
+          {statusField}
+        </>
+      ),
+    },
+    {
+      key: "offer",
+      title: t("section-positioning"),
+      content: (
+        <>
+          {promiseField}
+          {audienceField}
+        </>
+      ),
+    },
+    { key: "economics", title: t("section-economics"), content: numbersBlock },
+    {
+      key: "funnel",
+      title: t("section-funnel"),
+      content: (
+        <>
+          {sellingBlock}
+          {notesField}
+        </>
+      ),
+    },
+    { key: "meta", title: t("section-meta"), content: metaField },
   ];
 
   const errorAlert = error && (
@@ -469,15 +601,27 @@ export default function ProductForm({
     </Alert>
   );
 
-  // ---- Wizard: one decision block per screen, visible progress rail ----
+  // ---- Wizard: minimal required path, everything else opt-in ----
+  // Step 1 (name + promise + audience) is all a beginner needs; steps 2–3 are
+  // optional and "Concluir agora" lets them finish without touching numbers.
   if (variant === "wizard") {
     const nameValid = formik.values.name.trim().length > 0;
-    const steps: WizardStep[] = blocks.map((block, index) => ({
-      title: block.title,
-      hint: block.hint,
-      content: block.content,
-      canAdvance: index === 0 ? nameValid : true,
-    }));
+    const steps: WizardStep[] = [
+      {
+        title: t("step-offer-title"),
+        hint: t("step-offer-hint"),
+        content: (
+          <>
+            {nameField}
+            {promiseField}
+            {audienceField}
+          </>
+        ),
+        canAdvance: nameValid,
+      },
+      { title: t("step-numbers-title"), hint: t("step-numbers-hint"), content: numbersBlock },
+      { title: t("step-selling-title"), hint: t("step-selling-hint"), content: sellingBlock },
+    ];
 
     return (
       <FormikProvider value={formik}>
@@ -485,6 +629,8 @@ export default function ProductForm({
         <SetupWizard
           steps={steps}
           onComplete={() => formik.submitForm()}
+          onFinishEarly={() => formik.submitForm()}
+          finishEarlyLabel={t("wizard-finish-now")}
           completeLabel={formik.isSubmitting ? t("saving") : t("wizard-finish")}
           backLabel={t("wizard-back")}
           continueLabel={t("wizard-continue")}
@@ -509,7 +655,13 @@ export default function ProductForm({
               </Typography>
             </Box>
             <LinearProgress variant="determinate" value={completeness.score} />
-            {completeness.missing.length > 0 && (
+            {completeness.ready ? (
+              <Typography variant="body2" className="text-text-secondary">
+                {completeness.missing.length > 0
+                  ? t("completeness-ready-more", { field: t(`field-${completeness.missing[0]}`) })
+                  : t("completeness-full")}
+              </Typography>
+            ) : (
               <Typography variant="body2" className="text-text-secondary">
                 {t("completeness-next")}: {t(`field-${completeness.missing[0]}`)}
               </Typography>
@@ -517,13 +669,13 @@ export default function ProductForm({
           </CardContent>
         </Card>
 
-        {blocks.map((block) => (
-          <Card key={block.key} component="section" className="mb-5">
+        {sectionCards.map((card) => (
+          <Card key={card.key} component="section" className="mb-5">
             <CardContent>
               <Typography variant="h6" component="h2" className="card-title mb-3">
-                {block.title}
+                {card.title}
               </Typography>
-              {block.content}
+              {card.content}
             </CardContent>
           </Card>
         ))}

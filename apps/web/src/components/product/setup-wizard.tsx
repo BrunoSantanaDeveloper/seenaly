@@ -27,6 +27,8 @@ export type WizardStep = {
 export default function SetupWizard({
   steps,
   onComplete,
+  onFinishEarly,
+  finishEarlyLabel,
   completeLabel = "Finish",
   backLabel = "Back",
   continueLabel = "Continue",
@@ -35,6 +37,13 @@ export default function SetupWizard({
 }: {
   steps: WizardStep[];
   onComplete: () => void;
+  /**
+   * When set, a secondary "finish now" action appears on every non-final step
+   * (as long as the step can advance), so the remaining steps are opt-in and a
+   * user is never forced through optional ones. Same submit as onComplete.
+   */
+  onFinishEarly?: () => void;
+  finishEarlyLabel?: string;
   completeLabel?: string;
   /** Pass translated strings for these — the defaults are English fallbacks. */
   backLabel?: string;
@@ -79,7 +88,7 @@ export default function SetupWizard({
 
         <Box>{step.content}</Box>
 
-        <Box className="flex flex-row items-center justify-between">
+        <Box className="flex flex-row items-center justify-between gap-2">
           <Button
             variant="text"
             color="grey"
@@ -88,27 +97,36 @@ export default function SetupWizard({
           >
             {backLabel}
           </Button>
-          {isLast ? (
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={!canAdvance}
-              endIcon={<NiCheck size="medium" />}
-              onClick={onComplete}
-            >
-              {completeLabel}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={!canAdvance}
-              endIcon={<NiArrowRight size="medium" />}
-              onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}
-            >
-              {continueLabel}
-            </Button>
-          )}
+          <Box className="flex flex-row items-center gap-2">
+            {/* Remaining steps are opt-in: let the user finish now instead of
+                being forced through them. */}
+            {!isLast && onFinishEarly && (
+              <Button variant="text" color="grey" disabled={!canAdvance} onClick={onFinishEarly}>
+                {finishEarlyLabel ?? completeLabel}
+              </Button>
+            )}
+            {isLast ? (
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={!canAdvance}
+                endIcon={<NiCheck size="medium" />}
+                onClick={onComplete}
+              >
+                {completeLabel}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={!canAdvance}
+                endIcon={<NiArrowRight size="medium" />}
+                onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}
+              >
+                {continueLabel}
+              </Button>
+            )}
+          </Box>
         </Box>
       </CardContent>
     </Card>
