@@ -4,7 +4,15 @@ import { mapProductRow } from "../products/lib/map";
 
 import { recordAudit } from "@/lib/audit";
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
-import { readinessChecklistBlock, readinessRetrievalQuery, readinessSignalsBlock } from "@/lib/readiness/brief";
+import {
+  type OrganicPresence,
+  readinessChecklistBlock,
+  readinessOrganicBlock,
+  readinessRetrievalQuery,
+  readinessScanBlock,
+  readinessSignalsBlock,
+  type ScanRecord,
+} from "@/lib/readiness/brief";
 import {
   CHECKOUT_TYPES,
   type CheckoutType,
@@ -15,6 +23,7 @@ import {
   toReadinessProfile,
   toReadinessRow,
 } from "@/lib/readiness/checklist";
+import { scanSite } from "@/lib/readiness/scan";
 import {
   isReadinessOutput,
   READINESS_JSON_SCHEMA,
@@ -29,6 +38,10 @@ const ASSISTANT_SLUG = "readiness-engine";
 
 export type SaveReadinessResult = { ok: true } | { ok: false; error: string };
 export type GenerateReadinessResult = { ok: true; id: string } | { ok: false; error: string };
+/** A finished scan is a success even when the site was unreachable — the
+ *  outcome is recorded and the UI explains it. Only "we could not even try"
+ *  (no product, no URL, no session) is an error. */
+export type ScanProductResult = { ok: true; scanned: boolean } | { ok: false; error: string };
 
 /**
  * Never trust the client shape: rebuild the profile key by key from the spec so
@@ -84,6 +97,58 @@ export async function saveReadiness(productId: string, input: unknown): Promise<
 }
 
 /**
+ * Scan the product's page (docs/PRODUCT.md phase 7, fase B).
+ *
+ * FREE — no credits, no LLM: it is an HTTP fetch. Charging for it would push
+ * users away from the cheapest evidence in the whole product.
+ *
+ * A failed scan is PERSISTED, not discarded: "your page did not answer our
+ * crawler" is a real finding, and losing it would make the failure look like it
+ * never happened. The SSRF guarding lives in `lib/readiness/scan.ts`.
+ */
+export async function scanProductSite(productId: string): Promise<ScanProductResult> {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { ok: false, error: "Sessão expirada." };
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("id, org_id, landing_page_url")
+    .eq("id", productId)
+    .maybeSingle();
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+
+  const url = (product.landing_page_url as string | null)?.trim();
+  if (!url) {
+    return { ok: false, error: "Cadastre a página de destino do produto para poder escanear." };
+  }
+
+  const outcome = await scanSite(url);
+
+  const { error } = await supabase.from("product_scans").insert({
+    product_id: productId,
+    org_id: product.org_id,
+    requested_url: outcome.requestedUrl,
+    final_url: outcome.finalUrl,
+    ok: outcome.ok,
+    status_code: outcome.statusCode,
+    error: outcome.error,
+    result: outcome.signals ?? {},
+    created_by: user.user.id,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(supabase, "readiness.site_scanned", {
+    orgId: product.org_id as string,
+    entityType: "product",
+    entityId: productId,
+    metadata: { ok: outcome.ok, status: outcome.statusCode, error: outcome.error },
+  });
+
+  return { ok: true, scanned: outcome.ok };
+}
+
+/**
  * Produce one readiness verdict for a product.
  *
  * This is the SAME engine as `/diagnosis`, pointed at the structure instead of
@@ -95,18 +160,49 @@ export async function saveReadiness(productId: string, input: unknown): Promise<
 export async function generateReadiness(productId: string): Promise<GenerateReadinessResult> {
   const supabase = await createClient();
 
-  const [{ data: row }, { data: objections }, { data: proofs }, { data: planRows }, { data: readinessRow }] =
-    await Promise.all([
-      supabase.from("products").select("*").eq("id", productId).maybeSingle(),
-      supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
-      supabase.from("product_proofs").select("kind, content").eq("product_id", productId).order("created_at"),
-      supabase
-        .from("product_plans")
-        .select("name, price, period, quantity, share_pct, is_primary, sort")
-        .eq("product_id", productId)
-        .order("sort"),
-      supabase.from("product_readiness").select("*").eq("product_id", productId).maybeSingle(),
-    ]);
+  const [
+    { data: row },
+    { data: objections },
+    { data: proofs },
+    { data: planRows },
+    { data: readinessRow },
+    { data: scanRow },
+    { data: organicLinks },
+    { data: organicReview },
+  ] = await Promise.all([
+    supabase.from("products").select("*").eq("id", productId).maybeSingle(),
+    supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
+    supabase.from("product_proofs").select("kind, content").eq("product_id", productId).order("created_at"),
+    supabase
+      .from("product_plans")
+      .select("name, price, period, quantity, share_pct, is_primary, sort")
+      .eq("product_id", productId)
+      .order("sort"),
+    supabase.from("product_readiness").select("*").eq("product_id", productId).maybeSingle(),
+    // Latest scan only — the engine reasons about the CURRENT state of the page.
+    supabase
+      .from("product_scans")
+      .select("requested_url, final_url, ok, status_code, error, result, created_at")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Organic presence: docs/PRODUCT.md treats it as a PRE-CONDITION of paid
+    // acquisition, so the readiness engine must see whether it actually exists.
+    supabase
+      .from("organic_content_products")
+      .select("content_id, organic_content_items(platform, published_at)")
+      .eq("product_id", productId)
+      .limit(200),
+    supabase
+      .from("organic_reviews")
+      .select("period_end, insufficient_data")
+      .eq("product_id", productId)
+      .eq("status", "completed")
+      .order("period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
   if (!row) return { ok: false, error: "Produto não encontrado." };
   const product = mapProductRow(row, {
     objections: objections ?? [],
@@ -115,6 +211,38 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
   });
 
   const profile = toReadinessProfile(readinessRow as Record<string, unknown> | null);
+  const scanRecord: ScanRecord | null = scanRow
+    ? {
+        requestedUrl: scanRow.requested_url as string,
+        finalUrl: (scanRow.final_url as string | null) ?? null,
+        ok: scanRow.ok === true,
+        statusCode: (scanRow.status_code as number | null) ?? null,
+        error: (scanRow.error as string | null) ?? null,
+        createdAt: scanRow.created_at as string,
+        signals: scanRow.ok === true ? (scanRow.result as ScanRecord["signals"]) : null,
+      }
+    : null;
+  // Presence, deliberately NOT performance: cross-network metrics are never
+  // ranked as equivalents, and presence is context — never attribution.
+  // PostgREST returns an embedded resource as an ARRAY, even for a to-one
+  // relationship — flatten it rather than assuming a single object.
+  const organicRows = (organicLinks ?? []) as {
+    organic_content_items: { platform: string | null; published_at: string | null }[] | null;
+  }[];
+  const organicItems = organicRows.flatMap((link) => link.organic_content_items ?? []);
+  const publishedDates = organicItems
+    .map((item) => item.published_at)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const organic: OrganicPresence = {
+    contentCount: organicRows.length,
+    latestPublishedAt: publishedDates.at(-1) ?? null,
+    platforms: [...new Set(organicItems.map((item) => item.platform).filter((p): p is string => Boolean(p)))],
+    hasReview: Boolean(organicReview),
+    reviewPeriodEnd: (organicReview?.period_end as string | null) ?? null,
+    reviewInsufficientData: (organicReview?.insufficient_data as boolean | null) ?? null,
+  };
+
   const evaluation = evaluateReadiness(profile, {
     hasLandingPage: Boolean(product.landingPageUrl),
     hasPrice: product.price != null || (product.plans?.some((plan) => plan.price != null) ?? false),
@@ -177,12 +305,19 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     "",
     "## Sinais locais (verificação determinística já exibida ao usuário)",
     readinessSignalsBlock(evaluation),
+    "",
+    "## Scan técnico da página (observado, não declarado)",
+    readinessScanBlock(scanRecord),
+    "",
+    "## Presença orgânica deste produto",
+    readinessOrganicBlock(organic),
     buildKnowledgeContext(excerpts),
     "",
     "## Tarefa",
     "Audite a prontidão desta estrutura para receber tráfego pago e devolva o veredito.",
     "Ordene as findings por alavancagem real: o que devolve mais dinheiro se for consertado primeiro.",
     "Item não marcado significa NÃO CONFIRMADO, nunca inexistente — quando confirmar for barato, a ação é confirmar.",
+    "Quando o scan contradisser o checklist, trate a divergência como achado de primeira classe e prefira o observado.",
     "Ancore cada evidência em product_context, growth_playbook ou meta_docs. Nunca invente números.",
   ].join("\n");
 

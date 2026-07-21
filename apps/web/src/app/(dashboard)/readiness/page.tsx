@@ -1,9 +1,11 @@
 "use client";
 
 import { type DiagnosisRating, recordDiagnosisFeedback } from "../diagnosis/actions";
+import { registerExperimentFromReadinessFinding } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
-import { generateReadiness, saveReadiness } from "./actions";
+import { generateReadiness, saveReadiness, scanProductSite } from "./actions";
 import ReadinessChecklist from "./components/readiness-checklist";
+import ReadinessScan, { type ScanView } from "./components/readiness-scan";
 import ReadinessSignals from "./components/readiness-signals";
 import ReadinessVerdict, { type ReadinessMeta } from "./components/readiness-verdict";
 import Link from "next/link";
@@ -59,6 +61,9 @@ export default function ReadinessPage() {
   const [profile, setProfile] = useState<ReadinessProfile>(EMPTY_READINESS_PROFILE);
   const [savedProfile, setSavedProfile] = useState<ReadinessProfile>(EMPTY_READINESS_PROFILE);
   const [rows, setRows] = useState<VerdictRow[]>([]);
+  const [scan, setScan] = useState<ScanView | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [registeringIndex, setRegisteringIndex] = useState<number | null>(null);
   const [feedbackByVerdict, setFeedbackByVerdict] = useState<Record<string, DiagnosisRating>>({});
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
@@ -110,7 +115,7 @@ export default function ReadinessPage() {
     }
     setLoaded(false);
     const supabase = createClient();
-    const [{ data: readinessRow }, { data: verdicts }, { data: plans }] = await Promise.all([
+    const [{ data: readinessRow }, { data: verdicts }, { data: plans }, { data: scanRow }] = await Promise.all([
       supabase.from("product_readiness").select("*").eq("product_id", selectedProductId).maybeSingle(),
       supabase
         .from("diagnoses")
@@ -120,6 +125,13 @@ export default function ReadinessPage() {
         .order("created_at", { ascending: false })
         .limit(5),
       supabase.from("product_plans").select("price").eq("product_id", selectedProductId),
+      supabase
+        .from("product_scans")
+        .select("requested_url, final_url, ok, status_code, error, result, created_at")
+        .eq("product_id", selectedProductId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     const next = toReadinessProfile(readinessRow as Record<string, unknown> | null);
     setProfile(next);
@@ -127,6 +139,19 @@ export default function ReadinessPage() {
     const list = (verdicts as VerdictRow[]) ?? [];
     setRows(list);
     setHasPlanPrice(((plans as { price: number | null }[]) ?? []).some((plan) => plan.price != null));
+    setScan(
+      scanRow
+        ? {
+            requestedUrl: scanRow.requested_url as string,
+            finalUrl: (scanRow.final_url as string | null) ?? null,
+            ok: scanRow.ok === true,
+            statusCode: (scanRow.status_code as number | null) ?? null,
+            error: (scanRow.error as string | null) ?? null,
+            createdAt: scanRow.created_at as string,
+            signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
+          }
+        : null,
+    );
 
     // This user's own ratings, to render the active choice.
     if (list.length > 0 && userId) {
@@ -196,6 +221,44 @@ export default function ReadinessPage() {
     if (ok) track("readiness_saved");
   };
 
+  // A fix the user intends to make becomes a tracked experiment, so the
+  // learning survives — same loop as the campaign diagnosis.
+  const registerFinding = async (findingIndex: number) => {
+    if (!latest) return;
+    setError(null);
+    setRegisteringIndex(findingIndex);
+    try {
+      const result = await registerExperimentFromReadinessFinding(latest.id, findingIndex);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      track("experiment_registered", { from: "readiness" });
+      router.push(`/experiments/${result.id}`);
+    } finally {
+      setRegisteringIndex(null);
+    }
+  };
+
+  const runScan = async () => {
+    if (!selectedProductId) return;
+    setError(null);
+    setScanning(true);
+    try {
+      const result = await scanProductSite(selectedProductId);
+      // A site that did not answer is a recorded outcome the card explains —
+      // only "we could not even try" surfaces as an error.
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      track("readiness_scanned", { reachable: result.scanned });
+      await loadReadiness();
+    } finally {
+      setScanning(false);
+    }
+  };
+
   // One goal-first action: the declared structure is saved as part of asking
   // for the verdict, so the user never has to remember a separate save.
   const verify = async () => {
@@ -224,7 +287,7 @@ export default function ReadinessPage() {
       variant="contained"
       startIcon={<NiShieldCheck size="small" />}
       onClick={verify}
-      disabled={busy || saving || !product}
+      disabled={busy || saving || scanning || !product}
     >
       {busy ? t("verifying") : latest ? t("verify-again") : t("verify")}
     </Button>
@@ -339,6 +402,8 @@ export default function ReadinessPage() {
               feedback={feedbackByVerdict[latest.id] ?? null}
               onFeedback={(rating) => submitFeedback(latest.id, rating)}
               feedbackBusy={feedbackBusy}
+              onRegisterFinding={registerFinding}
+              registeringIndex={registeringIndex}
             />
             <Box className="mt-3 flex flex-row flex-wrap gap-2">
               {/* Readiness is the front door; the campaign diagnosis is the
@@ -360,12 +425,22 @@ export default function ReadinessPage() {
             <Grid size={12}>
               <ReadinessSignals evaluation={evaluation} />
             </Grid>
+            {/* Observed facts sit beside the declared checklist, never inside
+                it — where the two disagree, that disagreement is the finding. */}
+            <Grid size={12}>
+              <ReadinessScan
+                scan={scan}
+                hasUrl={Boolean(product.landing_page_url)}
+                onScan={runScan}
+                busy={scanning || busy}
+              />
+            </Grid>
             <Grid size={12}>
               <ReadinessChecklist
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}
-                disabled={busy || saving}
+                disabled={busy || saving || scanning}
               />
               <Box className="mt-3 flex flex-row flex-wrap items-center gap-2">
                 {verifyButton}

@@ -18,6 +18,7 @@ import {
   type ReadinessItemKey,
   type ReadinessProfile,
 } from "./checklist";
+import type { ScanSignals } from "./scan-analyze";
 
 const GROUP_LABEL: Record<ReadinessGroupKey, string> = {
   mensuracao: "Mensuração",
@@ -117,6 +118,127 @@ export function readinessSignalsBlock(evaluation: ReadinessEvaluation): string {
       "- ATENÇÃO: o usuário não preencheu o checklist. Não conclua que nada existe; baseie-se no contexto do produto e peça a confirmação do checklist em missing_data.",
     );
   }
+  return lines.join("\n");
+}
+
+/** One persisted scan (migration 0029) as the engine needs to see it. */
+export interface ScanRecord {
+  requestedUrl: string;
+  finalUrl: string | null;
+  ok: boolean;
+  statusCode: number | null;
+  error: string | null;
+  createdAt: string;
+  signals: ScanSignals | null;
+}
+
+const yesNo = (value: boolean) => (value ? "sim" : "NÃO");
+
+/**
+ * The OBSERVED half of readiness — what the scanner actually found on the page,
+ * as opposed to what the user declared. This is trust-1 evidence: measured, not
+ * reported.
+ *
+ * Its three honest limits are stated to the engine, because each one could
+ * otherwise turn into a confidently wrong finding:
+ *  - a client-rendered page hides its tags from a raw HTML fetch;
+ *  - CAPI is server-side and is INVISIBLE to any scan, ever;
+ *  - the robots.txt reading is an approximation, not a full grammar.
+ */
+export function readinessScanBlock(scan: ScanRecord | null): string {
+  if (!scan) {
+    return "Nenhum scan técnico foi executado. Não conclua nada sobre SEO técnico, indexabilidade ou pixels a partir da ausência de scan — se for relevante, peça o scan em missing_data.";
+  }
+  if (!scan.ok || !scan.signals) {
+    return [
+      `O scan técnico FALHOU em ${scan.requestedUrl} (motivo: ${scan.error ?? "desconhecido"}${scan.statusCode ? `, HTTP ${scan.statusCode}` : ""}).`,
+      "Uma página que não responde ao nosso rastreador provavelmente também não responde bem a rastreadores de busca e a quem clica no anúncio — trate isso como um achado real da dimensão pagina/descoberta, mas NÃO conclua nada sobre as tags da página, que não puderam ser lidas.",
+    ].join("\n");
+  }
+
+  const s = scan.signals;
+  const lines: string[] = [
+    `Página escaneada: ${scan.finalUrl ?? scan.requestedUrl} (HTTP ${scan.statusCode ?? "?"}, em ${new Date(scan.createdAt).toLocaleString("pt-BR")})`,
+    `- HTTPS: ${yesNo(s.https)}`,
+    `- Title: ${s.seo.title ? `"${s.seo.title}" (${s.seo.titleLength} caracteres)` : "AUSENTE"}`,
+    `- Meta description: ${s.seo.metaDescription ? `"${s.seo.metaDescription}" (${s.seo.metaDescriptionLength} caracteres)` : "AUSENTE"}`,
+    `- Canonical: ${s.seo.canonical ?? "ausente"}`,
+    `- Idioma declarado (html lang): ${s.seo.lang ?? "ausente"}`,
+    `- Meta viewport (mobile): ${yesNo(s.seo.hasViewport)}`,
+    `- H1: ${s.seo.h1Count} no total${s.seo.firstH1 ? ` — primeiro: "${s.seo.firstH1}"` : ""}`,
+    `- Open Graph: title=${yesNo(s.seo.ogTitle)}, description=${yesNo(s.seo.ogDescription)}, image=${yesNo(s.seo.ogImage)}`,
+    `- Dados estruturados (JSON-LD): ${s.seo.structuredDataTypes.length > 0 ? s.seo.structuredDataTypes.join(", ") : "nenhum"}`,
+    `- Imagens sem alt: ${s.seo.imagesMissingAlt} de ${s.seo.imagesTotal}`,
+    `- robots.txt: ${s.discovery.robotsTxt}${s.discovery.robotsDisallowsAll ? " — BLOQUEIA TODOS OS RASTREADORES (Disallow: /)" : ""}`,
+    `- sitemap.xml: ${s.discovery.sitemapXml}; referenciado no robots.txt: ${yesNo(s.discovery.sitemapReferencedInRobots)}`,
+    `- Pixels detectados no HTML: Meta Pixel=${yesNo(s.tracking.metaPixel)}, GA4=${yesNo(s.tracking.ga4)}, GTM=${yesNo(s.tracking.gtm)}, TikTok=${yesNo(s.tracking.tiktokPixel)}`,
+    `- Peso do HTML: ${Math.round(s.bytes / 1024)} KB; tempo da nossa requisição: ${s.fetchMs ?? "?"} ms`,
+  ];
+
+  if (s.seo.noindex) {
+    lines.push(
+      "- ATENÇÃO CRÍTICA: a página declara NOINDEX. Ela está sendo removida dos resultados de busca. Isso não afeta o anúncio pago, mas anula qualquer aquisição orgânica — é um achado de alta prioridade na dimensão descoberta.",
+    );
+  }
+
+  lines.push(
+    "",
+    "LIMITES DESTE SCAN (respeite-os; violar isto produz achado falso):",
+    s.jsRenderedLikely
+      ? `- A página trouxe pouquíssimo texto no HTML inicial (${s.visibleTextLength} caracteres), o que indica renderização no cliente (SPA). As tags acima podem existir e serem injetadas por JavaScript. NÃO afirme que estão ausentes — diga que não aparecem no HTML inicial, o que também afeta rastreadores, e peça confirmação.`
+      : "- A página trouxe conteúdo no HTML inicial, então a leitura das tags é confiável.",
+    "- A API de Conversões (CAPI) é server-side e é INVISÍVEL para qualquer scan. Nunca conclua que ela existe ou não existe a partir deste bloco; use apenas o checklist declarado.",
+    "- A leitura do robots.txt é aproximada (não implementa a gramática completa). Use-a para levantar a questão, não como veredito absoluto.",
+    "- O tempo de requisição acima é medido do nosso servidor e NÃO é Core Web Vitals nem experiência real de usuário. Não o apresente como métrica de performance oficial.",
+  );
+
+  return lines.join("\n");
+}
+
+/** Real organic activity tied to this product (migration 0024 tables). */
+export interface OrganicPresence {
+  /** Content pieces linked to this product. */
+  contentCount: number;
+  /** Publication date of the most recent piece, when known. */
+  latestPublishedAt: string | null;
+  platforms: string[];
+  /** An Organic Growth Review already exists for this product. */
+  hasReview: boolean;
+  reviewPeriodEnd: string | null;
+  reviewInsufficientData: boolean | null;
+}
+
+/**
+ * The organic side of DISCOVERY, from real data instead of a checkbox.
+ *
+ * docs/PRODUCT.md treats Organic Growth as a PRE-CONDITION of paid acquisition,
+ * not a separate app — being findable outside the ad reduces dependence on paid
+ * media and lowers acquisition cost over time. This block is how that stops
+ * being a slogan: the readiness engine sees whether the product actually has
+ * organic content, on which platforms, and whether a Review exists.
+ *
+ * Two guardrails, both invariants of the Organic module:
+ *  - never rank raw metrics across networks as equivalents;
+ *  - never claim a post caused a sale. Presence is context, not attribution.
+ */
+export function readinessOrganicBlock(presence: OrganicPresence): string {
+  if (presence.contentCount === 0) {
+    return [
+      "Nenhum conteúdo orgânico vinculado a este produto no Seenaly.",
+      "Isso NÃO significa que o negócio não publica — significa que não há dado importado aqui. Não afirme que a pessoa não faz orgânico; trate como dado ausente e, se for relevante para a dimensão descoberta, peça a importação em missing_data.",
+    ].join("\n");
+  }
+
+  const lines = [
+    `- Conteúdos vinculados a este produto: ${presence.contentCount}`,
+    `- Plataformas: ${presence.platforms.length > 0 ? presence.platforms.join(", ") : "não informadas"}`,
+    `- Publicação mais recente: ${presence.latestPublishedAt ? new Date(presence.latestPublishedAt).toLocaleDateString("pt-BR") : "sem data"}`,
+    presence.hasReview
+      ? `- Existe um Organic Growth Review${presence.reviewPeriodEnd ? ` até ${new Date(presence.reviewPeriodEnd).toLocaleDateString("pt-BR")}` : ""}${presence.reviewInsufficientData ? " (declarado com dados insuficientes)" : ""}.`
+      : "- Ainda não existe um Organic Growth Review para este produto.",
+    "",
+    "COMO USAR ISTO: presença orgânica reduz a dependência de mídia paga e barateia a aquisição no médio prazo — é contexto da dimensão descoberta. NUNCA compare métricas de redes diferentes como equivalentes e NUNCA afirme que um conteúdo causou uma venda. Aqui você tem presença, não atribuição.",
+  ];
   return lines.join("\n");
 }
 

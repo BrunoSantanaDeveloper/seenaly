@@ -3,6 +3,7 @@
 import type { ExperimentInput } from "./types";
 
 import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
+import { isReadinessOutput } from "@/lib/readiness/schema";
 import { createClient } from "@flyee/auth/server";
 
 export type SaveResult = { ok: true; id: string; justConcluded?: boolean } | { ok: false; error: string };
@@ -118,6 +119,73 @@ export async function registerExperimentFromDiagnosis(diagnosisId: string): Prom
       // The diagnosis' success criterion is the experiment's primary metric target.
       primary_metric: output.success_criterion,
       next_step: output.next_review,
+      created_by: user.user?.id ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) return { ok: false, error: insertError?.message ?? "Falha ao registrar o experimento." };
+  return { ok: true, id: created.id as string };
+}
+
+/**
+ * Turn ONE finding of a readiness verdict into a tracked experiment.
+ *
+ * This closes the readiness loop the same way `registerExperimentFromDiagnosis`
+ * closes the campaign one: a recommendation nobody tracks teaches nothing, and
+ * the experiment memory is what makes the engine an expert in THIS account
+ * (docs/PRODUCT.md — the key differentiator).
+ *
+ * Per FINDING, not per verdict: a verdict carries up to seven independent fixes
+ * ("install the pixel", "add PIX at checkout") and collapsing them into one
+ * experiment would destroy the very learning the memory exists to keep.
+ *
+ * Idempotency uses (diagnosis_id, change_made) rather than a new column: the
+ * finding's recommended action already identifies it, so a double click reuses
+ * the experiment. Two findings that genuinely recommend the same action SHOULD
+ * collapse — that is one piece of work, not two.
+ */
+export async function registerExperimentFromReadinessFinding(
+  verdictId: string,
+  findingIndex: number,
+): Promise<SaveResult> {
+  const supabase = await createClient();
+  const { data: verdict, error } = await supabase
+    .from("diagnoses")
+    .select("id, org_id, product_id, output, scope")
+    .eq("id", verdictId)
+    .maybeSingle();
+  if (error || !verdict) return { ok: false, error: error?.message ?? "Veredito não encontrado." };
+  if (verdict.scope !== "readiness") return { ok: false, error: "Este registro não é um veredito de prontidão." };
+
+  const output = verdict.output;
+  if (!isReadinessOutput(output)) return { ok: false, error: "O veredito está fora do formato esperado." };
+  const finding = output.findings[findingIndex];
+  if (!finding) return { ok: false, error: "Achado não encontrado no veredito." };
+
+  const changeMade = finding.recommended_action;
+  const { data: existing } = await supabase
+    .from("experiments")
+    .select("id")
+    .eq("diagnosis_id", verdict.id)
+    .eq("change_made", changeMade)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: true, id: existing.id as string };
+
+  const { data: user } = await supabase.auth.getUser();
+  const { data: created, error: insertError } = await supabase
+    .from("experiments")
+    .insert({
+      org_id: verdict.org_id,
+      product_id: verdict.product_id,
+      diagnosis_id: verdict.id,
+      title: changeMade.slice(0, 80),
+      status: "planned",
+      // The finding states what is wrong; that IS the hypothesis being acted on.
+      hypothesis: finding.finding,
+      change_made: changeMade,
+      reason: `Prontidão — ${finding.dimension} (impacto ${finding.impact}, esforço ${finding.effort})`,
+      primary_metric: finding.success_criterion,
       created_by: user.user?.id ?? null,
     })
     .select("id")

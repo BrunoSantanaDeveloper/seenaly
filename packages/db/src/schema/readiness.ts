@@ -69,3 +69,43 @@ export const productReadiness = pgTable(
 );
 
 export type ProductReadiness = typeof productReadiness.$inferSelect;
+
+/**
+ * Technical scans of the product's page (migration 0029_readiness_scan.sql) —
+ * the ENRICHMENT tier of readiness. Declared facts (above) always produce a
+ * verdict; an observed scan sharpens it with trust-1 evidence.
+ *
+ * A time series, not a snapshot: the point is to see whether a fix actually
+ * landed. `ok = false` rows are kept deliberately — a site that could not be
+ * reached is itself a finding, never a silent gap.
+ */
+export const productScans = pgTable(
+  "product_scans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    requestedUrl: text("requested_url").notNull(),
+    finalUrl: text("final_url"),
+
+    ok: boolean("ok").notNull().default(false),
+    statusCode: integer("status_code"),
+    error: text("error"),
+
+    result: jsonb("result").notNull().default({}),
+
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("product_scans_product_created_idx").on(table.productId, table.createdAt),
+    index("product_scans_org_idx").on(table.orgId),
+  ],
+);
+
+export type ProductScan = typeof productScans.$inferSelect;

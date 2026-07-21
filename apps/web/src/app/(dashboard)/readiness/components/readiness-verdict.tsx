@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 
 import NiFlag from "@/icons/nexture/ni-flag";
+import NiFlask from "@/icons/nexture/ni-flask";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
 import type { Confidence, EvidenceSource } from "@/lib/diagnosis/schema";
@@ -71,6 +72,8 @@ export default function ReadinessVerdict({
   feedback,
   onFeedback,
   feedbackBusy,
+  onRegisterFinding,
+  registeringIndex,
 }: {
   output: ReadinessOutput;
   meta: ReadinessMeta;
@@ -78,6 +81,9 @@ export default function ReadinessVerdict({
   feedback?: DiagnosisRating | null;
   onFeedback?: (rating: DiagnosisRating) => void;
   feedbackBusy?: boolean;
+  /** Turn one finding into a tracked experiment (closes the learning loop). */
+  onRegisterFinding?: (findingIndex: number) => void;
+  registeringIndex?: number | null;
 }) {
   const t = useTranslations("readiness");
   const tone = VERDICT_TONE[output.verdict];
@@ -161,6 +167,24 @@ export default function ReadinessVerdict({
               {basis.rule} <span className="text-text-secondary">{basis.citation}</span>
             </Typography>
           ))}
+        </Box>
+      )}
+
+      {/* Close the loop per finding: a fix nobody tracks teaches nothing.
+          Offered only where there is something to do — an "ok" dimension is
+          not work to schedule. */}
+      {onRegisterFinding && item.status !== "ok" && (
+        <Box>
+          <Button
+            size="small"
+            variant="outlined"
+            color="grey"
+            startIcon={<NiFlask size="small" />}
+            disabled={registeringIndex != null}
+            onClick={() => onRegisterFinding(index)}
+          >
+            {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
+          </Button>
         </Box>
       )}
     </Box>
