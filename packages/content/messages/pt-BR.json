@@ -658,7 +658,7 @@
     "error-number": "Informe um número válido (≥ 0).",
     "error-name-required": "O nome é obrigatório.",
     "error-url": "Informe uma URL válida (começando com http:// ou https://).",
-    "hint-identity": "Comece pelo básico: como você chama esta oferta.",
+    "hint-identity": "Comece pelo básico: qua o nome desta oferta.",
     "hint-economics": "Esses números definem o que é um resultado bom — sobretudo o CAC máximo aceitável.",
     "hint-positioning": "O que você promete, para quem, e o que derruba a objeção.",
     "hint-funnel": "Como a venda acontece depois do clique.",
@@ -1948,7 +1948,6 @@
     "cookie-consent-accept": "Entendi",
     "cookie-consent-reject": "Recusar análises",
     "cookie-consent-privacy": "Política de privacidade"
-
   },
   "mobile": {
     "signin-title": "Entrar",
