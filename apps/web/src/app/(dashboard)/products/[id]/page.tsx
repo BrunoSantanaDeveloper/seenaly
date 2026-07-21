@@ -1,8 +1,10 @@
 "use client";
 
 import { deleteProduct } from "../actions";
+import ProductNextStepCard from "../components/next-step-card";
 import ProductForm from "../components/product-form";
 import ProductsHeader from "../components/products-header";
+import { computeCompleteness } from "../lib/completeness";
 import { mapProductRow } from "../lib/map";
 import type { ProductWithChildren } from "../types";
 import { useParams, useRouter } from "next/navigation";
@@ -54,6 +56,8 @@ export default function EditProductPage() {
     }
   };
 
+  const completeness = product ? computeCompleteness(product) : null;
+
   return (
     <Grid container spacing={5} className="items-start">
       <Grid size={"grow"} spacing={5} container>
@@ -78,11 +82,17 @@ export default function EditProductPage() {
         )}
 
         {product && (
-          <Grid size={12}>
-            <Box>
-              <ProductForm orgId={product.orgId} product={product} />
-            </Box>
-          </Grid>
+          <>
+            {/* "What now?" leads; editing the context is secondary. */}
+            <Grid size={12}>
+              <ProductNextStepCard productId={product.id} ready={completeness!.ready} missing={completeness!.missing} />
+            </Grid>
+            <Grid size={12}>
+              <Box>
+                <ProductForm orgId={product.orgId} product={product} />
+              </Box>
+            </Grid>
+          </>
         )}
       </Grid>
     </Grid>

@@ -5,7 +5,7 @@ import { useOrganization } from "../settings/organization/components/use-organiz
 import { type DiagnosisRating, generateDiagnosis, recordDiagnosisFeedback } from "./actions";
 import DiagnosisCard, { type DiagnosisMeta } from "./components/diagnosis-card";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
@@ -43,6 +43,9 @@ export default function DiagnosisPage() {
   const t = useTranslations("diagnosis");
   const td = useTranslations("dashboard");
   const router = useRouter();
+  // Arriving from a product ("Gerar diagnóstico") must keep that product
+  // selected — the context must survive the jump, not be re-guessed.
+  const requestedProductId = useSearchParams().get("product");
   const { configured, loading, loadError, userId, orgs, currentOrg } = useOrganization();
 
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -71,9 +74,14 @@ export default function DiagnosisPage() {
       .order("updated_at", { ascending: false });
     const list = (data as ProductRow[]) ?? [];
     setProducts(list);
-    setSelectedProductId((prev) => (prev && list.some((p) => p.id === prev) ? prev : (list[0]?.id ?? null)));
+    setSelectedProductId((prev) => {
+      if (prev && list.some((p) => p.id === prev)) return prev;
+      // An explicit ?product= wins over "most recently updated".
+      if (requestedProductId && list.some((p) => p.id === requestedProductId)) return requestedProductId;
+      return list[0]?.id ?? null;
+    });
     setProductsLoaded(true);
-  }, [currentOrg]);
+  }, [currentOrg, requestedProductId]);
 
   const loadDiagnoses = useCallback(async () => {
     if (!selectedProductId) {
