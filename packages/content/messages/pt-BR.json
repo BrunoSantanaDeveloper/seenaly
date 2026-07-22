@@ -2261,6 +2261,11 @@
     "wizard-step": "Passo {current} de {total}",
     "adjust-title": "Ajustar respostas e reverificar",
     "adjust-body": "Mudou algo na sua estrutura? Atualize o checklist ou rode o scan e gere um novo veredito.",
-    "reverify-hint": "Você mudou respostas — reverifique para atualizar o veredito."
+    "reverify-hint": "Você mudou respostas — reverifique para atualizar o veredito.",
+    "wizard-review-cost": "Esta verificação usa IA e custa {cost} créditos. Você tem {balance}. Pode voltar e ajustar suas respostas a qualquer momento.",
+    "wizard-review-insufficient": "Esta verificação custa {cost} créditos e você tem {balance}. Veja abaixo como recarregar.",
+    "credits-out-title": "Seus créditos acabaram",
+    "credits-out-body": "Você tem {balance} créditos e a verificação de prontidão custa {cost}. Créditos são consumidos pelas análises com IA; o checklist e os bloqueadores continuam gratuitos.",
+    "credits-manage": "Ver créditos e planos"
   }
 }

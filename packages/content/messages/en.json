@@ -2261,6 +2261,11 @@
     "wizard-step": "Step {current} of {total}",
     "adjust-title": "Adjust answers and re-check",
     "adjust-body": "Changed something in your structure? Update the checklist or run the scan and generate a new verdict.",
-    "reverify-hint": "You changed answers — re-check to update the verdict."
+    "reverify-hint": "You changed answers — re-check to update the verdict.",
+    "wizard-review-cost": "This check uses AI and costs {cost} credits. You have {balance}. You can go back and adjust your answers anytime.",
+    "wizard-review-insufficient": "This check costs {cost} credits and you have {balance}. See below how to top up.",
+    "credits-out-title": "You're out of credits",
+    "credits-out-body": "You have {balance} credits and a readiness check costs {cost}. Credits are spent by AI analyses; the checklist and blockers stay free.",
+    "credits-manage": "View credits and plans"
   }
 }

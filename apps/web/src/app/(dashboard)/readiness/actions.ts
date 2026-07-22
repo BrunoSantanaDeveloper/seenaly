@@ -37,7 +37,31 @@ import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@f
 const ASSISTANT_SLUG = "readiness-engine";
 
 export type SaveReadinessResult = { ok: true } | { ok: false; error: string };
-export type GenerateReadinessResult = { ok: true; id: string } | { ok: false; error: string };
+export type GenerateReadinessResult =
+  | { ok: true; id: string }
+  // `code` lets the UI turn a dead-end message into an actionable one (how many
+  // credits you have, what this costs, where to get more) instead of the user
+  // guessing. Never detect this by matching the message string.
+  | { ok: false; error: string; code?: "insufficient_credits" | "no_subscription"; balance?: number; cost?: number };
+
+/** What a readiness check costs and what the org currently has. */
+export type ReadinessCreditInfo = { ok: true; balance: number; cost: number } | { ok: false; error: string };
+
+/**
+ * Read the price of a readiness check and the org's balance, so the user sees
+ * both BEFORE spending. The cost lives on the editable assistant row (tunable
+ * in /admin/ai), so it is read rather than hardcoded — a constant here would
+ * silently drift from what is actually charged.
+ */
+export async function getReadinessCreditInfo(orgId: string): Promise<ReadinessCreditInfo> {
+  const supabase = await createClient();
+  const [{ data: assistant }, { data: balance, error }] = await Promise.all([
+    supabase.from("assistants").select("credits_per_message").eq("slug", ASSISTANT_SLUG).maybeSingle(),
+    supabase.rpc("org_credit_balance", { target_org: orgId }),
+  ]);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, balance: Number(balance ?? 0), cost: Number(assistant?.credits_per_message ?? 0) };
+}
 /** A finished scan is a success even when the site was unreachable — the
  *  outcome is recorded and the UI explains it. Only "we could not even try"
  *  (no product, no URL, no session) is an error. */
@@ -258,6 +282,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
   if (!ent?.active) {
     return {
       ok: false,
+      code: "no_subscription",
       error: ent?.suspended
         ? "Assinatura suspensa — fale com o suporte."
         : "Nenhuma assinatura ativa para esta organização.",
@@ -273,7 +298,13 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
   if (!assistant) return { ok: false, error: `Assistente "${ASSISTANT_SLUG}" não encontrado ou inativo.` };
 
   if (assistant.credits_per_message > 0 && (ent.credit_balance ?? 0) < assistant.credits_per_message) {
-    return { ok: false, error: "Créditos insuficientes para verificar a prontidão." };
+    return {
+      ok: false,
+      code: "insufficient_credits",
+      balance: ent.credit_balance ?? 0,
+      cost: assistant.credits_per_message,
+      error: "Créditos insuficientes para verificar a prontidão.",
+    };
   }
 
   // Ground in the knowledge base. Per collection (same reason as the diagnosis
@@ -352,7 +383,15 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       amount: assistant.credits_per_message,
       reason: `Prontidão — ${product.name}`,
     });
-    if (creditError) return { ok: false, error: "Créditos insuficientes para verificar a prontidão." };
+    if (creditError) {
+      return {
+        ok: false,
+        code: "insufficient_credits",
+        balance: ent.credit_balance ?? 0,
+        cost: assistant.credits_per_message,
+        error: "Créditos insuficientes para verificar a prontidão.",
+      };
+    }
   }
 
   const { data: user } = await supabase.auth.getUser();

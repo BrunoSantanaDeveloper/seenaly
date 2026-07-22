@@ -2261,6 +2261,11 @@
     "wizard-step": "Schritt {current} von {total}",
     "adjust-title": "Antworten anpassen und erneut prüfen",
     "adjust-body": "Hat sich an deiner Struktur etwas geändert? Aktualisiere die Liste oder starte den Scan und erzeuge ein neues Urteil.",
-    "reverify-hint": "Du hast Antworten geändert — prüfe erneut, um das Urteil zu aktualisieren."
+    "reverify-hint": "Du hast Antworten geändert — prüfe erneut, um das Urteil zu aktualisieren.",
+    "wizard-review-cost": "Diese Prüfung nutzt KI und kostet {cost} Credits. Du hast {balance}. Du kannst jederzeit zurückgehen und deine Antworten anpassen.",
+    "wizard-review-insufficient": "Diese Prüfung kostet {cost} Credits und du hast {balance}. Unten steht, wie du auflädst.",
+    "credits-out-title": "Deine Credits sind aufgebraucht",
+    "credits-out-body": "Du hast {balance} Credits und eine Bereitschaftsprüfung kostet {cost}. Credits verbrauchen die KI-Analysen; Checkliste und Blocker bleiben kostenlos.",
+    "credits-manage": "Credits und Tarife ansehen"
   }
 }

@@ -35,6 +35,7 @@ export default function ReadinessWizard({
   scanning,
   onComplete,
   busy,
+  credit,
 }: {
   profile: ReadinessProfile;
   evaluation: ReadinessEvaluation;
@@ -46,8 +47,12 @@ export default function ReadinessWizard({
   /** Generate the verdict (persists the profile first). */
   onComplete: () => void;
   busy: boolean;
+  /** What the check costs and what the org has — shown before they commit. */
+  credit: { balance: number; cost: number } | null;
 }) {
   const t = useTranslations("readiness");
+  /** Known-insufficient balance: explain it here AND block the doomed click. */
+  const short = credit != null && credit.cost > 0 && credit.balance < credit.cost;
 
   const steps: WizardStep[] = [
     // One step per dimension — the "why" becomes the step hint, so the checklist
@@ -85,12 +90,18 @@ export default function ReadinessWizard({
       content: (
         <Box className="flex flex-col gap-3">
           <ReadinessSignals evaluation={evaluation} />
-          <Typography variant="body2" className="text-text-secondary">
-            {t("wizard-review-note")}
+          <Typography variant="body2" className={short ? "text-warning" : "text-text-secondary"}>
+            {!credit
+              ? t("wizard-review-note")
+              : short
+                ? t("wizard-review-insufficient", { cost: credit.cost, balance: credit.balance })
+                : t("wizard-review-cost", { cost: credit.cost, balance: credit.balance })}
           </Typography>
         </Box>
       ),
-      canAdvance: !busy,
+      // Don't let them click into a guaranteed failure — the line above and the
+      // page-level notice explain the shortfall and link to billing.
+      canAdvance: !busy && !short,
     },
   ];
 

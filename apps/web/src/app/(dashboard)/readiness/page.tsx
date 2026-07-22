@@ -3,7 +3,7 @@
 import { type DiagnosisRating, recordDiagnosisFeedback } from "../diagnosis/actions";
 import { registerExperimentFromReadinessFinding } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
-import { generateReadiness, saveReadiness, scanProductSite } from "./actions";
+import { generateReadiness, getReadinessCreditInfo, saveReadiness, scanProductSite } from "./actions";
 import ReadinessChecklist from "./components/readiness-checklist";
 import ReadinessScan, { type ScanView } from "./components/readiness-scan";
 import ReadinessSignals from "./components/readiness-signals";
@@ -74,6 +74,10 @@ export default function ReadinessPage() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cost + balance, so the user knows what a check spends BEFORE clicking and
+  // never meets "insufficient credits" as a dead end.
+  const [credit, setCredit] = useState<{ balance: number; cost: number } | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
   const ready = productsLoaded && loaded;
@@ -197,9 +201,19 @@ export default function ReadinessPage() {
     setError(result.error);
   };
 
+  const loadCredit = useCallback(async () => {
+    if (!currentOrg) return;
+    const info = await getReadinessCreditInfo(currentOrg.id);
+    if (info.ok) setCredit({ balance: info.balance, cost: info.cost });
+  }, [currentOrg]);
+
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    loadCredit();
+  }, [loadCredit]);
 
   useEffect(() => {
     loadReadiness();
@@ -235,11 +249,45 @@ export default function ReadinessPage() {
     }
   };
 
+  /**
+   * Pull ONLY the latest scan row. Calling the full `loadReadiness()` here was
+   * a real bug: it flips `loaded` to false (unmounting the wizard, which resets
+   * its internal step index to 1) and overwrites `profile` from the database,
+   * wiping every box the user had just ticked but not yet saved.
+   */
+  const refreshScan = useCallback(async () => {
+    if (!selectedProductId) return;
+    const supabase = createClient();
+    const { data: scanRow } = await supabase
+      .from("product_scans")
+      .select("requested_url, final_url, ok, status_code, error, result, created_at")
+      .eq("product_id", selectedProductId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setScan(
+      scanRow
+        ? {
+            requestedUrl: scanRow.requested_url as string,
+            finalUrl: (scanRow.final_url as string | null) ?? null,
+            ok: scanRow.ok === true,
+            statusCode: (scanRow.status_code as number | null) ?? null,
+            error: (scanRow.error as string | null) ?? null,
+            createdAt: scanRow.created_at as string,
+            signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
+          }
+        : null,
+    );
+  }, [selectedProductId]);
+
   const runScan = async () => {
     if (!selectedProductId) return;
     setError(null);
     setScanning(true);
     try {
+      // Persist first: the user is mid-wizard with unsaved ticks, and a scan
+      // is a good moment to make them durable.
+      if (dirty) await persist();
       const result = await scanProductSite(selectedProductId);
       // A site that did not answer is a recorded outcome the card explains —
       // only "we could not even try" surfaces as an error.
@@ -248,7 +296,7 @@ export default function ReadinessPage() {
         return;
       }
       track("readiness_scanned", { reachable: result.scanned });
-      await loadReadiness();
+      await refreshScan();
     } finally {
       setScanning(false);
     }
@@ -259,16 +307,24 @@ export default function ReadinessPage() {
   const verify = async () => {
     if (!selectedProductId) return;
     setError(null);
+    setOutOfCredits(false);
     setBusy(true);
     try {
       if (dirty && !(await persist())) return;
       const result = await generateReadiness(selectedProductId);
       if (!result.ok) {
+        // Running out of credits is not a failure to apologise for — it is a
+        // state with a way out. Render it as guidance, not a red error.
+        if (result.code === "insufficient_credits") {
+          setCredit({ balance: result.balance ?? 0, cost: result.cost ?? 0 });
+          setOutOfCredits(true);
+          return;
+        }
         setError(result.error);
         return;
       }
       track("readiness_generated");
-      await loadReadiness();
+      await Promise.all([loadReadiness(), loadCredit()]);
     } finally {
       setBusy(false);
     }
@@ -284,7 +340,7 @@ export default function ReadinessPage() {
       variant="contained"
       startIcon={<NiShieldCheck size="small" />}
       onClick={verify}
-      disabled={busy || scanning || !product}
+      disabled={busy || scanning || !product || (credit != null && credit.cost > 0 && credit.balance < credit.cost)}
     >
       {busy ? t("verifying") : t("verify-again")}
     </Button>
@@ -375,6 +431,30 @@ export default function ReadinessPage() {
           </Grid>
         )}
 
+        {/* Out of credits: say the numbers and give the way out. A bare
+            "insufficient credits" leaves the user with no idea what they have,
+            what it costs, or how to fix it. */}
+        {(outOfCredits || (credit != null && credit.cost > 0 && credit.balance < credit.cost)) && (
+          <Grid size={12}>
+            <Alert severity="warning" className="neutral bg-background-paper/60!">
+              <Typography variant="subtitle2">{t("credits-out-title")}</Typography>
+              <Typography variant="body2">
+                {t("credits-out-body", { balance: credit?.balance ?? 0, cost: credit?.cost ?? 0 })}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="grey"
+                size="small"
+                className="mt-2"
+                href="/settings/billing"
+                LinkComponent={Link}
+              >
+                {t("credits-manage")}
+              </Button>
+            </Alert>
+          </Grid>
+        )}
+
         {/* FIRST RUN (no verdict): the guided flow. One dimension per step,
             options to tick, a progress rail, ending in the free blockers + one
             primary action — never a wall of 21 checkboxes and rival buttons. */}
@@ -401,6 +481,7 @@ export default function ReadinessPage() {
                 scanning={scanning}
                 onComplete={verify}
                 busy={busy}
+                credit={credit}
               />
             </Grid>
           </>

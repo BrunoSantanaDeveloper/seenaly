@@ -2261,6 +2261,11 @@
     "wizard-step": "Étape {current} sur {total}",
     "adjust-title": "Ajuster les réponses et revérifier",
     "adjust-body": "Quelque chose a changé dans votre structure ? Mettez à jour la liste ou lancez l'analyse et générez un nouveau verdict.",
-    "reverify-hint": "Vous avez changé des réponses — revérifiez pour mettre à jour le verdict."
+    "reverify-hint": "Vous avez changé des réponses — revérifiez pour mettre à jour le verdict.",
+    "wizard-review-cost": "Cette vérification utilise l'IA et coûte {cost} crédits. Vous en avez {balance}. Vous pouvez revenir ajuster vos réponses à tout moment.",
+    "wizard-review-insufficient": "Cette vérification coûte {cost} crédits et vous en avez {balance}. Voir ci-dessous comment recharger.",
+    "credits-out-title": "Vos crédits sont épuisés",
+    "credits-out-body": "Vous avez {balance} crédits et une vérification coûte {cost}. Les crédits sont consommés par les analyses IA ; la liste et les bloqueurs restent gratuits.",
+    "credits-manage": "Voir crédits et forfaits"
   }
 }
