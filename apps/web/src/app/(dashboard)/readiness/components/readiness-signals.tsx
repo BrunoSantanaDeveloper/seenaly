@@ -30,7 +30,9 @@ export default function ReadinessSignals({ evaluation }: { evaluation: Readiness
           <Typography variant="body2" className="mb-1">
             {t("blockers-body")}
           </Typography>
-          <Box component="ul" className="m-0 flex flex-col gap-0.5 pl-4">
+          {/* A real bulleted list: `flex flex-col` on a <ul> suppresses the
+              markers, and this is the list the user actually scans. */}
+          <Box component="ul" className="m-0 list-disc space-y-0.5 pl-5">
             {evaluation.blockers.map((blocker) => (
               <Typography key={blocker} component="li" variant="body2">
                 {t(`blocker-${blocker}`)}

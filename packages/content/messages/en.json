@@ -2246,6 +2246,21 @@
     "scan-observed": "observed",
     "scan-generated-at": "{url} · scanned {when}",
     "register-experiment": "Track as experiment",
-    "registering-experiment": "Registering..."
+    "registering-experiment": "Registering...",
+    "welcome-title": "Product created!",
+    "welcome-body": "Before spending on ads, let's check in about a minute whether your structure is ready to convert — for free. Tick only what you already have; the rest is optional.",
+    "wizard-scan-title": "Check your page automatically (optional)",
+    "wizard-scan-hint": "If you have a page, Seenaly can read it and check SEO, indexing and pixels for you.",
+    "wizard-review-title": "Ready to see your verdict",
+    "wizard-review-hint": "These blockers came up instantly, for free. The full verdict tells you what to fix first.",
+    "wizard-review-note": "The verdict uses AI and spends credits. You can come back and adjust your answers anytime.",
+    "wizard-finish-early": "See verdict now",
+    "see-verdict": "See my verdict",
+    "wizard-back": "Back",
+    "wizard-continue": "Continue",
+    "wizard-step": "Step {current} of {total}",
+    "adjust-title": "Adjust answers and re-check",
+    "adjust-body": "Changed something in your structure? Update the checklist or run the scan and generate a new verdict.",
+    "reverify-hint": "You changed answers — re-check to update the verdict."
   }
 }

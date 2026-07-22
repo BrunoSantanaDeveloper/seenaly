@@ -122,6 +122,16 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 - Assistente e formato fixo → `packages/ai` (`generateStructured` com JSON Schema; grounding via `config.knowledge`)
 - Monetização por uso → `packages/billing` (créditos por mensagem)
 
+### Estudos futuros (parking lot)
+
+- **Handoff para o MCP de anúncios da Meta** (`docs/ideas/meta-ads-mcp-agent-handoff.md`): a Meta lançou um
+  servidor MCP oficial (`https://mcp.facebook.com/ads`) que o **usuário** conecta no cliente de IA dele
+  (Claude/ChatGPT/Perplexity) para operar a própria conta. **Decidido: NÃO usar como camada de conexão do
+  Seenaly** (auth per-usuário, capacidade de escrita que conflita com "analisa, não opera", sem sync histórico,
+  e trancaria o valor atrás do OAuth — contra o invariante de maturidade). Fica registrado como possível
+  enriquecimento *opcional* futuro — "Seenaly é o cérebro, o agente do usuário são as mãos" — **depois** da
+  trilha B (Marketing API). O doc lista os materiais a solicitar ao usuário antes de qualquer implementação.
+
 ## Multi-plataforma de mídia paga (direção de escala)
 
 Meta Ads é a **primeira** plataforma, não a única. O produto foi construído para

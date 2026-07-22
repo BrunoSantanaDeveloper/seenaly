@@ -294,8 +294,16 @@ export default function ProductForm({
         setError(result.error);
         return;
       }
-      if (!product?.id) track("product_created");
-      router.push(`/products/${result.id}`);
+      // A NEW product continues the guided journey: readiness is the next step,
+      // not the edit screen. Dropping a just-onboarded user onto the full
+      // section form (with its own completeness meter) is the paralysis the
+      // readiness handoff exists to avoid. Editing an existing product stays put.
+      if (!product?.id) {
+        track("product_created");
+        router.push(`/readiness?product=${result.id}&new=1`);
+      } else {
+        router.push(`/products/${result.id}`);
+      }
       router.refresh();
     },
   });

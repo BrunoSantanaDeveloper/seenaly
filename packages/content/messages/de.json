@@ -2246,6 +2246,21 @@
     "scan-observed": "beobachtet",
     "scan-generated-at": "{url} · gescannt am {when}",
     "register-experiment": "Als Experiment erfassen",
-    "registering-experiment": "Wird erfasst..."
+    "registering-experiment": "Wird erfasst...",
+    "welcome-title": "Produkt angelegt!",
+    "welcome-body": "Bevor du Geld für Werbung ausgibst, prüfen wir in etwa einer Minute, ob deine Struktur bereit ist zu konvertieren — kostenlos. Hake nur ab, was du bereits hast; der Rest ist optional.",
+    "wizard-scan-title": "Deine Seite automatisch prüfen (optional)",
+    "wizard-scan-hint": "Wenn du eine Seite hast, kann Seenaly sie lesen und SEO, Indexierung und Pixel für dich prüfen.",
+    "wizard-review-title": "Bereit für dein Urteil",
+    "wizard-review-hint": "Diese Blocker erschienen sofort und kostenlos. Das vollständige Urteil zeigt, was zuerst zu beheben ist.",
+    "wizard-review-note": "Das Urteil nutzt KI und verbraucht Credits. Du kannst jederzeit zurückkehren und deine Antworten anpassen.",
+    "wizard-finish-early": "Urteil jetzt ansehen",
+    "see-verdict": "Mein Urteil ansehen",
+    "wizard-back": "Zurück",
+    "wizard-continue": "Weiter",
+    "wizard-step": "Schritt {current} von {total}",
+    "adjust-title": "Antworten anpassen und erneut prüfen",
+    "adjust-body": "Hat sich an deiner Struktur etwas geändert? Aktualisiere die Liste oder starte den Scan und erzeuge ein neues Urteil.",
+    "reverify-hint": "Du hast Antworten geändert — prüfe erneut, um das Urteil zu aktualisieren."
   }
 }

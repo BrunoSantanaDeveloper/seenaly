@@ -221,7 +221,7 @@ export default function ReadinessVerdict({
         {output.blocking.length > 0 && (
           <Alert severity="error" className="neutral bg-background-paper/60!">
             <Typography variant="subtitle2">{t("blocking-title")}</Typography>
-            <Box component="ul" className="m-0 mt-1 flex flex-col gap-0.5 pl-4">
+            <Box component="ul" className="m-0 mt-1 list-disc space-y-0.5 pl-5">
               {output.blocking.map((item, index) => (
                 <Typography key={index} component="li" variant="body2">
                   {item}

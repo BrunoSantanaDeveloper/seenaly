@@ -42,6 +42,20 @@ export default function ProductNextStepCard({
   // Only the few that actually change the answer — a long list is noise.
   const suggestions = missing.slice(0, 3);
 
+  // Exactly ONE primary action per state, plus one quiet alternative — no two
+  // filled/outlined buttons competing (the paralysis the user reported). New
+  // products no longer land here at all; this is the returning-user surface.
+  const primary = hasReadiness
+    ? { href: `/diagnosis?product=${productId}`, icon: <NiPulse size="small" />, label: t("next-step-cta") }
+    : {
+        href: `/readiness?product=${productId}`,
+        icon: <NiShieldCheck size="small" />,
+        label: t("next-step-cta-readiness"),
+      };
+  const secondary = hasReadiness
+    ? { href: `/readiness?product=${productId}`, label: t("next-step-cta-readiness-again") }
+    : { href: `/diagnosis?product=${productId}`, label: t("next-step-cta") };
+
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-3">
@@ -67,52 +81,15 @@ export default function ProductNextStepCard({
           </Box>
         </Box>
 
-        <Box className="flex flex-row flex-wrap gap-2">
-          {hasReadiness ? (
-            <>
-              <Button
-                variant="contained"
-                color="primary"
-                href={`/diagnosis?product=${productId}`}
-                LinkComponent={Link}
-                startIcon={<NiPulse size="small" />}
-              >
-                {t("next-step-cta")}
-              </Button>
-              <Button
-                variant="outlined"
-                color="grey"
-                href={`/readiness?product=${productId}`}
-                LinkComponent={Link}
-                startIcon={<NiShieldCheck size="small" />}
-              >
-                {t("next-step-cta-readiness-again")}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="contained"
-                color="primary"
-                href={`/readiness?product=${productId}`}
-                LinkComponent={Link}
-                startIcon={<NiShieldCheck size="small" />}
-              >
-                {t("next-step-cta-readiness")}
-              </Button>
-              {/* Readiness is the recommendation, never a gate — the campaign
-                  diagnosis stays one click away for whoever wants it now. */}
-              <Button
-                variant="text"
-                color="grey"
-                href={`/diagnosis?product=${productId}`}
-                LinkComponent={Link}
-                startIcon={<NiPulse size="small" />}
-              >
-                {t("next-step-cta")}
-              </Button>
-            </>
-          )}
+        <Box className="flex flex-row flex-wrap items-center gap-1">
+          <Button variant="contained" color="primary" href={primary.href} LinkComponent={Link} startIcon={primary.icon}>
+            {primary.label}
+          </Button>
+          {/* Quiet alternative — everything stays one click away, nothing is
+              gated, but only one action reads as "the" next step. */}
+          <Button variant="text" color="grey" href={secondary.href} LinkComponent={Link}>
+            {secondary.label}
+          </Button>
         </Box>
 
         {suggestions.length > 0 && (
@@ -120,7 +97,7 @@ export default function ProductNextStepCard({
             <Typography variant="body2" className="text-text-secondary">
               {t("next-step-improve")}
             </Typography>
-            <Box component="ul" className="m-0 flex flex-col gap-0.5 pl-4">
+            <Box component="ul" className="m-0 list-disc space-y-0.5 pl-5">
               {suggestions.map((field) => (
                 <Typography key={field} component="li" variant="body2" className="text-text-secondary">
                   <span className="text-text-primary">{t(`field-${field}`)}</span> — {t(`why-${field}`)}

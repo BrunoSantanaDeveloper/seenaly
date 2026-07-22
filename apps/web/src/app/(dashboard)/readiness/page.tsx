@@ -8,6 +8,7 @@ import ReadinessChecklist from "./components/readiness-checklist";
 import ReadinessScan, { type ScanView } from "./components/readiness-scan";
 import ReadinessSignals from "./components/readiness-signals";
 import ReadinessVerdict, { type ReadinessMeta } from "./components/readiness-verdict";
+import ReadinessWizard from "./components/readiness-wizard";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -52,7 +53,10 @@ export default function ReadinessPage() {
   const t = useTranslations("readiness");
   const td = useTranslations("dashboard");
   const router = useRouter();
-  const requestedProductId = useSearchParams().get("product");
+  const searchParams = useSearchParams();
+  const requestedProductId = searchParams.get("product");
+  // Arriving straight from product creation: greet, don't drop into a form wall.
+  const isNew = searchParams.get("new") === "1";
   const { configured, loading, loadError, userId, orgs, currentOrg } = useOrganization();
 
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -69,7 +73,6 @@ export default function ReadinessPage() {
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
@@ -213,14 +216,6 @@ export default function ReadinessPage() {
     return true;
   };
 
-  const save = async () => {
-    setError(null);
-    setSaving(true);
-    const ok = await persist();
-    setSaving(false);
-    if (ok) track("readiness_saved");
-  };
-
   // A fix the user intends to make becomes a tracked experiment, so the
   // learning survives — same loop as the campaign diagnosis.
   const registerFinding = async (findingIndex: number) => {
@@ -282,14 +277,16 @@ export default function ReadinessPage() {
   const latest = rows[0];
   const history = rows.slice(1);
 
-  const verifyButton = (
+  // The result view's primary action. First-run has no verify button here —
+  // the guided wizard owns that action, so nothing competes with it.
+  const reVerifyButton = (
     <Button
       variant="contained"
       startIcon={<NiShieldCheck size="small" />}
       onClick={verify}
-      disabled={busy || saving || scanning || !product}
+      disabled={busy || scanning || !product}
     >
-      {busy ? t("verifying") : latest ? t("verify-again") : t("verify")}
+      {busy ? t("verifying") : t("verify-again")}
     </Button>
   );
 
@@ -326,7 +323,6 @@ export default function ReadinessPage() {
               </TextField>
             </Grid>
           )}
-          {product && ready && <Grid size={{ xs: 12, md: "auto" }}>{verifyButton}</Grid>}
         </Grid>
 
         {!configured && (
@@ -379,54 +375,83 @@ export default function ReadinessPage() {
           </Grid>
         )}
 
-        {/* First run: teach why this exists before asking for the checklist. */}
+        {/* FIRST RUN (no verdict): the guided flow. One dimension per step,
+            options to tick, a progress rail, ending in the free blockers + one
+            primary action — never a wall of 21 checkboxes and rival buttons. */}
         {product && ready && !latest && (
-          <Grid size={12}>
-            <Alert severity="info" icon={<NiPulse size="small" />} className="neutral bg-background-paper/60!">
-              <Typography variant="subtitle2">{t("intro-title")}</Typography>
-              <Typography variant="body2">{t("intro-body")}</Typography>
-            </Alert>
-          </Grid>
-        )}
-
-        {product && ready && latest && (
-          <Grid size={12}>
-            <ReadinessVerdict
-              output={latest.output}
-              meta={
-                {
-                  createdAt: latest.created_at,
-                  knowledgeRefs: latest.knowledge_refs ?? [],
-                } satisfies ReadinessMeta
-              }
-              feedback={feedbackByVerdict[latest.id] ?? null}
-              onFeedback={(rating) => submitFeedback(latest.id, rating)}
-              feedbackBusy={feedbackBusy}
-              onRegisterFinding={registerFinding}
-              registeringIndex={registeringIndex}
-            />
-            <Box className="mt-3 flex flex-row flex-wrap gap-2">
-              {/* Readiness is the front door; the campaign diagnosis is the
-                  next room. Offer it, but never as the first thing to do. */}
-              <Button
-                variant="outlined"
-                color="grey"
-                startIcon={<NiPulse size="small" />}
-                onClick={() => router.push(`/diagnosis?product=${product.id}`)}
-              >
-                {t("go-to-diagnosis")}
-              </Button>
-            </Box>
-          </Grid>
-        )}
-
-        {product && ready && (
           <>
+            <Grid size={12}>
+              <Alert
+                severity={isNew ? "success" : "info"}
+                icon={<NiShieldCheck size="small" />}
+                className="neutral bg-background-paper/60!"
+              >
+                <Typography variant="subtitle2">{isNew ? t("welcome-title") : t("intro-title")}</Typography>
+                <Typography variant="body2">{isNew ? t("welcome-body") : t("intro-body")}</Typography>
+              </Alert>
+            </Grid>
+            <Grid size={12}>
+              <ReadinessWizard
+                profile={profile}
+                evaluation={evaluation}
+                onChange={setProfile}
+                scan={scan}
+                hasUrl={Boolean(product.landing_page_url)}
+                onScan={runScan}
+                scanning={scanning}
+                onComplete={verify}
+                busy={busy}
+              />
+            </Grid>
+          </>
+        )}
+
+        {/* HAS A VERDICT: the result leads. Moving to the diagnosis is the
+            forward action; adjusting the answers and re-verifying is secondary
+            and lives with the checklist it depends on. */}
+        {product && ready && latest && (
+          <>
+            <Grid size={12}>
+              <ReadinessVerdict
+                output={latest.output}
+                meta={
+                  {
+                    createdAt: latest.created_at,
+                    knowledgeRefs: latest.knowledge_refs ?? [],
+                  } satisfies ReadinessMeta
+                }
+                feedback={feedbackByVerdict[latest.id] ?? null}
+                onFeedback={(rating) => submitFeedback(latest.id, rating)}
+                feedbackBusy={feedbackBusy}
+                onRegisterFinding={registerFinding}
+                registeringIndex={registeringIndex}
+              />
+              <Box className="mt-3 flex flex-row flex-wrap gap-2">
+                {/* Readiness cleared the way — the diagnosis is the next room. */}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<NiPulse size="small" />}
+                  onClick={() => router.push(`/diagnosis?product=${product.id}`)}
+                >
+                  {t("go-to-diagnosis")}
+                </Button>
+              </Box>
+            </Grid>
+
+            <Grid size={12}>
+              <Box className="flex flex-col gap-0.5">
+                <Typography variant="h5" component="h2" className="mb-0">
+                  {t("adjust-title")}
+                </Typography>
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("adjust-body")}
+                </Typography>
+              </Box>
+            </Grid>
             <Grid size={12}>
               <ReadinessSignals evaluation={evaluation} />
             </Grid>
-            {/* Observed facts sit beside the declared checklist, never inside
-                it — where the two disagree, that disagreement is the finding. */}
             <Grid size={12}>
               <ReadinessScan
                 scan={scan}
@@ -440,16 +465,13 @@ export default function ReadinessPage() {
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}
-                disabled={busy || saving || scanning}
+                disabled={busy || scanning}
               />
               <Box className="mt-3 flex flex-row flex-wrap items-center gap-2">
-                {verifyButton}
-                <Button variant="outlined" color="grey" onClick={save} disabled={!dirty || saving || busy}>
-                  {saving ? t("saving") : t("save")}
-                </Button>
+                {reVerifyButton}
                 {dirty && (
                   <Typography variant="body2" className="text-text-secondary">
-                    {t("unsaved")}
+                    {t("reverify-hint")}
                   </Typography>
                 )}
               </Box>

@@ -2246,6 +2246,21 @@
     "scan-observed": "observado",
     "scan-generated-at": "{url} · escaneado el {when}",
     "register-experiment": "Registrar como experimento",
-    "registering-experiment": "Registrando..."
+    "registering-experiment": "Registrando...",
+    "welcome-title": "¡Producto creado!",
+    "welcome-body": "Antes de gastar en anuncios, veamos en cerca de 1 minuto si tu estructura está lista para convertir — sin costo. Marca solo lo que ya tienes; el resto es opcional.",
+    "wizard-scan-title": "Verificar tu página automáticamente (opcional)",
+    "wizard-scan-hint": "Si tienes una página, Seenaly puede leerla y revisar SEO, indexación y píxeles por ti.",
+    "wizard-review-title": "Listo para ver tu veredicto",
+    "wizard-review-hint": "Estos bloqueadores aparecieron al instante, gratis. El veredicto completo indica qué arreglar primero.",
+    "wizard-review-note": "El veredicto usa IA y consume créditos. Puedes volver y ajustar tus respuestas cuando quieras.",
+    "wizard-finish-early": "Ver veredicto ahora",
+    "see-verdict": "Ver mi veredicto",
+    "wizard-back": "Atrás",
+    "wizard-continue": "Continuar",
+    "wizard-step": "Paso {current} de {total}",
+    "adjust-title": "Ajustar respuestas y volver a verificar",
+    "adjust-body": "¿Cambió algo en tu estructura? Actualiza la lista o ejecuta el escaneo y genera un nuevo veredicto.",
+    "reverify-hint": "Cambiaste respuestas — vuelve a verificar para actualizar el veredicto."
   }
 }
