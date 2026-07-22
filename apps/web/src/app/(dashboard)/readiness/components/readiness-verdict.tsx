@@ -2,12 +2,9 @@
 
 import type { DiagnosisRating } from "../../diagnosis/components/diagnosis-card";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -16,10 +13,13 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Collapse,
   Divider,
+  FormControlLabel,
   Typography,
 } from "@mui/material";
 
+import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
@@ -34,6 +34,7 @@ import type {
   ReadinessOutput,
   ReadinessVerdict as Verdict,
 } from "@/lib/readiness/schema";
+import { cn } from "@/lib/utils";
 
 const VERDICT_ICON: Record<Verdict, React.ReactNode> = {
   pronto: <NiShieldCheck size="medium" />,
@@ -70,19 +71,19 @@ export interface ReadinessMeta {
 export type HowToState = "loading" | { howTo: HowToOutput; sources: { title: string; trust_level: number }[] };
 
 /**
- * The verdict, presented as a PLAN rather than a report.
+ * The verdict, presented as a PLAN — a short list of fix CARDS.
  *
- * The first version rendered all seven findings fully expanded — evidence
- * chips, technical basis, citations, the lot — and users (including the
- * product's own author) bounced off it: "um relatoriozão, sem critérios de
- * leitura". Everything was equally loud, so nothing was.
+ * Two earlier tries failed the same way: a wall of equally-loud detail, then a
+ * plan whose interactivity was invisible (bare accordion rows, an unlabelled
+ * checkbox). Users did not notice they could expand a finding or what the
+ * checkbox was for.
  *
- * So the reading order is now explicit and three-layered:
- *   verdict → what blocks spending → a prioritized, COLLAPSED plan.
- * Findings are grouped by what the reader should do about them (blockers →
- * quick wins → later → already fine) and the detail only opens on demand. The
- * step-by-step is likewise on demand: adding it inline would have rebuilt the
- * exact wall this rewrite removes.
+ * So every affordance is now explicit: each finding is a bordered card, the
+ * "done" control is a LABELLED checkbox ("Marcar como resolvido"), and the
+ * detail sits behind a LABELLED button ("Ver detalhes e como fazer"), not a
+ * naked chevron. Everything that is not the verdict or the plan (checklist
+ * editing, the scan, re-verify) lives on the page around this component, so the
+ * card stays scannable.
  */
 export default function ReadinessVerdict({
   output,
@@ -96,7 +97,6 @@ export default function ReadinessVerdict({
   onResolve,
   howToByIndex,
   onHowTo,
-  firmUpActions,
 }: {
   output: ReadinessOutput;
   meta: ReadinessMeta;
@@ -112,11 +112,17 @@ export default function ReadinessVerdict({
   onResolve?: (items: ReadinessItemKey[], resolved: boolean) => void;
   howToByIndex?: Record<number, HowToState | undefined>;
   onHowTo?: (findingIndex: number) => void;
-  /** Deterministic "what would firm this up" buttons, owned by the page. */
-  firmUpActions?: React.ReactNode;
 }) {
   const t = useTranslations("readiness");
   const tone = VERDICT_TONE[output.verdict];
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggle = (index: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
 
   // Group by what the reader should DO, not by the order the model emitted.
   // The engine already sorts by leverage; this adds the reading criteria.
@@ -154,65 +160,81 @@ export default function ReadinessVerdict({
     </Box>
   );
 
-  const findingRow = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
+  const findingCard = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
     const items = resolvableItems(finding.dimension, finding.related_items);
     // "Resolved" is read from the checklist, the single source of structural
     // truth — so ticking it here and ticking it there mean the same thing.
     const resolved = items.length > 0 && profile != null && items.every((key) => profile[key]);
     const howTo = howToByIndex?.[index];
+    const open = expanded.has(index);
     const needsSpecialist =
       finding.effort === "alto" || (typeof howTo === "object" && howTo.howTo.needs_specialist === true);
 
     return (
-      <Accordion key={index} disableGutters elevation={0} className="border-grey-50 border-b">
-        <AccordionSummary expandIcon={<NiChevronDown size="small" />} aria-label={finding.recommended_action}>
-          {/* Padding lives here, not on the summary: the app's accordion.css
-              applies `p-0` to .MuiAccordionSummary-root, so rows would collide. */}
-          <Box className="flex w-full flex-row items-center gap-3 py-3 pr-2">
-            {items.length > 0 && onResolve && (
-              // Stop propagation: ticking "done" must not also toggle the panel.
-              <Box onClick={(event) => event.stopPropagation()} className="flex-none">
+      <Box
+        key={index}
+        className={cn(
+          "flex flex-col gap-3 rounded-2xl border p-4 transition-colors",
+          resolved ? "border-success/30 bg-success/5" : "border-grey-100",
+        )}
+      >
+        <Box className="flex flex-row flex-wrap items-start gap-2">
+          <Box className="grow">
+            <Typography variant="subtitle2" className="text-text-secondary mb-0">
+              {t(`dimension-${finding.dimension}`)}
+            </Typography>
+            <Typography
+              variant="body1"
+              className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
+            >
+              {finding.recommended_action}
+            </Typography>
+          </Box>
+          <Box className="flex flex-none flex-row flex-wrap gap-1">
+            {finding.status === "sem_dados" && (
+              <Chip label={t("status-sem_dados")} size="small" variant="outlined" color="grey" className="flex-none" />
+            )}
+            {levelChip(t("impact"), finding.impact)}
+            {levelChip(t("effort"), finding.effort)}
+          </Box>
+        </Box>
+
+        {/* The two affordances, both LABELLED so nobody has to guess. */}
+        <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
+          {items.length > 0 && onResolve ? (
+            <FormControlLabel
+              className="m-0"
+              control={
                 <Checkbox
                   size="small"
                   checked={resolved}
                   onChange={(event) => onResolve(items, event.target.checked)}
-                  slotProps={{ input: { "aria-label": t("resolve-aria", { fix: finding.recommended_action }) } }}
                 />
-              </Box>
-            )}
-            <Box className="grow overflow-hidden">
-              <Typography variant="subtitle2" className="text-text-secondary mb-0">
-                {t(`dimension-${finding.dimension}`)}
-              </Typography>
-              <Typography
-                variant="body2"
-                className={resolved ? "text-text-secondary line-through" : "text-text-primary line-clamp-1"}
-              >
-                {finding.recommended_action}
-              </Typography>
-            </Box>
-            <Box className="hidden flex-none flex-row gap-1 sm:flex">
-              {/* Grouping already conveys critical/attention, so a status chip
-                  would be noise — except `sem_dados`, which means "we could not
-                  evaluate this" and is NOT the same as "do it later". */}
-              {finding.status === "sem_dados" && (
-                <Chip
-                  label={t("status-sem_dados")}
-                  size="small"
-                  variant="outlined"
-                  color="grey"
-                  className="flex-none"
-                />
-              )}
-              {levelChip(t("impact"), finding.impact)}
-              {levelChip(t("effort"), finding.effort)}
-            </Box>
-          </Box>
-        </AccordionSummary>
+              }
+              label={
+                <Typography variant="body2" className={resolved ? "text-success" : "text-text-secondary"}>
+                  {resolved ? t("resolved-done") : t("mark-resolved")}
+                </Typography>
+              }
+            />
+          ) : (
+            <span />
+          )}
+          <Button
+            variant="text"
+            color="grey"
+            size="small"
+            onClick={() => toggle(index)}
+            endIcon={<NiChevronDown size="small" className={cn("transition-transform", open && "rotate-180")} />}
+            aria-expanded={open}
+          >
+            {open ? t("hide-details") : t("show-details")}
+          </Button>
+        </Box>
 
-        <AccordionDetails>
-          <Box className="flex flex-col gap-3 pb-4">
-            <Typography variant="body1" className="leading-6">
+        <Collapse in={open} unmountOnExit>
+          <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
+            <Typography variant="body2" className="leading-6">
               {finding.finding}
             </Typography>
 
@@ -242,8 +264,7 @@ export default function ReadinessVerdict({
               </Typography>,
             )}
 
-            {/* HOW to do it — the gap between knowing and doing. On demand, so
-                the plan above stays scannable. */}
+            {/* HOW to do it — the gap between knowing and doing, on demand. */}
             <Box className="bg-grey-25/60 flex flex-col gap-2 rounded-2xl p-4">
               <Typography variant="subtitle2" className="text-text-secondary uppercase">
                 {t("howto-title")}
@@ -332,22 +353,20 @@ export default function ReadinessVerdict({
                 >
                   {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
                 </Button>
-                {/* Say what the button DOES — "registrar como experimento" was
-                    jargon nobody could decode. */}
                 <Typography variant="body2" className="text-text-secondary">
                   {t("register-experiment-hint")}
                 </Typography>
               </Box>
             )}
           </Box>
-        </AccordionDetails>
-      </Accordion>
+        </Collapse>
+      </Box>
     );
   };
 
   const group = (title: string, hint: string, entries: { finding: ReadinessFinding; index: number }[]) =>
     entries.length === 0 ? null : (
-      <Box className="flex flex-col gap-1">
+      <Box className="flex flex-col gap-2">
         <Box className="flex flex-col gap-0.5">
           <Typography variant="subtitle1" component="h3" className="mb-0">
             {title} <span className="text-text-secondary">({entries.length})</span>
@@ -356,7 +375,7 @@ export default function ReadinessVerdict({
             {hint}
           </Typography>
         </Box>
-        <Box>{entries.map(findingRow)}</Box>
+        <Box className="flex flex-col gap-2">{entries.map(findingCard)}</Box>
       </Box>
     );
 
@@ -426,35 +445,17 @@ export default function ReadinessVerdict({
 
           {/* What is already fine is worth one line of credit, not a section. */}
           {groups.ok.length > 0 && (
-            <Typography variant="body2" className="text-success">
-              {t("plan-ok", {
-                count: groups.ok.length,
-                dimensions: groups.ok.map((x) => t(`dimension-${x.finding.dimension}`)).join(", "),
-              })}
-            </Typography>
+            <Box className="text-success flex flex-row items-center gap-1.5">
+              <NiCheck size="small" />
+              <Typography variant="body2" className="text-success">
+                {t("plan-ok", {
+                  count: groups.ok.length,
+                  dimensions: groups.ok.map((x) => t(`dimension-${x.finding.dimension}`)).join(", "),
+                })}
+              </Typography>
+            </Box>
           )}
         </Box>
-
-        {/* Turned from prose into real actions — the page owns them because
-            they are derived from actual state, not from the model. */}
-        {firmUpActions && (
-          <>
-            <Divider />
-            <Box className="flex flex-col gap-2">
-              <Box className="flex flex-col gap-0.5">
-                <Typography variant="subtitle2" className="text-text-secondary uppercase">
-                  {t("section-missing")}
-                </Typography>
-                {!output.insufficient_data && output.missing_data && (
-                  <Typography variant="body2" className="text-text-secondary leading-6">
-                    {output.missing_data}
-                  </Typography>
-                )}
-              </Box>
-              {firmUpActions}
-            </Box>
-          </>
-        )}
 
         {meta.knowledgeRefs.length > 0 && (
           <>
@@ -472,13 +473,11 @@ export default function ReadinessVerdict({
           </>
         )}
 
-        <Typography variant="body2" className="text-text-secondary">
-          {t("generated-at", { when: new Date(meta.createdAt).toLocaleString() })}
-        </Typography>
-
-        {onFeedback && (
-          <>
-            <Divider />
+        <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <Typography variant="body2" className="text-text-secondary">
+            {t("generated-at", { when: new Date(meta.createdAt).toLocaleString() })}
+          </Typography>
+          {onFeedback && (
             <Box className="flex flex-row flex-wrap items-center gap-1">
               <Typography variant="body2" className="text-text-secondary mr-1">
                 {t("feedback-question")}
@@ -496,8 +495,8 @@ export default function ReadinessVerdict({
                 </Button>
               ))}
             </Box>
-          </>
-        )}
+          )}
+        </Box>
       </CardContent>
     </Card>
   );

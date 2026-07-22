@@ -2300,6 +2300,14 @@
     "howto-specialist": "Esto normalmente requiere un desarrollador o especialista. Si no haces este tipo de configuración, considera delegarlo.",
     "firm-run-scan": "Ejecutar el escaneo de la página",
     "firm-review-checklist": "Revisar lista ({remaining} sin confirmar)",
-    "firm-complete-product": "Completar los datos del producto"
+    "firm-complete-product": "Completar los datos del producto",
+    "mark-resolved": "Marcar como resuelto",
+    "resolved-done": "Resuelto",
+    "show-details": "Ver detalles y cómo hacerlo",
+    "hide-details": "Ocultar detalles",
+    "review-answers": "Revisar mis respuestas",
+    "review-title": "Tus respuestas",
+    "review-body": "Ajusta lo que ya está listo y, si quieres, deja que Seenaly lea tu página. Luego genera un nuevo veredicto.",
+    "review-close": "Cerrar"
   }
 }

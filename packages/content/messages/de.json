@@ -2300,6 +2300,14 @@
     "howto-specialist": "Dafür braucht es meist eine Entwicklerin oder einen Spezialisten. Wenn du solche Einrichtungen nicht machst, denk übers Delegieren nach.",
     "firm-run-scan": "Seiten-Scan starten",
     "firm-review-checklist": "Checkliste prüfen ({remaining} unbestätigt)",
-    "firm-complete-product": "Produktangaben vervollständigen"
+    "firm-complete-product": "Produktangaben vervollständigen",
+    "mark-resolved": "Als erledigt markieren",
+    "resolved-done": "Erledigt",
+    "show-details": "Details und Anleitung ansehen",
+    "hide-details": "Details ausblenden",
+    "review-answers": "Meine Antworten prüfen",
+    "review-title": "Deine Antworten",
+    "review-body": "Passe an, was bereits steht, und lass Seenaly bei Bedarf deine Seite lesen. Erzeuge dann ein neues Urteil.",
+    "review-close": "Schließen"
   }
 }

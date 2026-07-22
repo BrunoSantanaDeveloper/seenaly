@@ -2300,6 +2300,14 @@
     "howto-specialist": "This usually needs a developer or specialist. If you do not do this kind of setup, consider delegating it.",
     "firm-run-scan": "Run the page scan",
     "firm-review-checklist": "Review checklist ({remaining} unconfirmed)",
-    "firm-complete-product": "Complete the product details"
+    "firm-complete-product": "Complete the product details",
+    "mark-resolved": "Mark as resolved",
+    "resolved-done": "Resolved",
+    "show-details": "See details and how-to",
+    "hide-details": "Hide details",
+    "review-answers": "Review my answers",
+    "review-title": "Your answers",
+    "review-body": "Adjust what's already in place and, if you like, let Seenaly read your page. Then generate a new verdict.",
+    "review-close": "Close"
   }
 }

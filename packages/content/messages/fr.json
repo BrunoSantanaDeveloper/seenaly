@@ -2300,6 +2300,14 @@
     "howto-specialist": "Cela demande généralement un développeur ou un spécialiste. Si ce type de configuration n'est pas votre métier, envisagez de déléguer.",
     "firm-run-scan": "Lancer l'analyse de la page",
     "firm-review-checklist": "Revoir la liste ({remaining} non confirmés)",
-    "firm-complete-product": "Compléter la fiche produit"
+    "firm-complete-product": "Compléter la fiche produit",
+    "mark-resolved": "Marquer comme résolu",
+    "resolved-done": "Résolu",
+    "show-details": "Voir les détails et le comment",
+    "hide-details": "Masquer les détails",
+    "review-answers": "Revoir mes réponses",
+    "review-title": "Vos réponses",
+    "review-body": "Ajustez ce qui est déjà en place et, si vous le souhaitez, laissez Seenaly lire votre page. Générez ensuite un nouveau verdict.",
+    "review-close": "Fermer"
   }
 }

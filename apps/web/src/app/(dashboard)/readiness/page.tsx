@@ -20,11 +20,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Alert, Box, Breadcrumbs, Button, Grid, MenuItem, Skeleton, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Breadcrumbs,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  IconButton,
+  MenuItem,
+  Skeleton,
+  TextField,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
 
 import EmptyState from "@/components/product/empty-state";
 import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
 import NiBook from "@/icons/nexture/ni-book";
+import NiCross from "@/icons/nexture/ni-cross";
 import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSearch from "@/icons/nexture/ni-search";
@@ -94,6 +110,9 @@ export default function ReadinessPage() {
   // The user ticked a fix as done AFTER this verdict was produced, so the
   // verdict on screen is now behind reality.
   const [staleVerdict, setStaleVerdict] = useState(false);
+  // Checklist + scan live in a modal now, off the main result scroll.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const fullScreenDialog = useMediaQuery("(max-width:640px)");
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
   const ready = productsLoaded && loaded;
@@ -417,38 +436,11 @@ export default function ReadinessPage() {
 
   const latest = rows[0];
   const history = rows.slice(1);
-
-  /**
-   * "What would firm up the verdict" as ACTIONS, not prose.
-   *
-   * Derived from state we can actually observe — no scan on file, unconfirmed
-   * checklist items, missing price/page — so every button is guaranteed to be
-   * a real gap. The model's `missing_data` stays as the "why" above them.
-   */
-  const firmUpActions = product ? (
-    <Box className="flex flex-row flex-wrap gap-2">
-      {!scan?.ok && product.landing_page_url && (
-        <Button variant="outlined" color="grey" size="small" onClick={runScan} disabled={scanning || busy}>
-          {scanning ? t("scanning") : t("firm-run-scan")}
-        </Button>
-      )}
-      {evaluation.confirmed < evaluation.total && (
-        <Button
-          variant="outlined"
-          color="grey"
-          size="small"
-          onClick={() => document.getElementById("readiness-checklist")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          {t("firm-review-checklist", { remaining: evaluation.total - evaluation.confirmed })}
-        </Button>
-      )}
-      {(!product.landing_page_url || product.price == null) && (
-        <Button variant="outlined" color="grey" size="small" href={`/products/${product.id}`} LinkComponent={Link}>
-          {t("firm-complete-product")}
-        </Button>
-      )}
-    </Box>
-  ) : null;
+  const isReady = latest?.output.verdict === "pronto";
+  const outOfBalance = credit != null && credit.cost > 0 && credit.balance < credit.cost;
+  // Marking a fix done leaves the verdict behind reality; re-verify becomes the
+  // one thing to do next. Otherwise the forward action depends on being ready.
+  const reVerifyIsPrimary = staleVerdict || dirty;
 
   // The REAL steps generateReadiness() performs, in order. The scan step is
   // omitted when there is no scan — narrating work we aren't doing would be the
@@ -465,14 +457,13 @@ export default function ReadinessPage() {
     return list.filter((s): s is ProcessingStage => s !== null);
   }, [scan?.ok, t]);
 
-  // The result view's primary action. First-run has no verify button here —
-  // the guided wizard owns that action, so nothing competes with it.
   const reVerifyButton = (
     <Button
-      variant="contained"
+      variant={reVerifyIsPrimary ? "contained" : "outlined"}
+      color={reVerifyIsPrimary ? "primary" : "grey"}
       startIcon={<NiShieldCheck size="small" />}
       onClick={verify}
-      disabled={busy || scanning || !product || (credit != null && credit.cost > 0 && credit.balance < credit.cost)}
+      disabled={busy || scanning || !product || outOfBalance}
     >
       {busy ? t("verifying") : t("verify-again")}
     </Button>
@@ -622,9 +613,9 @@ export default function ReadinessPage() {
           </>
         )}
 
-        {/* HAS A VERDICT: the result leads. Moving to the diagnosis is the
-            forward action; adjusting the answers and re-verifying is secondary
-            and lives with the checklist it depends on. */}
+        {/* HAS A VERDICT: the verdict + the plan lead. Everything else — editing
+            answers, the scan, re-checking — is one action bar and a modal, so
+            the result stays scannable instead of a wall of stacked sections. */}
         {product && ready && latest && (
           <>
             <Grid size={12}>
@@ -645,68 +636,99 @@ export default function ReadinessPage() {
                 onResolve={resolveItems}
                 howToByIndex={howToByIndex}
                 onHowTo={requestHowTo}
-                firmUpActions={firmUpActions}
               />
 
-              {/* Ticking a fix makes the verdict on screen older than reality —
-                  offer the cheap re-check right where the change happened. */}
+              {/* Marking a fix done makes the on-screen verdict older than
+                  reality — surface the cheap re-check right there. */}
               {staleVerdict && (
                 <Alert severity="info" className="neutral bg-background-paper/60! mt-3">
                   <Typography variant="body2">{t("stale-verdict")}</Typography>
                 </Alert>
               )}
 
-              <Box className="mt-3 flex flex-row flex-wrap gap-2">
-                {/* Readiness cleared the way — the diagnosis is the next room. */}
+              {/* ONE action bar. Exactly one primary, decided by state:
+                  changed something → re-verify; ready → go diagnose; else →
+                  review your answers. Nothing competes. */}
+              <Box className="mt-3 flex flex-row flex-wrap items-center gap-2">
+                {reVerifyButton}
                 <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<NiPulse size="small" />}
-                  onClick={() => router.push(`/diagnosis?product=${product.id}`)}
+                  variant={reVerifyIsPrimary ? "text" : "contained"}
+                  color={reVerifyIsPrimary ? "grey" : "primary"}
+                  startIcon={<NiListCheck size="small" />}
+                  onClick={() => setReviewOpen(true)}
                 >
-                  {t("go-to-diagnosis")}
+                  {t("review-answers")}
                 </Button>
+                {/* The campaign diagnosis is the NEXT room — only offered once
+                    the structure is actually ready, never as a premature dead
+                    end for someone with no campaigns to diagnose yet. */}
+                {isReady && (
+                  <Button
+                    variant="text"
+                    color="grey"
+                    startIcon={<NiPulse size="small" />}
+                    onClick={() => router.push(`/diagnosis?product=${product.id}`)}
+                  >
+                    {t("go-to-diagnosis")}
+                  </Button>
+                )}
               </Box>
             </Grid>
+          </>
+        )}
 
-            <Grid size={12}>
-              <Box className="flex flex-col gap-0.5">
-                <Typography variant="h5" component="h2" className="mb-0">
-                  {t("adjust-title")}
+        {/* Review modal: the checklist + scan + free blockers, off the main
+            scroll. Marking a fix on the plan and ticking it here are the same
+            state, so they stay in sync. */}
+        {product && ready && latest && (
+          <Dialog
+            open={reviewOpen}
+            onClose={() => setReviewOpen(false)}
+            fullScreen={fullScreenDialog}
+            fullWidth
+            maxWidth="md"
+            scroll="paper"
+          >
+            <DialogTitle className="flex flex-row items-center gap-2 pr-2">
+              <Box className="grow">
+                <Typography variant="h5" component="span" className="card-title mb-0">
+                  {t("review-title")}
                 </Typography>
                 <Typography variant="body2" className="text-text-secondary">
-                  {t("adjust-body")}
+                  {t("review-body")}
                 </Typography>
               </Box>
-            </Grid>
-            <Grid size={12}>
+              <IconButton aria-label={t("review-close")} onClick={() => setReviewOpen(false)} className="flex-none">
+                <NiCross size="small" />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers className="flex flex-col gap-4">
               <ReadinessSignals evaluation={evaluation} />
-            </Grid>
-            <Grid size={12}>
               <ReadinessScan
                 scan={scan}
                 hasUrl={Boolean(product.landing_page_url)}
                 onScan={runScan}
                 busy={scanning || busy}
               />
-            </Grid>
-            <Grid size={12} id="readiness-checklist">
               <ReadinessChecklist
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}
                 disabled={busy || scanning}
               />
-              <Box className="mt-3 flex flex-row flex-wrap items-center gap-2">
+              <Box className="bg-background sticky bottom-0 flex flex-row flex-wrap items-center gap-2 py-2">
                 {reVerifyButton}
+                <Button variant="text" color="grey" onClick={() => setReviewOpen(false)}>
+                  {t("review-close")}
+                </Button>
                 {dirty && (
                   <Typography variant="body2" className="text-text-secondary">
                     {t("reverify-hint")}
                   </Typography>
                 )}
               </Box>
-            </Grid>
-          </>
+            </DialogContent>
+          </Dialog>
         )}
 
         {history.length > 0 && (
