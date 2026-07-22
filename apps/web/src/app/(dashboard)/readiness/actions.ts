@@ -23,6 +23,7 @@ import {
   toReadinessProfile,
   toReadinessRow,
 } from "@/lib/readiness/checklist";
+import { HOWTO_JSON_SCHEMA, HOWTO_SCHEMA_NAME, type HowToOutput, isHowToOutput } from "@/lib/readiness/howto";
 import { scanSite } from "@/lib/readiness/scan";
 import {
   isReadinessOutput,
@@ -35,6 +36,7 @@ import { createClient } from "@flyee/auth/server";
 import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
 const ASSISTANT_SLUG = "readiness-engine";
+const HOWTO_ASSISTANT_SLUG = "readiness-howto";
 
 export type SaveReadinessResult = { ok: true } | { ok: false; error: string };
 export type GenerateReadinessResult =
@@ -170,6 +172,168 @@ export async function scanProductSite(productId: string): Promise<ScanProductRes
   });
 
   return { ok: true, scanned: outcome.ok };
+}
+
+export type HowToResult =
+  | { ok: true; howTo: HowToOutput; sources: { title: string; trust_level: number }[]; cached: boolean }
+  | { ok: false; error: string; code?: "insufficient_credits" };
+
+/**
+ * Write the step-by-step for ONE finding, on demand.
+ *
+ * On demand and not inline: the user's complaint about the verdict was too much
+ * text, so generating steps for every finding up front would make it worse.
+ * Cached per (diagnosis, finding) — asking twice never charges twice.
+ *
+ * Honesty rule with teeth: when the knowledge base cannot support a how-to, the
+ * engine returns no steps, we do NOT persist and we do NOT charge. A retry
+ * after the corpus grows should be able to succeed, and nobody pays for an
+ * empty answer.
+ */
+export async function generateFindingHowTo(diagnosisId: string, findingIndex: number): Promise<HowToResult> {
+  const supabase = await createClient();
+
+  const { data: verdict } = await supabase
+    .from("diagnoses")
+    .select("id, org_id, product_id, output, scope")
+    .eq("id", diagnosisId)
+    .maybeSingle();
+  if (!verdict) return { ok: false, error: "Veredito não encontrado." };
+  if (verdict.scope !== "readiness") return { ok: false, error: "Este registro não é um veredito de prontidão." };
+
+  const output = verdict.output;
+  if (!isReadinessOutput(output)) return { ok: false, error: "O veredito está fora do formato esperado." };
+  const finding = output.findings[findingIndex];
+  if (!finding) return { ok: false, error: "Achado não encontrado no veredito." };
+
+  // Cache first — this is what keeps it a one-time cost per finding.
+  const { data: cached } = await supabase
+    .from("readiness_howtos")
+    .select("steps, sources")
+    .eq("diagnosis_id", diagnosisId)
+    .eq("finding_index", findingIndex)
+    .maybeSingle();
+  if (cached) {
+    const stored = cached.steps as { steps?: string[]; needs_specialist?: boolean; note?: string };
+    return {
+      ok: true,
+      cached: true,
+      howTo: {
+        steps: Array.isArray(stored?.steps) ? stored.steps : [],
+        needs_specialist: stored?.needs_specialist === true,
+        note: typeof stored?.note === "string" ? stored.note : "",
+      },
+      sources: (cached.sources as { title: string; trust_level: number }[]) ?? [],
+    };
+  }
+
+  const { data: entitlements } = await supabase.rpc("org_entitlements", { target_org: verdict.org_id });
+  const ent = entitlements as { active?: boolean; credit_balance?: number } | null;
+  if (!ent?.active) return { ok: false, error: "Nenhuma assinatura ativa para esta organização." };
+
+  const { data: assistant } = await supabase
+    .from("assistants")
+    .select("slug, provider, model, system_prompt, temperature, max_tokens, credits_per_message, config")
+    .eq("slug", HOWTO_ASSISTANT_SLUG)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!assistant) return { ok: false, error: `Assistente "${HOWTO_ASSISTANT_SLUG}" não encontrado ou inativo.` };
+  if (assistant.credits_per_message > 0 && (ent.credit_balance ?? 0) < assistant.credits_per_message) {
+    return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para gerar o passo a passo." };
+  }
+
+  // Retrieve for THIS action specifically, not the whole verdict.
+  const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
+    ?.knowledge;
+  const collectionSlugs = knowledgeConfig?.collections ?? ["meta-ads-docs", "growth-playbook"];
+  const matchCount = knowledgeConfig?.matchCount ?? 8;
+  const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
+  const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+  try {
+    const query = `como fazer, passo a passo: ${finding.recommended_action} (${finding.dimension}). ${finding.finding}`;
+    for (const slug of collectionSlugs) {
+      const collectionIds = await resolveCollectionIds(supabase, [slug]);
+      if (collectionIds.length === 0) continue;
+      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+    }
+  } catch (error) {
+    return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
+  }
+
+  const brief = [
+    "## Recomendação que o usuário precisa executar",
+    finding.recommended_action,
+    "",
+    "## Contexto do achado",
+    `Dimensão: ${finding.dimension}. Esforço estimado: ${finding.effort}.`,
+    finding.finding,
+    "",
+    "## Como ele vai saber que resolveu",
+    finding.success_criterion,
+    buildKnowledgeContext(excerpts),
+    "",
+    "## Tarefa",
+    "Escreva o passo a passo dessa recomendação para um iniciante.",
+    "Se os trechos acima não sustentarem os passos, devolva steps vazio e explique em note. Não invente tutorial.",
+  ].join("\n");
+
+  const config: AssistantConfig = {
+    provider: assistant.provider as AiProviderName,
+    model: assistant.model,
+    systemPrompt: assistant.system_prompt,
+    temperature: Number(assistant.temperature),
+    maxTokens: assistant.max_tokens,
+  };
+
+  let raw: unknown;
+  try {
+    raw = await getChatProvider(config.provider).generateStructured(config, [{ role: "user", content: brief }], {
+      name: HOWTO_SCHEMA_NAME,
+      description: "Passo a passo aterrado para uma recomendação de prontidão.",
+      schema: HOWTO_JSON_SCHEMA,
+    });
+  } catch (error) {
+    return { ok: false, error: `Falha ao gerar o passo a passo: ${(error as Error).message}` };
+  }
+  if (!isHowToOutput(raw)) return { ok: false, error: "O motor devolveu um passo a passo fora do formato exigido." };
+
+  const sources = excerpts.map((excerpt) => ({ title: excerpt.title, trust_level: excerpt.trust_level }));
+
+  // No steps = the knowledge base did not cover it. Say so, charge nothing, and
+  // leave no cache row so a later retry (after new ingestion) can succeed.
+  if (raw.steps.length === 0) {
+    return { ok: true, cached: false, howTo: raw, sources: [] };
+  }
+
+  if (assistant.credits_per_message > 0) {
+    const { error: creditError } = await supabase.rpc("consume_credits", {
+      target_org: verdict.org_id,
+      amount: assistant.credits_per_message,
+      reason: `Passo a passo — ${finding.dimension}`,
+    });
+    if (creditError) {
+      return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para gerar o passo a passo." };
+    }
+  }
+
+  const { data: user } = await supabase.auth.getUser();
+  await supabase.from("readiness_howtos").insert({
+    diagnosis_id: diagnosisId,
+    org_id: verdict.org_id,
+    finding_index: findingIndex,
+    steps: raw,
+    sources,
+    created_by: user.user?.id ?? null,
+  });
+
+  await recordAudit(supabase, "readiness.howto_generated", {
+    orgId: verdict.org_id as string,
+    entityType: "diagnosis",
+    entityId: diagnosisId,
+    metadata: { finding_index: findingIndex, steps: raw.steps.length },
+  });
+
+  return { ok: true, cached: false, howTo: raw, sources };
 }
 
 /**

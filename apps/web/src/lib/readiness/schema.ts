@@ -35,6 +35,16 @@ export interface ReadinessFinding {
   effort: ReadinessLevel;
   impact: ReadinessLevel;
   success_criterion: string;
+  /**
+   * Checklist item keys this finding is about, so "I already fixed this" can
+   * tick exactly the right boxes instead of a whole dimension.
+   *
+   * OPTIONAL on purpose: verdicts generated before this field existed are still
+   * valid and must keep rendering. Consumers go through `resolvableItems()`
+   * (lib/readiness/checklist.ts), which validates the keys and falls back to
+   * the dimension's group when the field is missing.
+   */
+  related_items?: string[];
 }
 
 export interface ReadinessOutput {
@@ -111,6 +121,12 @@ export const READINESS_JSON_SCHEMA: Record<string, unknown> = {
           effort: { type: "string", enum: ["baixo", "medio", "alto"] },
           impact: { type: "string", enum: ["baixo", "medio", "alto"] },
           success_criterion: { type: "string", description: "Como saber, de forma verificável, que foi resolvido." },
+          related_items: {
+            type: "array",
+            description:
+              "Chaves EXATAS do checklist de prontidão que esta finding trata, para o usuário poder marcar 'já resolvi' e o sistema saber o que virou verdade. Use apenas chaves válidas (ex.: pixelInstalled, conversionEventTested, paymentPix, seoBasics). Omita quando a finding não corresponder a nenhum item do checklist (oferta e mídia não têm itens).",
+            items: { type: "string" },
+          },
         },
         required: [
           "dimension",

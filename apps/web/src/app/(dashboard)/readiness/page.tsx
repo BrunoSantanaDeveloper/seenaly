@@ -3,11 +3,17 @@
 import { type DiagnosisRating, recordDiagnosisFeedback } from "../diagnosis/actions";
 import { registerExperimentFromReadinessFinding } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
-import { generateReadiness, getReadinessCreditInfo, saveReadiness, scanProductSite } from "./actions";
+import {
+  generateFindingHowTo,
+  generateReadiness,
+  getReadinessCreditInfo,
+  saveReadiness,
+  scanProductSite,
+} from "./actions";
 import ReadinessChecklist from "./components/readiness-checklist";
 import ReadinessScan, { type ScanView } from "./components/readiness-scan";
 import ReadinessSignals from "./components/readiness-signals";
-import ReadinessVerdict, { type ReadinessMeta } from "./components/readiness-verdict";
+import ReadinessVerdict, { type HowToState, type ReadinessMeta } from "./components/readiness-verdict";
 import ReadinessWizard from "./components/readiness-wizard";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,13 +23,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Box, Breadcrumbs, Button, Grid, MenuItem, Skeleton, TextField, Typography } from "@mui/material";
 
 import EmptyState from "@/components/product/empty-state";
+import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
+import NiBook from "@/icons/nexture/ni-book";
+import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import { track } from "@/lib/analytics";
 import {
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
+  type ReadinessItemKey,
   type ReadinessProfile,
   toReadinessProfile,
 } from "@/lib/readiness/checklist";
@@ -78,6 +90,10 @@ export default function ReadinessPage() {
   // never meets "insufficient credits" as a dead end.
   const [credit, setCredit] = useState<{ balance: number; cost: number } | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [howToByIndex, setHowToByIndex] = useState<Record<number, HowToState | undefined>>({});
+  // The user ticked a fix as done AFTER this verdict was produced, so the
+  // verdict on screen is now behind reality.
+  const [staleVerdict, setStaleVerdict] = useState(false);
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
   const ready = productsLoaded && loaded;
@@ -160,6 +176,35 @@ export default function ReadinessPage() {
         : null,
     );
 
+    setStaleVerdict(false);
+
+    // Restore how-tos the org already PAID for — losing them on reload would
+    // charge twice for the same answer.
+    if (list[0]) {
+      const { data: howtos } = await supabase
+        .from("readiness_howtos")
+        .select("finding_index, steps, sources")
+        .eq("diagnosis_id", list[0].id);
+      const map: Record<number, HowToState> = {};
+      for (const row of (howtos ?? []) as {
+        finding_index: number;
+        steps: { steps?: string[]; needs_specialist?: boolean; note?: string };
+        sources: { title: string; trust_level: number }[];
+      }[]) {
+        map[row.finding_index] = {
+          howTo: {
+            steps: Array.isArray(row.steps?.steps) ? row.steps.steps : [],
+            needs_specialist: row.steps?.needs_specialist === true,
+            note: typeof row.steps?.note === "string" ? row.steps.note : "",
+          },
+          sources: row.sources ?? [],
+        };
+      }
+      setHowToByIndex(map);
+    } else {
+      setHowToByIndex({});
+    }
+
     // This user's own ratings, to render the active choice.
     if (list.length > 0 && userId) {
       const { data: fb } = await supabase
@@ -219,15 +264,55 @@ export default function ReadinessPage() {
     loadReadiness();
   }, [loadReadiness]);
 
-  const persist = async () => {
+  // Takes the profile explicitly: "mark as resolved" saves immediately, and
+  // reading `profile` from the closure would persist the pre-tick state.
+  const persist = async (next: ReadinessProfile = profile) => {
     if (!selectedProductId) return false;
-    const result = await saveReadiness(selectedProductId, profile);
+    const result = await saveReadiness(selectedProductId, next);
     if (!result.ok) {
       setError(result.error);
       return false;
     }
-    setSavedProfile(profile);
+    setSavedProfile(next);
     return true;
+  };
+
+  /**
+   * "I already fixed this" ticks the checklist items the finding is about.
+   * Free and instant: the deterministic blockers recompute on the spot, which
+   * is the whole point — re-validating must not require regenerating a verdict.
+   */
+  const resolveItems = async (items: ReadinessItemKey[], resolved: boolean) => {
+    setError(null);
+    const next = { ...profile };
+    for (const key of items) next[key] = resolved;
+    setProfile(next);
+    setStaleVerdict(true);
+    track("readiness_finding_resolved", { resolved, items: items.length });
+    await persist(next);
+  };
+
+  const requestHowTo = async (findingIndex: number) => {
+    if (!latest) return;
+    setError(null);
+    setHowToByIndex((prev) => ({ ...prev, [findingIndex]: "loading" }));
+    const result = await generateFindingHowTo(latest.id, findingIndex);
+    if (!result.ok) {
+      setHowToByIndex((prev) => {
+        const next = { ...prev };
+        delete next[findingIndex];
+        return next;
+      });
+      if (result.code === "insufficient_credits") {
+        setOutOfCredits(true);
+        return;
+      }
+      setError(result.error);
+      return;
+    }
+    setHowToByIndex((prev) => ({ ...prev, [findingIndex]: { howTo: result.howTo, sources: result.sources } }));
+    track("readiness_howto", { cached: result.cached, steps: result.howTo.steps.length });
+    if (!result.cached) loadCredit();
   };
 
   // A fix the user intends to make becomes a tracked experiment, so the
@@ -333,6 +418,53 @@ export default function ReadinessPage() {
   const latest = rows[0];
   const history = rows.slice(1);
 
+  /**
+   * "What would firm up the verdict" as ACTIONS, not prose.
+   *
+   * Derived from state we can actually observe — no scan on file, unconfirmed
+   * checklist items, missing price/page — so every button is guaranteed to be
+   * a real gap. The model's `missing_data` stays as the "why" above them.
+   */
+  const firmUpActions = product ? (
+    <Box className="flex flex-row flex-wrap gap-2">
+      {!scan?.ok && product.landing_page_url && (
+        <Button variant="outlined" color="grey" size="small" onClick={runScan} disabled={scanning || busy}>
+          {scanning ? t("scanning") : t("firm-run-scan")}
+        </Button>
+      )}
+      {evaluation.confirmed < evaluation.total && (
+        <Button
+          variant="outlined"
+          color="grey"
+          size="small"
+          onClick={() => document.getElementById("readiness-checklist")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          {t("firm-review-checklist", { remaining: evaluation.total - evaluation.confirmed })}
+        </Button>
+      )}
+      {(!product.landing_page_url || product.price == null) && (
+        <Button variant="outlined" color="grey" size="small" href={`/products/${product.id}`} LinkComponent={Link}>
+          {t("firm-complete-product")}
+        </Button>
+      )}
+    </Box>
+  ) : null;
+
+  // The REAL steps generateReadiness() performs, in order. The scan step is
+  // omitted when there is no scan — narrating work we aren't doing would be the
+  // same dishonesty as a fake progress bar.
+  const stages: ProcessingStage[] = useMemo(() => {
+    const list: (ProcessingStage | null)[] = [
+      { icon: <NiTag />, label: t("stage-context") },
+      { icon: <NiListCheck />, label: t("stage-checklist") },
+      scan?.ok ? { icon: <NiSearch />, label: t("stage-scan") } : null,
+      { icon: <NiBook />, label: t("stage-knowledge") },
+      { icon: <NiPulse />, label: t("stage-leverage") },
+      { icon: <NiSparkle />, label: t("stage-writing") },
+    ];
+    return list.filter((s): s is ProcessingStage => s !== null);
+  }, [scan?.ok, t]);
+
   // The result view's primary action. First-run has no verify button here —
   // the guided wizard owns that action, so nothing competes with it.
   const reVerifyButton = (
@@ -348,6 +480,9 @@ export default function ReadinessPage() {
 
   return (
     <Grid container spacing={5} className="items-start">
+      {/* Covers both entry points into generation: finishing the guided wizard
+          and re-verifying from the result view. */}
+      <ProcessingOverlay open={busy} title={t("verifying")} stages={stages} patienceLabel={t("stage-patience")} />
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12} spacing={2.5} container className="items-center">
           <Grid size={{ xs: 12, md: "grow" }}>
@@ -506,7 +641,21 @@ export default function ReadinessPage() {
                 feedbackBusy={feedbackBusy}
                 onRegisterFinding={registerFinding}
                 registeringIndex={registeringIndex}
+                profile={profile}
+                onResolve={resolveItems}
+                howToByIndex={howToByIndex}
+                onHowTo={requestHowTo}
+                firmUpActions={firmUpActions}
               />
+
+              {/* Ticking a fix makes the verdict on screen older than reality —
+                  offer the cheap re-check right where the change happened. */}
+              {staleVerdict && (
+                <Alert severity="info" className="neutral bg-background-paper/60! mt-3">
+                  <Typography variant="body2">{t("stale-verdict")}</Typography>
+                </Alert>
+              )}
+
               <Box className="mt-3 flex flex-row flex-wrap gap-2">
                 {/* Readiness cleared the way — the diagnosis is the next room. */}
                 <Button
@@ -541,7 +690,7 @@ export default function ReadinessPage() {
                 busy={scanning || busy}
               />
             </Grid>
-            <Grid size={12}>
+            <Grid size={12} id="readiness-checklist">
               <ReadinessChecklist
                 profile={profile}
                 evaluation={evaluation}

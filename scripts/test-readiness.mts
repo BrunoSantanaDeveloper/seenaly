@@ -21,8 +21,11 @@ import process from "node:process";
 import {
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
+  itemsForDimension,
   READINESS_ITEM_KEYS,
   type ReadinessProfile,
+  resolvableItems,
+  sanitizeRelatedItems,
   toReadinessProfile,
   toReadinessRow,
 } from "../apps/web/src/lib/readiness/checklist";
@@ -116,6 +119,42 @@ check("row round-trip is lossless", toReadinessProfile(toReadinessRow(rich)), ri
 check("guarantee days dropped without a guarantee", toReadinessRow(p({ guaranteeDays: 30 })).guarantee_days, null);
 check("missing row is a valid empty profile", toReadinessProfile(null), EMPTY_READINESS_PROFILE);
 check("garbage checkout_type ignored", toReadinessProfile({ checkout_type: "bogus" }).checkoutType, null);
+
+/* ========================================================================== */
+section("Finding → checklist mapping (\"I already fixed this\")");
+/* ========================================================================== */
+
+// Model output is never trusted: unknown keys are dropped, junk yields nothing.
+check("keeps only known item keys", sanitizeRelatedItems(["pixelInstalled", "nope", 42, null]), ["pixelInstalled"]);
+check("non-array input is empty", sanitizeRelatedItems("pixelInstalled"), []);
+check("undefined is empty", sanitizeRelatedItems(undefined), []);
+
+// Precise engine output wins over the coarse dimension fallback.
+check("explicit related_items win", resolvableItems("mensuracao", ["pixelInstalled", "conversionEventTested"]), [
+  "pixelInstalled",
+  "conversionEventTested",
+]);
+// Verdicts stored BEFORE related_items existed must still be resolvable.
+check("missing related_items falls back to the dimension group", resolvableItems("mensuracao", undefined), [
+  "pixelInstalled",
+  "conversionEventTested",
+  "capiInstalled",
+  "analyticsInstalled",
+]);
+check("all-invalid keys fall back too", resolvableItems("checkout", ["bogus"]), itemsForDimension("checkout"));
+// Offer and media have no checklist group — no "mark resolved" for them.
+check("oferta has no resolvable items", resolvableItems("oferta", undefined), []);
+check("midia has no resolvable items", resolvableItems("midia", undefined), []);
+check("unknown dimension is safe", resolvableItems("inventada", undefined), []);
+// Every mapped dimension must resolve to real keys, or the checkbox lies.
+for (const dimension of ["mensuracao", "pagina", "checkout", "descoberta", "funil"]) {
+  const items = itemsForDimension(dimension);
+  check(
+    `${dimension} maps to real checklist keys`,
+    items.length > 0 && items.every((key) => (READINESS_ITEM_KEYS as string[]).includes(key)),
+    true,
+  );
+}
 
 /* ========================================================================== */
 section("SSRF address guard");

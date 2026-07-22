@@ -12,6 +12,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Box, Breadcrumbs, Button, Grid, MenuItem, Skeleton, TextField, Typography } from "@mui/material";
 
 import EmptyState from "@/components/product/empty-state";
+import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
+import NiBook from "@/icons/nexture/ni-book";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
@@ -169,6 +171,15 @@ export default function DiagnosisPage() {
   const latest = rows[0];
   const history = rows.slice(1);
 
+  // Mirrors what generateDiagnosis() actually does, in order.
+  const stages: ProcessingStage[] = [
+    { icon: <NiTag />, label: t("stage-context") },
+    { icon: <NiFlask />, label: t("stage-memory") },
+    { icon: <NiPulse />, label: t("stage-campaign") },
+    { icon: <NiBook />, label: t("stage-knowledge") },
+    { icon: <NiSparkle />, label: t("stage-writing") },
+  ];
+
   const generateButton = (
     <Button variant="contained" startIcon={<NiSparkle size="small" />} onClick={generate} disabled={busy || !product}>
       {busy ? t("generating") : t("generate")}
@@ -177,6 +188,7 @@ export default function DiagnosisPage() {
 
   return (
     <Grid container spacing={5} className="items-start">
+      <ProcessingOverlay open={busy} title={t("generating")} stages={stages} patienceLabel={t("stage-patience")} />
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12} spacing={2.5} container className="items-center">
           <Grid size={{ xs: 12, md: "grow" }}>

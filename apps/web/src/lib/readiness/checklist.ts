@@ -118,6 +118,51 @@ export const EMPTY_READINESS_PROFILE: ReadinessProfile = {
 };
 
 /* -------------------------------------------------------------------------- */
+/*  Verdict finding → checklist items ("I already fixed this")                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which checklist group a verdict dimension corresponds to.
+ *
+ * `oferta` lives in the product context and `midia` in the creative library —
+ * neither is a checklist group, so findings on those dimensions offer no
+ * "mark as resolved" (there would be nothing true to record).
+ */
+export const DIMENSION_GROUP: Record<string, ReadinessGroupKey | undefined> = {
+  mensuracao: "mensuracao",
+  pagina: "pagina",
+  checkout: "checkout",
+  descoberta: "descoberta",
+  funil: "funil",
+};
+
+/** Every item of the group a dimension maps to. */
+export function itemsForDimension(dimension: string): ReadinessItemKey[] {
+  const group = DIMENSION_GROUP[dimension];
+  if (!group) return [];
+  return READINESS_GROUPS.find((entry) => entry.key === group)?.items.map((item) => item.key) ?? [];
+}
+
+/** Drop anything that is not a known item key — model output is never trusted. */
+export function sanitizeRelatedItems(values: unknown): ReadinessItemKey[] {
+  if (!Array.isArray(values)) return [];
+  const known = new Set<string>(READINESS_ITEM_KEYS);
+  return values.filter((value): value is ReadinessItemKey => typeof value === "string" && known.has(value));
+}
+
+/**
+ * The checklist items a finding lets the user tick when they say "already
+ * fixed". Prefers the engine's own `related_items` (precise: it knows the
+ * finding was only about the pixel), and falls back to the whole dimension
+ * group when absent — which is the case for every verdict stored before the
+ * field existed.
+ */
+export function resolvableItems(dimension: string, relatedItems: unknown): ReadinessItemKey[] {
+  const explicit = sanitizeRelatedItems(relatedItems);
+  return explicit.length > 0 ? explicit : itemsForDimension(dimension);
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Row mapping (product_readiness uses snake_case)                            */
 /* -------------------------------------------------------------------------- */
 
