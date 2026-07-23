@@ -22,11 +22,14 @@ import {
 } from "@mui/material";
 
 import ActivationChecklist from "@/components/activation/activation-checklist";
+import { TONE, toneAt } from "@/components/marketing/tone";
 import EmptyState from "@/components/product/empty-state";
 import LoadErrorState from "@/components/product/load-error-state";
+import NiArrowRight from "@/icons/nexture/ni-arrow-right";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiPlus from "@/icons/nexture/ni-plus";
 import NiTag from "@/icons/nexture/ni-tag";
+import { cn } from "@/lib/utils";
 import { createClient } from "@flyee/auth/client";
 
 /**
@@ -167,32 +170,56 @@ export default function ProductsPage() {
           </Grid>
         )}
 
-        {rows.map((row) => (
-          <Grid key={row.id} size={{ xs: 12, md: 6, xl: 4 }}>
-            <Card
-              component={Link}
-              href={`/products/${row.id}`}
-              className="hover:shadow-darker-sm block h-full no-underline transition-shadow"
-            >
-              <CardContent className="flex flex-col gap-2">
-                <Box className="flex flex-row items-center gap-2">
-                  <Typography variant="subtitle1" className="grow truncate">
-                    {row.name}
+        {rows.map((row, index) => {
+          // Rotating harmonic hue per card (tone.ts sanctions rotation for
+          // lists without a fixed mapping) — a colored identity chip, while the
+          // semantic status chip keeps its own good/warning/neutral color.
+          const tone = toneAt(index);
+          return (
+            <Grid key={row.id} size={{ xs: 12, md: 6, xl: 4 }}>
+              <Card
+                component={Link}
+                href={`/products/${row.id}`}
+                className="group hover:shadow-darker-sm block h-full no-underline transition-all hover:-translate-y-0.5"
+              >
+                <CardContent className="flex h-full flex-col gap-3">
+                  <Box className="flex flex-row items-center gap-3">
+                    <span
+                      className={cn(
+                        "flex h-11 w-11 flex-none items-center justify-center rounded-2xl",
+                        TONE[tone].softBg,
+                        TONE[tone].text,
+                      )}
+                    >
+                      <NiTag size="small" aria-hidden />
+                    </span>
+                    <Typography variant="subtitle1" className="min-w-0 grow truncate">
+                      {row.name}
+                    </Typography>
+                    <Chip
+                      label={t(`status-${row.status}`)}
+                      size="small"
+                      variant="outlined"
+                      color={STATUS_COLOR[row.status] ?? "default"}
+                    />
+                  </Box>
+                  <Typography variant="body2" className="text-text-secondary line-clamp-2 min-h-10">
+                    {row.main_promise || t("no-promise")}
                   </Typography>
-                  <Chip
-                    label={t(`status-${row.status}`)}
-                    size="small"
-                    variant="outlined"
-                    color={STATUS_COLOR[row.status] ?? "default"}
-                  />
-                </Box>
-                <Typography variant="body2" className="text-text-secondary line-clamp-2 min-h-10">
-                  {row.main_promise || t("no-promise")}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mt-auto inline-flex items-center transition-transform group-hover:translate-x-1",
+                      TONE[tone].text,
+                    )}
+                  >
+                    <NiArrowRight size="small" />
+                  </span>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
     </Grid>
   );

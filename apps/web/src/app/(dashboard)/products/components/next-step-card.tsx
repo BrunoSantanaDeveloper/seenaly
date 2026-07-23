@@ -6,8 +6,10 @@ import { useTranslations } from "next-intl";
 
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 
+import { TONE, type Tone } from "@/components/marketing/tone";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import { cn } from "@/lib/utils";
 
 /**
  * Job: the user just finished creating a product and asks "what now?".
@@ -56,12 +58,23 @@ export default function ProductNextStepCard({
     ? { href: `/products/${productId}/readiness`, label: t("next-step-cta-readiness-again") }
     : { href: `/products/${productId}/diagnosis`, label: t("next-step-cta") };
 
+  // The card wears the hue of the action it leads with — the same colour that
+  // pillar carries on the home journey map and in the workspace rail. The CTA
+  // button stays primary: colour marks the category, primary marks the action.
+  const headTone: Tone = hasReadiness ? "accent-1" : "accent-4";
+
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-3">
         <Box className="flex flex-row items-center gap-3">
-          <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-10 w-10 flex-none items-center justify-center rounded-2xl">
-            <NiPulse size="medium" />
+          <span
+            className={cn(
+              "flex h-10 w-10 flex-none items-center justify-center rounded-2xl",
+              TONE[headTone].softBg,
+              TONE[headTone].text,
+            )}
+          >
+            {hasReadiness ? <NiPulse size="medium" aria-hidden /> : <NiShieldCheck size="medium" aria-hidden />}
           </span>
           <Box className="grow">
             <Typography variant="h5" component="h2" className="card-title mb-0">

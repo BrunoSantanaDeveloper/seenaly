@@ -22,6 +22,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 
+import { TONE, type Tone } from "@/components/marketing/tone";
 import LoadErrorState from "@/components/product/load-error-state";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
@@ -100,6 +101,23 @@ export const useOptionalProductWorkspace = () => useContext(ProductWorkspaceCont
 
 /** Below this width the rail would squeeze the content column, so it collapses to a menu. */
 const RAIL_BREAKPOINT = "(max-width:1199.95px)";
+
+/**
+ * One fixed hue per pillar, shared with the home journey map — a stage keeps
+ * the same colour everywhere it appears, so the rail reads as a map instead of
+ * a grey list. Categorical only: completion still speaks through the ✓, and the
+ * next-action CTA stays primary.
+ */
+const STAGE_TONE: Record<ProductWorkspaceStage, Tone> = {
+  context: "primary",
+  readiness: "accent-4",
+  data: "accent-2",
+  diagnosis: "accent-1",
+  experiments: "accent-3",
+  creatives: "accent-1",
+  funnel: "accent-4",
+  organic: "secondary",
+};
 
 type StageItem = {
   id: ProductWorkspaceStage;
@@ -209,7 +227,17 @@ export default function ProductWorkspace({
       aria-current={item.id === stage ? "page" : undefined}
       onClick={() => setAnchor(null)}
     >
-      <ListItemIcon>{item.icon}</ListItemIcon>
+      <ListItemIcon>
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-xl",
+            TONE[STAGE_TONE[item.id]].softBg,
+            TONE[STAGE_TONE[item.id]].text,
+          )}
+        >
+          {item.icon}
+        </span>
+      </ListItemIcon>
       <span className="grow truncate">{stageLabel(item)}</span>
       {item.optional && (
         <Typography variant="body2" component="span" className="text-text-secondary ml-2 shrink-0">
@@ -245,22 +273,44 @@ export default function ProductWorkspace({
     </Box>
   );
 
-  const identity = (
-    <Box className="flex flex-row items-center gap-3">
-      <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-11 w-11 flex-none items-center justify-center rounded-2xl">
-        <NiTag size="medium" aria-hidden />
-      </span>
-      <Box className="min-w-0 grow">
-        <Typography variant="body2" className="text-text-secondary">
-          {t("eyebrow")}
-        </Typography>
-        <Typography variant="h5" component="h1" className="mb-0 truncate">
-          {product.name}
-        </Typography>
+  /**
+   * Stacked in the rail so the product NAME gets the full column width — the
+   * row layout truncated even short names once icon, name and status chip
+   * competed for ~250px. The compact bar keeps the row (width is not scarce
+   * there, vertical space is).
+   */
+  const identity = (stacked: boolean) =>
+    stacked ? (
+      <Box className="flex flex-col items-center gap-2 text-center">
+        <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-14 w-14 items-center justify-center rounded-2xl">
+          <NiTag size="medium" aria-hidden />
+        </span>
+        <Box className="w-full">
+          <Typography variant="body2" className="text-text-secondary">
+            {t("eyebrow")}
+          </Typography>
+          <Typography variant="h5" component="h1" className="mb-0 break-words">
+            {product.name}
+          </Typography>
+        </Box>
+        <Chip label={t(`status-${product.status}`)} size="small" variant="outlined" color="grey" />
       </Box>
-      <Chip label={t(`status-${product.status}`)} size="small" variant="outlined" color="grey" />
-    </Box>
-  );
+    ) : (
+      <Box className="flex flex-row items-center gap-3">
+        <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-11 w-11 flex-none items-center justify-center rounded-2xl">
+          <NiTag size="medium" aria-hidden />
+        </span>
+        <Box className="min-w-0 grow">
+          <Typography variant="body2" className="text-text-secondary">
+            {t("eyebrow")}
+          </Typography>
+          <Typography variant="h5" component="h1" className="mb-0 truncate">
+            {product.name}
+          </Typography>
+        </Box>
+        <Chip label={t(`status-${product.status}`)} size="small" variant="outlined" color="grey" />
+      </Box>
+    );
 
   const switcher = products.length > 1 && (
     <FormControl className="outlined w-full" variant="standard" size="small">
@@ -302,7 +352,7 @@ export default function ProductWorkspace({
         <>
           <Card component="section" className="mb-5">
             <CardContent className="flex flex-col gap-4">
-              {identity}
+              {identity(false)}
               {switcher}
               <Button
                 variant="outlined"
@@ -330,7 +380,7 @@ export default function ProductWorkspace({
             <Card component="section" className="mb-5">
               <CardContent className="flex flex-col gap-4 px-0">
                 <Box className="flex flex-col gap-4 px-6">
-                  {identity}
+                  {identity(true)}
                   {switcher}
                   {nextAction}
                 </Box>
