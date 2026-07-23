@@ -4,6 +4,13 @@ import ProductWorkspace from "@/components/product-workspace/product-workspace";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/server";
 
+/** PostgREST returns `numeric` as a string; null/invalid stays null so the rail hides the row. */
+function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default async function ProductLayout({
   children,
   params,
@@ -17,7 +24,9 @@ export default async function ProductLayout({
   const supabase = await createClient();
   const { data: product, error } = await supabase
     .from("products")
-    .select("id, org_id, name, status, connection_id, meta_account_id")
+    .select(
+      "id, org_id, name, status, connection_id, meta_account_id, currency, avg_ticket, margin_pct, target_cac, monthly_budget",
+    )
     .eq("id", id)
     .maybeSingle();
   if (error || !product) notFound();
@@ -60,6 +69,14 @@ export default async function ProductLayout({
         hasDiagnosis: (diagnosis ?? 0) > 0,
         hasExperiment: (experiments ?? 0) > 0,
         hasData: Boolean(product.connection_id || product.meta_account_id),
+      }}
+      /* numeric columns arrive as strings from PostgREST — coerce once here. */
+      economics={{
+        currency: product.currency,
+        avgTicket: toNumber(product.avg_ticket),
+        marginPct: toNumber(product.margin_pct),
+        targetCac: toNumber(product.target_cac),
+        monthlyBudget: toNumber(product.monthly_budget),
       }}
       loadError={Boolean(productsError || readinessError || diagnosisError || experimentsError)}
     >
