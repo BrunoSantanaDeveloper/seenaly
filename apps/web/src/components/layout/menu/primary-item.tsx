@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { memo, useMemo, useState } from "react";
 
-import { Box, Button, Tooltip, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, Tooltip, Typography } from "@mui/material";
 
 import NextureIcons from "@/icons/nexture-icons";
 import { cn, isPathMatch } from "@/lib/utils";
@@ -30,27 +30,27 @@ export const PrimaryItem = memo(function PrimaryItem({ item, onSelect, isActive,
   }, [item, pathname]);
 
   const [tooltipOpen, setTooltipOpen] = useState(false);
+  const hasChildren = Boolean(item.children?.length);
 
   if (menuType !== MenuType.Minimal) {
     return (
-      <Box
+      <ButtonBase
         className={cn(
           "hover:bg-grey-25 flex h-[5.5rem] w-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl no-underline",
           selected && "bg-grey-25",
           className,
         )}
-        component={item.isExternalLink ? NextLink : "div"}
-        href={item.isExternalLink ? item.href : undefined}
+        component={hasChildren ? "button" : NextLink}
+        href={!hasChildren ? item.href : undefined}
         target={item.isExternalLink ? "_blank" : undefined}
         rel={item.isExternalLink ? "noreferrer" : undefined}
-        onClick={
-          !item.isExternalLink
-            ? () => {
-                onSelect(item);
-                setTooltipOpen(false);
-              }
-            : undefined
-        }
+        type={hasChildren ? "button" : undefined}
+        aria-current={!hasChildren && selected ? "page" : undefined}
+        aria-expanded={hasChildren ? isActive : undefined}
+        onClick={() => {
+          if (hasChildren) onSelect(item);
+          setTooltipOpen(false);
+        }}
       >
         {item.icon && (
           <NextureIcons
@@ -70,13 +70,13 @@ export const PrimaryItem = memo(function PrimaryItem({ item, onSelect, isActive,
           component="span"
           className={cn(
             "text-text-primary line-clamp-2 w-full text-center font-semibold transition-all",
-            (selected || isActive) && "text-primary mt-0 mb-0",
-            selected && "text-primary",
+            (selected || isActive) && "text-primary-dark dark:text-primary-light mt-0 mb-0",
+            selected && "text-primary-dark dark:text-primary-light",
           )}
         >
           {t(item.label)}
         </Typography>
-      </Box>
+      </ButtonBase>
     );
   }
 

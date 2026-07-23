@@ -34,7 +34,6 @@ export default function LeftMenu() {
     resetLeftMenu,
     onResetLeft,
     leftShowBackdrop,
-    setLeftShowBackdrop,
     showLeftMobileButton,
   } = useLayoutContext();
 
@@ -58,12 +57,6 @@ export default function LeftMenu() {
     resetLeftMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, visibleMenuItems]);
-
-  useEffect(() => {
-    if (selectedPrimary.current?.id !== activeItem?.id && !leftShowBackdrop) {
-      setLeftShowBackdrop(true);
-    }
-  }, [activeItem?.id, selectedPrimary.current?.id, setLeftShowBackdrop, leftShowBackdrop]);
 
   useEffect(() => {
     const resetCallback = () => {
@@ -125,7 +118,11 @@ export default function LeftMenu() {
   }, [pathname]);
 
   return (
-    <nav className="bg-background-paper shadow-darker-xs fixed z-10 mt-20 flex h-[calc(100%-5rem)] flex-row rounded-r-3xl">
+    <nav
+      id="primary-navigation"
+      aria-label={t("menu-navigation-label")}
+      className="bg-background-paper shadow-darker-xs fixed z-10 mt-20 flex h-[calc(100%-5rem)] flex-row rounded-r-3xl"
+    >
       <Box
         className={cn(
           "flex h-full shrink-0 grow-0 flex-col items-center overflow-x-hidden py-2.5! transition-all duration-(--layout-duration)",
@@ -137,6 +134,7 @@ export default function LeftMenu() {
         }}
       >
         <Box
+          aria-hidden={leftPrimaryCurrent === MenuShowState.Hide}
           className={cn(
             leftMenuType === MenuType.SingleLayer &&
               leftPrimaryCurrent !== MenuShowState.Hide &&
@@ -228,7 +226,7 @@ export default function LeftMenu() {
                   ) : (
                     <>
                       {activeItem?.label && (
-                        <Typography variant="h6" className={"text-primary mb-4 px-2.5"}>
+                        <Typography variant="h6" className="text-primary-dark dark:text-primary-light mb-4 px-2.5">
                           {t(activeItem?.label)}
                         </Typography>
                       )}

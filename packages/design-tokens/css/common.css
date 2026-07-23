@@ -34,7 +34,7 @@
     --text-primary-light: 0 0% 40%;
     --text-primary-dark: 0 0% 20%;
 
-    --text-secondary: 0 0% 60%;
+    --text-secondary: 0 0% 42%;
     --text-secondary-light: 0 0% 70%;
     --text-secondary-dark: 0 0% 50%;
 
@@ -48,6 +48,8 @@
 
     --text-contrast: 0 0% 100%;
     --text-contrast-alternative: 0 0% 100%;
+    /* Ink used on the brand-orange fill (WCAG AA at normal text sizes). */
+    --on-primary: 192 10% 10%;
     /* --------- Text Colors --------- */
 
     /* --------- Feedback Colors --------- */
@@ -62,10 +64,14 @@
     --success: 108 45% 58%;
     --success-light: 108 45% 68%;
     --success-dark: 108 45% 48%;
+    --success-content: 108 45% 26%;
 
     --warning: 25 82% 60%;
     --warning-light: 25 82% 70%;
     --warning-dark: 25 82% 50%;
+    --warning-content: 25 82% 29%;
+    --error-content: 347 64% 40%;
+    --info-content: 193 72% 29%;
 
     --rating: 35 99% 54%;
     --rating-light: 35 99% 64%;
@@ -156,6 +162,7 @@
 
     --text-contrast: 0 0% 100%;
     --text-contrast-alternative: 0 0% 25%;
+    --on-primary: 192 10% 10%;
     /* --------- Text Colors --------- */
 
     /* --------- Feedback Colors --------- */
@@ -170,10 +177,14 @@
     --success: 108 45% 58%;
     --success-light: 108 45% 68%;
     --success-dark: 108 45% 48%;
+    --success-content: 108 45% 76%;
 
     --warning: 25 82% 60%;
     --warning-light: 25 82% 70%;
     --warning-dark: 25 82% 50%;
+    --warning-content: 25 82% 76%;
+    --error-content: 347 64% 76%;
+    --info-content: 193 72% 76%;
 
     --rating: 35 99% 54%;
     --rating-light: 35 99% 64%;

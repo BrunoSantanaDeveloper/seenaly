@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { DEFAULTS } from "@/config";
+import { isSupabaseConfigured } from "@flyee/auth";
 import { updateSession } from "@flyee/auth/middleware";
 
 // Prefixes reachable without a session. Everything else requires auth
@@ -28,6 +29,8 @@ const isPublic = (pathname: string) =>
 export async function middleware(request: NextRequest) {
   const { response, user, needsMfa } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  if (!isSupabaseConfigured) return response;
 
   // Users with a verified TOTP factor must complete the challenge before
   // reaching anything protected (their session is still AAL1).

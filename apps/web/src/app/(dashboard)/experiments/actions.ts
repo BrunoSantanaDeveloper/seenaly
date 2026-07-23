@@ -96,12 +96,13 @@ export async function registerExperimentFromDiagnosis(diagnosisId: string): Prom
 
   // Idempotent: registering the same diagnosis twice (double click, back
   // navigation) must reuse the experiment instead of duplicating the journal.
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("experiments")
     .select("id")
     .eq("diagnosis_id", diagnosis.id)
     .limit(1)
     .maybeSingle();
+  if (existingError) return { ok: false, error: existingError.message };
   if (existing) return { ok: true, id: existing.id as string };
 
   const output = diagnosis.output as DiagnosisOutput;
@@ -163,13 +164,14 @@ export async function registerExperimentFromReadinessFinding(
   if (!finding) return { ok: false, error: "Achado não encontrado no veredito." };
 
   const changeMade = finding.recommended_action;
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("experiments")
     .select("id")
     .eq("diagnosis_id", verdict.id)
     .eq("change_made", changeMade)
     .limit(1)
     .maybeSingle();
+  if (existingError) return { ok: false, error: existingError.message };
   if (existing) return { ok: true, id: existing.id as string };
 
   const { data: user } = await supabase.auth.getUser();

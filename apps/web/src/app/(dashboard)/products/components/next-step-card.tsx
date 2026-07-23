@@ -46,21 +46,21 @@ export default function ProductNextStepCard({
   // filled/outlined buttons competing (the paralysis the user reported). New
   // products no longer land here at all; this is the returning-user surface.
   const primary = hasReadiness
-    ? { href: `/diagnosis?product=${productId}`, icon: <NiPulse size="small" />, label: t("next-step-cta") }
+    ? { href: `/products/${productId}/diagnosis`, icon: <NiPulse size="small" />, label: t("next-step-cta") }
     : {
-        href: `/readiness?product=${productId}`,
+        href: `/products/${productId}/readiness`,
         icon: <NiShieldCheck size="small" />,
         label: t("next-step-cta-readiness"),
       };
   const secondary = hasReadiness
-    ? { href: `/readiness?product=${productId}`, label: t("next-step-cta-readiness-again") }
-    : { href: `/diagnosis?product=${productId}`, label: t("next-step-cta") };
+    ? { href: `/products/${productId}/readiness`, label: t("next-step-cta-readiness-again") }
+    : { href: `/products/${productId}/diagnosis`, label: t("next-step-cta") };
 
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-3">
         <Box className="flex flex-row items-center gap-3">
-          <span className="bg-primary/10 text-primary flex h-10 w-10 flex-none items-center justify-center rounded-2xl">
+          <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-10 w-10 flex-none items-center justify-center rounded-2xl">
             <NiPulse size="medium" />
           </span>
           <Box className="grow">

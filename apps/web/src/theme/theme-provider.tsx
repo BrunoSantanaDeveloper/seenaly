@@ -74,7 +74,7 @@ export const muiTheme = createTheme({
       main: "hsl(var(--primary))",
       light: "hsl(var(--primary-light))",
       dark: "hsl(var(--primary-dark))",
-      contrastText: "hsl(var(--text-contrast))",
+      contrastText: "hsl(var(--on-primary))",
     },
     secondary: {
       main: "hsl(var(--secondary))",

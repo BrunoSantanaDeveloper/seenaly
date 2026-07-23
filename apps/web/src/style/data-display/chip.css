@@ -73,6 +73,7 @@
 
   .MuiChip-filled.MuiChip-colorPrimary {
     @apply bg-primary;
+    color: hsl(var(--on-primary));
     &.MuiChip-clickable:hover {
       @apply bg-primary-light;
     }
@@ -151,6 +152,7 @@
 
   .MuiChip-filled.MuiChip-colorInfo {
     @apply bg-info;
+    color: hsl(var(--on-primary));
     &.MuiChip-clickable:hover {
       @apply bg-info-light;
     }
@@ -164,6 +166,7 @@
 
   .MuiChip-filled.MuiChip-colorSuccess {
     @apply bg-success;
+    color: hsl(var(--on-primary));
     &.MuiChip-clickable:hover {
       @apply bg-success-light;
     }
@@ -177,6 +180,7 @@
 
   .MuiChip-filled.MuiChip-colorError {
     @apply bg-error;
+    color: hsl(var(--on-primary));
     &.MuiChip-clickable:hover {
       @apply bg-error-light;
     }
@@ -190,6 +194,7 @@
 
   .MuiChip-filled.MuiChip-colorWarning {
     @apply bg-warning;
+    color: hsl(var(--on-primary));
     &.MuiChip-clickable:hover {
       @apply bg-warning-light;
     }
@@ -255,6 +260,7 @@
 
   .MuiChip-outlined.MuiChip-outlinedPrimary {
     @apply outline-primary;
+    color: hsl(var(--primary-dark));
     .MuiChip-deleteIcon {
       @apply bg-primary!;
 
@@ -345,6 +351,7 @@
 
   .MuiChip-outlined.MuiChip-outlinedError {
     @apply outline-error;
+    color: hsl(var(--error-content));
     .MuiChip-deleteIcon {
       @apply bg-error!;
 
@@ -360,6 +367,7 @@
 
   .MuiChip-outlined.MuiChip-outlinedSuccess {
     @apply outline-success;
+    color: hsl(var(--success-content));
     .MuiChip-deleteIcon {
       @apply bg-success!;
 
@@ -375,6 +383,7 @@
 
   .MuiChip-outlined.MuiChip-outlinedInfo {
     @apply outline-info;
+    color: hsl(var(--info-content));
     .MuiChip-deleteIcon {
       @apply bg-info!;
 
@@ -390,6 +399,7 @@
 
   .MuiChip-outlined.MuiChip-outlinedWarning {
     @apply outline-warning;
+    color: hsl(var(--warning-content));
     .MuiChip-deleteIcon {
       @apply bg-warning!;
 
@@ -465,6 +475,10 @@
 
   .MuiChip-root.Mui-disabled {
     @apply opacity-disabled;
+  }
+
+  .dark .MuiChip-outlined.MuiChip-outlinedPrimary {
+    color: hsl(var(--primary-light));
   }
 
   .MuiChip-root.multiline {

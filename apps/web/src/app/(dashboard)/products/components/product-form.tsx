@@ -240,10 +240,12 @@ export default function ProductForm({
   orgId,
   product,
   variant = "sections",
+  onSaveSuccess,
 }: {
   orgId: string;
   product?: ProductWithChildren;
   variant?: "sections" | "wizard";
+  onSaveSuccess?: (productId: string) => Promise<void> | void;
 }) {
   const t = useTranslations("products");
   // Funnel labels are shared with the Organic module (one funnel language).
@@ -294,15 +296,19 @@ export default function ProductForm({
         setError(result.error);
         return;
       }
-      // A NEW product continues the guided journey: readiness is the next step,
-      // not the edit screen. Dropping a just-onboarded user onto the full
-      // section form (with its own completeness meter) is the paralysis the
-      // readiness handoff exists to avoid. Editing an existing product stays put.
       if (!product?.id) {
         track("product_created");
-        router.push(`/readiness?product=${result.id}&new=1`);
+        if (onSaveSuccess) {
+          await onSaveSuccess(result.id);
+        } else {
+          router.push(`/readiness?product=${result.id}&new=1`);
+        }
       } else {
-        router.push(`/products/${result.id}`);
+        if (onSaveSuccess) {
+          await onSaveSuccess(result.id);
+        } else {
+          router.push(`/products/${result.id}`);
+        }
       }
       router.refresh();
     },

@@ -2,6 +2,7 @@
 import Notifications from "../notifications/notifications";
 import User from "../user/user";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { useEffect, useState } from "react";
 
@@ -13,7 +14,8 @@ import NiMenuSplit from "@/icons/nexture/ni-menu-split";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
-  const { showLeftInMobile, showLeftMobileButton, leftMenuWidth, leftShowBackdrop } = useLayoutContext();
+  const t = useTranslations("dashboard");
+  const { showLeftInMobile, showLeftMobileButton, leftMenuWidth, leftShowBackdrop, resetLeftMenu } = useLayoutContext();
 
   const [mounted, setMounted] = useState(false);
 
@@ -29,7 +31,7 @@ export default function Header() {
         style={{ padding: `0 var(--main-padding)` }}
       >
         <Box className="flex h-full flex-row items-center">
-          <Link href="/dashboards/default">
+          <Link href="/home" aria-label={`${t("menu-home")} — Seenaly`}>
             <Logo classNameFull="ml-2 hidden md:block" classNameMobile="ml-2 md:hidden" />
           </Link>
         </Box>
@@ -42,7 +44,7 @@ export default function Header() {
       <Box
         className={cn(
           "bg-background-paper flex h-full w-full flex-none flex-row items-center rounded-br-3xl sm:h-20",
-          leftShowBackdrop && "pointer-events-none",
+          leftShowBackdrop && "relative",
         )}
         style={{ padding: `0 var(--main-padding)` }}
       >
@@ -52,18 +54,20 @@ export default function Header() {
           variant="text"
           size="large"
           color="text-primary"
-          aria-label="Menu"
+          aria-label={t("menu-navigation-label")}
+          aria-expanded={leftMenuWidth.primary > 0}
+          aria-controls="primary-navigation"
           className={cn(
             "icon-only hover-icon-shrink [&.active]:text-primary [&.active]:bg-grey-25 hover:bg-grey-25",
             showLeftMobileButton ? "flex" : "hidden",
             leftMenuWidth.primary > 0 && "active",
           )}
-          onClick={() => showLeftInMobile()}
+          onClick={() => (leftMenuWidth.primary > 0 ? resetLeftMenu() : showLeftInMobile())}
           startIcon={<NiMenuSplit size={24} />}
         />
         <Box className="flex h-full flex-row items-center gap-6">
           {/* Logo */}
-          <Link href="/home">
+          <Link href="/home" aria-label={`${t("menu-home")} — Seenaly`}>
             <Logo classNameFull="ml-2 hidden md:block" classNameMobile="ml-2 md:hidden" />
           </Link>
         </Box>

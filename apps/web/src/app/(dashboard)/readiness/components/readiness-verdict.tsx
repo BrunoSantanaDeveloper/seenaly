@@ -1,6 +1,7 @@
 "use client";
 
 import type { DiagnosisRating } from "../../diagnosis/components/diagnosis-card";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
@@ -87,6 +88,7 @@ export type HowToState = "loading" | { howTo: HowToOutput; sources: { title: str
  */
 export default function ReadinessVerdict({
   output,
+  productName,
   meta,
   feedback,
   onFeedback,
@@ -97,8 +99,12 @@ export default function ReadinessVerdict({
   onResolve,
   howToByIndex,
   onHowTo,
+  howToCost = 0,
+  registeredByIndex = {},
+  experimentHref,
 }: {
   output: ReadinessOutput;
+  productName: string;
   meta: ReadinessMeta;
   feedback?: DiagnosisRating | null;
   onFeedback?: (rating: DiagnosisRating) => void;
@@ -112,6 +118,9 @@ export default function ReadinessVerdict({
   onResolve?: (items: ReadinessItemKey[], resolved: boolean) => void;
   howToByIndex?: Record<number, HowToState | undefined>;
   onHowTo?: (findingIndex: number) => void;
+  howToCost?: number;
+  registeredByIndex?: Record<number, string>;
+  experimentHref?: (experimentId: string) => string;
 }) {
   const t = useTranslations("readiness");
   const tone = VERDICT_TONE[output.verdict];
@@ -140,6 +149,18 @@ export default function ReadinessVerdict({
       ok: all.filter((x) => x.finding.status === "ok"),
     };
   }, [output.findings]);
+
+  const focusPrimaryBlocker = () => {
+    const finding = groups.blockers[0];
+    if (!finding) return;
+    setExpanded((previous) => new Set(previous).add(finding.index));
+    window.setTimeout(() => {
+      document.getElementById(`finding-${finding.index}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 50);
+  };
 
   const levelChip = (label: string, value: ReadinessLevel) => (
     <Chip
@@ -173,6 +194,7 @@ export default function ReadinessVerdict({
     return (
       <Box
         key={index}
+        id={`finding-${index}`}
         className={cn(
           "flex flex-col gap-3 rounded-2xl border p-4 transition-colors",
           resolved ? "border-success/30 bg-success/5" : "border-grey-100",
@@ -182,12 +204,6 @@ export default function ReadinessVerdict({
           <Box className="grow">
             <Typography variant="subtitle2" className="text-text-secondary mb-0">
               {t(`dimension-${finding.dimension}`)}
-            </Typography>
-            <Typography
-              variant="body1"
-              className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
-            >
-              {finding.recommended_action}
             </Typography>
           </Box>
           <Box className="flex flex-none flex-row flex-wrap gap-1">
@@ -199,7 +215,51 @@ export default function ReadinessVerdict({
           </Box>
         </Box>
 
-        {/* The two affordances, both LABELLED so nobody has to guess. */}
+        {section(
+          t("section-problem"),
+          <Typography variant="body2" className="leading-6">
+            {finding.finding}
+          </Typography>,
+        )}
+
+        {finding.evidence.length > 0 &&
+          section(
+            t("section-evidence"),
+            <Box className="flex flex-col gap-1.5">
+              {finding.evidence.map((evidence, evidenceIndex) => (
+                <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
+                  <Chip
+                    label={t(`source-${evidence.source}`)}
+                    size="small"
+                    variant="outlined"
+                    color={SOURCE_COLOR[evidence.source] ?? "default"}
+                    className="mt-0.5 flex-none"
+                  />
+                  <Typography variant="body2" className="leading-6">
+                    {evidence.statement}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>,
+          )}
+
+        {section(
+          t("section-action"),
+          <Typography
+            variant="body1"
+            className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
+          >
+            {finding.recommended_action}
+          </Typography>,
+        )}
+
+        {section(
+          t("section-success"),
+          <Typography variant="body2" className="leading-6">
+            {finding.success_criterion}
+          </Typography>,
+        )}
+
         <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
           {items.length > 0 && onResolve ? (
             <FormControlLabel
@@ -231,39 +291,14 @@ export default function ReadinessVerdict({
             {open ? t("hide-details") : t("show-details")}
           </Button>
         </Box>
+        {resolved && (
+          <Typography variant="body2" className="text-warning">
+            {t("reverification-pending")}
+          </Typography>
+        )}
 
         <Collapse in={open} unmountOnExit>
           <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
-            <Typography variant="body2" className="leading-6">
-              {finding.finding}
-            </Typography>
-
-            {finding.evidence.length > 0 && (
-              <Box className="flex flex-col gap-1.5">
-                {finding.evidence.map((evidence, evidenceIndex) => (
-                  <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
-                    <Chip
-                      label={t(`source-${evidence.source}`)}
-                      size="small"
-                      variant="outlined"
-                      color={SOURCE_COLOR[evidence.source] ?? "default"}
-                      className="mt-0.5 flex-none"
-                    />
-                    <Typography variant="body2" className="leading-6">
-                      {evidence.statement}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            )}
-
-            {section(
-              t("section-success"),
-              <Typography variant="body2" className="leading-6">
-                {finding.success_criterion}
-              </Typography>,
-            )}
-
             {/* HOW to do it — the gap between knowing and doing, on demand. */}
             <Box className="bg-grey-25/60 flex flex-col gap-2 rounded-2xl p-4">
               <Typography variant="subtitle2" className="text-text-secondary uppercase">
@@ -276,7 +311,7 @@ export default function ReadinessVerdict({
                     {t("howto-teaser")}
                   </Typography>
                   <Button size="small" variant="outlined" color="grey" onClick={() => onHowTo(index)}>
-                    {t("howto-cta")}
+                    {howToCost > 0 ? t("howto-cta-cost", { cost: howToCost }) : t("howto-cta")}
                   </Button>
                 </Box>
               )}
@@ -341,7 +376,14 @@ export default function ReadinessVerdict({
                 </Box>,
               )}
 
-            {onRegisterFinding && (
+            {registeredByIndex[index] && experimentHref ? (
+              <Alert severity="success" className="neutral bg-background-paper/60!">
+                <Typography variant="body2">
+                  {t("experiment-planned")}{" "}
+                  <Link href={experimentHref(registeredByIndex[index])}>{t("open-experiment")}</Link>
+                </Typography>
+              </Alert>
+            ) : onRegisterFinding ? (
               <Box className="flex flex-col items-start gap-1">
                 <Button
                   size="small"
@@ -357,7 +399,7 @@ export default function ReadinessVerdict({
                   {t("register-experiment-hint")}
                 </Typography>
               </Box>
-            )}
+            ) : null}
           </Box>
         </Collapse>
       </Box>
@@ -391,7 +433,10 @@ export default function ReadinessVerdict({
               {t(`verdict-${output.verdict}`)}
             </Typography>
             <Typography variant="body2" className="text-text-secondary">
-              {t("verdict-subtitle")}
+              {t("verdict-meta", {
+                product: productName,
+                when: new Date(meta.createdAt).toLocaleDateString(),
+              })}
             </Typography>
           </Box>
           <Chip
@@ -410,13 +455,12 @@ export default function ReadinessVerdict({
         {output.blocking.length > 0 && (
           <Alert severity="error" className="neutral bg-background-paper/60!">
             <Typography variant="subtitle2">{t("blocking-title")}</Typography>
-            <Box component="ul" className="m-0 mt-1 list-disc space-y-0.5 pl-5">
-              {output.blocking.map((item, index) => (
-                <Typography key={index} component="li" variant="body2">
-                  {item}
-                </Typography>
-              ))}
-            </Box>
+            <Typography variant="body2">{output.blocking[0]}</Typography>
+            {groups.blockers.length > 0 && (
+              <Button variant="contained" size="small" className="mt-2" onClick={focusPrimaryBlocker}>
+                {t("fix-blocker")}
+              </Button>
+            )}
           </Alert>
         )}
 

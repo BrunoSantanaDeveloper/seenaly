@@ -23,6 +23,7 @@ import {
 
 import ActivationChecklist from "@/components/activation/activation-checklist";
 import EmptyState from "@/components/product/empty-state";
+import LoadErrorState from "@/components/product/load-error-state";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiPlus from "@/icons/nexture/ni-plus";
 import NiTag from "@/icons/nexture/ni-tag";
@@ -50,19 +51,27 @@ const STATUS_COLOR: Record<string, "default" | "success" | "warning"> = {
 
 export default function ProductsPage() {
   const t = useTranslations("products");
+  const tc = useTranslations("productCommon");
   const router = useRouter();
   const { configured, loading, userId, orgs, currentOrg, setCurrentOrgId } = useOrganization();
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!currentOrg) return;
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select("id, name, status, main_promise, updated_at")
       .eq("org_id", currentOrg.id)
       .order("updated_at", { ascending: false });
+    if (error) {
+      setDataLoadError(true);
+      setLoaded(true);
+      return;
+    }
+    setDataLoadError(false);
     setRows(data ?? []);
     setLoaded(true);
   }, [currentOrg]);
@@ -129,11 +138,25 @@ export default function ProductsPage() {
           </Grid>
         )}
 
+        {currentOrg && dataLoadError && (
+          <Grid size={12}>
+            <LoadErrorState
+              title={tc("load-error-title")}
+              description={tc("load-error-body")}
+              retryLabel={tc("retry")}
+              onRetry={() => {
+                setDataLoadError(false);
+                refresh();
+              }}
+            />
+          </Grid>
+        )}
+
         {/* The path to value: visible from the very first visit.
             Renders its own grid slot, or nothing once dismissed/complete. */}
         {currentOrg && userId && <ActivationChecklist orgId={currentOrg.id} userId={userId} />}
 
-        {isEmpty && (
+        {!dataLoadError && isEmpty && (
           <Grid size={12}>
             <EmptyState
               icon={<NiTag />}

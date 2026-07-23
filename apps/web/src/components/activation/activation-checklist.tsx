@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Grid } from "@mui/material";
 
+import LoadErrorState from "@/components/product/load-error-state";
 import OnboardingChecklist from "@/components/product/onboarding-checklist";
 import { createClient } from "@flyee/auth/client";
 import {
@@ -45,35 +46,49 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
   const t = useTranslations("activation");
   const [state, setState] = useState<OnboardingStateRow>(EMPTY_STATE);
   const [live, setLive] = useState<LiveState | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const flowKey = { userId, orgId, flow: ACTIVATION_FLOW };
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     const supabase = createClient();
-    const [persisted, { data: products }, { data: connections }, { count: diagnoses }, { count: readinessVerdicts }] =
-      await Promise.all([
-        getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
-        supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
-        supabase
-          .from("connections")
-          .select("id")
-          .eq("org_id", orgId)
-          .eq("provider", "meta-ads")
-          .eq("status", "connected"),
-        // Readiness verdicts live in the same table (scope = 'readiness') and
-        // must NOT count as the first campaign diagnosis — they are a different
-        // step of the journey.
-        supabase
-          .from("diagnoses")
-          .select("id", { count: "exact", head: true })
-          .eq("org_id", orgId)
-          .neq("scope", "readiness"),
-        supabase
-          .from("diagnoses")
-          .select("id", { count: "exact", head: true })
-          .eq("org_id", orgId)
-          .eq("scope", "readiness"),
-      ]);
+    const [
+      persisted,
+      { data: products, error: productsError },
+      { data: connections, error: connectionsError },
+      { count: diagnoses, error: diagnosesError },
+      { count: readinessVerdicts, error: readinessError },
+    ] = await Promise.all([
+      getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
+      supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
+      supabase
+        .from("connections")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("provider", "meta-ads")
+        .eq("status", "connected"),
+      // Readiness verdicts live in the same table (scope = 'readiness') and
+      // must NOT count as the first campaign diagnosis — they are a different
+      // step of the journey.
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId)
+        .neq("scope", "readiness"),
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId)
+        .eq("scope", "readiness"),
+    ]);
+    if (productsError || connectionsError || diagnosesError || readinessError) {
+      setLoadError(true);
+      setRefreshing(false);
+      return;
+    }
+    setLoadError(false);
     setState(persisted);
     setLive({
       hasProduct: (products ?? []).length > 0,
@@ -84,6 +99,7 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       // The activation moment: the org has received a real diagnosis.
       hasDiagnosis: (diagnoses ?? 0) > 0,
     });
+    setRefreshing(false);
   }, [orgId, userId]);
 
   useEffect(() => {
@@ -95,6 +111,19 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
     await dismissFlow(createClient(), flowKey);
   };
 
+  if (!live && loadError) {
+    return (
+      <Grid size={12}>
+        <LoadErrorState
+          title={t("load-error-title")}
+          description={t("load-error-body")}
+          retryLabel={t("retry")}
+          onRetry={() => void load()}
+          busy={refreshing}
+        />
+      </Grid>
+    );
+  }
   if (!live) return null;
 
   const steps: OnboardingStep[] = [
@@ -103,6 +132,7 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
     // Before paying for traffic: audit the structure. Costs no media budget,
     // so it belongs ahead of both the Meta connection and the diagnosis.
     { key: "readiness", title: t("step-readiness"), href: "/readiness", done: live.hasReadiness },
+    { key: "first-diagnosis", title: t("step-diagnosis"), href: "/diagnosis", done: live.hasDiagnosis },
     {
       key: "connect-meta",
       title: t("step-meta"),
@@ -111,8 +141,6 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       // Never a prerequisite for value — only an enrichment.
       required: false,
     },
-    // The activation moment (completed_at is stamped once every required step is done).
-    { key: "first-diagnosis", title: t("step-diagnosis"), href: "/diagnosis", done: live.hasDiagnosis },
   ];
 
   // Decide visibility here (same rule as OnboardingChecklist) so callers never
@@ -120,15 +148,29 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
   if (state.dismissed || computeProgress(steps, state).complete) return null;
 
   return (
-    <Grid size={12}>
-      <OnboardingChecklist
-        title={t("title")}
-        description={t("description")}
-        dismissLabel={t("dismiss")}
-        steps={steps}
-        state={state}
-        onDismiss={dismiss}
-      />
-    </Grid>
+    <>
+      {loadError && (
+        <Grid size={12}>
+          <LoadErrorState
+            title={t("load-error-title")}
+            description={t("load-error-body")}
+            retryLabel={t("retry")}
+            onRetry={() => void load()}
+            busy={refreshing}
+          />
+        </Grid>
+      )}
+      <Grid size={12}>
+        <OnboardingChecklist
+          title={t("title")}
+          description={t("description")}
+          dismissLabel={t("dismiss")}
+          optionalLabel={t("optional-label")}
+          steps={steps}
+          state={state}
+          onDismiss={dismiss}
+        />
+      </Grid>
+    </>
   );
 }

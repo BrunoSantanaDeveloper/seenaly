@@ -6,14 +6,14 @@
   .theme-orange {
     --primary: 14 99% 55%;
     --primary-light: 14 99% 65%;
-    --primary-dark: 14 99% 45%;
+    --primary-dark: 14 99% 40%;
 
     --secondary: 19 77% 48%;
     --secondary-light: 19 77% 58%;
     --secondary-dark: 19 77% 38%;
 
     --accent-1: 336 87% 52%;
-    --accent-1-light: 336 87% 62%;
+    --accent-1-light: 336 87% 66%;
     --accent-1-dark: 336 87% 42%;
 
     --accent-2: 306 43% 51%;
@@ -33,14 +33,14 @@
   .theme-orange.dark {
     --primary: 14 99% 55%;
     --primary-light: 14 99% 65%;
-    --primary-dark: 14 99% 45%;
+    --primary-dark: 14 99% 40%;
 
     --secondary: 19 77% 48%;
     --secondary-light: 19 77% 58%;
     --secondary-dark: 19 77% 38%;
 
     --accent-1: 336 87% 52%;
-    --accent-1-light: 336 87% 62%;
+    --accent-1-light: 336 87% 66%;
     --accent-1-dark: 336 87% 42%;
 
     --accent-2: 306 43% 51%;

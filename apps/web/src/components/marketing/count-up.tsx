@@ -108,7 +108,8 @@ export default function CountUp({
   );
 
   return (
-    <span className={cn("tabular-nums", className)} aria-label={value}>
+    <span className={cn("tabular-nums", className)}>
+      <span className="sr-only">{value}</span>
       <span aria-hidden ref={ref}>
         {value}
       </span>

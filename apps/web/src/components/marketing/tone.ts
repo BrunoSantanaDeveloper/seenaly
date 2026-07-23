@@ -13,12 +13,36 @@
 export type Tone = "primary" | "secondary" | "accent-1" | "accent-2" | "accent-3" | "accent-4";
 
 export const TONE: Record<Tone, { text: string; softBg: string; cssVar: string }> = {
-  primary: { text: "text-primary", softBg: "bg-primary/10", cssVar: "--primary" },
-  secondary: { text: "text-secondary", softBg: "bg-secondary/10", cssVar: "--secondary" },
-  "accent-1": { text: "text-accent-1", softBg: "bg-accent-1/10", cssVar: "--accent-1" },
-  "accent-2": { text: "text-accent-2", softBg: "bg-accent-2/10", cssVar: "--accent-2" },
-  "accent-3": { text: "text-accent-3", softBg: "bg-accent-3/10", cssVar: "--accent-3" },
-  "accent-4": { text: "text-accent-4", softBg: "bg-accent-4/10", cssVar: "--accent-4" },
+  primary: {
+    text: "text-primary-dark dark:text-primary-light",
+    softBg: "bg-primary/10",
+    cssVar: "--primary",
+  },
+  secondary: {
+    text: "text-secondary-dark dark:text-secondary-light",
+    softBg: "bg-secondary/10",
+    cssVar: "--secondary",
+  },
+  "accent-1": {
+    text: "text-accent-1-dark dark:text-accent-1-light",
+    softBg: "bg-accent-1/10",
+    cssVar: "--accent-1",
+  },
+  "accent-2": {
+    text: "text-accent-2-dark dark:text-accent-2-light",
+    softBg: "bg-accent-2/10",
+    cssVar: "--accent-2",
+  },
+  "accent-3": {
+    text: "text-accent-3-dark dark:text-accent-3-light",
+    softBg: "bg-accent-3/10",
+    cssVar: "--accent-3",
+  },
+  "accent-4": {
+    text: "text-accent-4-dark dark:text-accent-4-light",
+    softBg: "bg-accent-4/10",
+    cssVar: "--accent-4",
+  },
 };
 
 /** Pleasant default rotation for lists without an explicit mapping (plans, tiles). */

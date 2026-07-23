@@ -11,14 +11,19 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { Alert, Box, Button, Grid } from "@mui/material";
+import { Alert, Box, Button, Grid, Skeleton } from "@mui/material";
 
+import ConfirmActionDialog from "@/components/product/confirm-action-dialog";
+import LoadErrorState from "@/components/product/load-error-state";
+import { useOptionalProductWorkspace } from "@/components/product-workspace/product-workspace";
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import { createClient } from "@flyee/auth/client";
 
 export default function EditProductPage() {
   const t = useTranslations("products");
+  const tc = useTranslations("productCommon");
   const router = useRouter();
+  const workspace = useOptionalProductWorkspace();
   const params = useParams<{ id: string }>();
   const id = params.id;
 
@@ -26,31 +31,49 @@ export default function EditProductPage() {
   const [notFound, setNotFound] = useState(false);
   // Drives which next action leads: readiness precedes the campaign diagnosis.
   const [hasReadiness, setHasReadiness] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: row }, { data: objections }, { data: proofs }, { data: plans }, { count: readinessCount }] =
-      await Promise.all([
-        supabase.from("products").select("*").eq("id", id).maybeSingle(),
-        supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
-        supabase.from("product_proofs").select("kind, content").eq("product_id", id).order("created_at"),
-        supabase
-          .from("product_plans")
-          .select("name, price, period, quantity, share_pct, is_primary, sort")
-          .eq("product_id", id)
-          .order("sort"),
-        supabase
-          .from("diagnoses")
-          .select("id", { count: "exact", head: true })
-          .eq("product_id", id)
-          .eq("scope", "readiness"),
-      ]);
-    if (!row) {
-      setNotFound(true);
+    setLoading(true);
+    const [
+      { data: row, error: productError },
+      { data: objections, error: objectionsError },
+      { data: proofs, error: proofsError },
+      { data: plans, error: plansError },
+      { count: readinessCount, error: readinessError },
+    ] = await Promise.all([
+      supabase.from("products").select("*").eq("id", id).maybeSingle(),
+      supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
+      supabase.from("product_proofs").select("kind, content").eq("product_id", id).order("created_at"),
+      supabase
+        .from("product_plans")
+        .select("name, price, period, quantity, share_pct, is_primary, sort")
+        .eq("product_id", id)
+        .order("sort"),
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", id)
+        .eq("scope", "readiness"),
+    ]);
+    if (productError || objectionsError || proofsError || plansError || readinessError) {
+      setLoadError(true);
+      setLoading(false);
       return;
     }
+    if (!row) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    setLoadError(false);
     setHasReadiness((readinessCount ?? 0) > 0);
     setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [], plans: plans ?? [] }));
+    setLoading(false);
   }, [id]);
 
   useEffect(() => {
@@ -58,11 +81,14 @@ export default function EditProductPage() {
   }, [load]);
 
   const remove = async () => {
+    setDeleting(true);
     const result = await deleteProduct(id);
     if (result.ok) {
       router.push("/products");
       router.refresh();
+      return;
     }
+    setDeleting(false);
   };
 
   const completeness = product ? computeCompleteness(product) : null;
@@ -70,17 +96,54 @@ export default function EditProductPage() {
   return (
     <Grid container spacing={5} className="items-start">
       <Grid size={"grow"} spacing={5} container>
-        <ProductsHeader
-          title={product?.name || t("title")}
-          crumb={t("title")}
-          action={
-            product && (
-              <Button variant="outlined" color="grey" startIcon={<NiBinEmpty size="small" />} onClick={remove}>
-                {t("delete")}
-              </Button>
-            )
-          }
-        />
+        {!workspace && (
+          <ProductsHeader
+            title={product?.name || t("title")}
+            crumb={t("title")}
+            action={
+              product && (
+                <Button
+                  variant="outlined"
+                  color="grey"
+                  startIcon={<NiBinEmpty size="small" />}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  {t("delete")}
+                </Button>
+              )
+            }
+          />
+        )}
+
+        {workspace && product && (
+          <Grid size={12} className="flex justify-end">
+            <Button
+              variant="outlined"
+              color="grey"
+              startIcon={<NiBinEmpty size="small" />}
+              onClick={() => setDeleteOpen(true)}
+            >
+              {t("delete")}
+            </Button>
+          </Grid>
+        )}
+
+        {loading && (
+          <Grid size={12}>
+            <Skeleton variant="rounded" height={320} />
+          </Grid>
+        )}
+
+        {loadError && (
+          <Grid size={12}>
+            <LoadErrorState
+              title={tc("load-error-title")}
+              description={tc("load-error-body")}
+              retryLabel={tc("retry")}
+              onRetry={load}
+            />
+          </Grid>
+        )}
 
         {notFound && (
           <Grid size={12}>
@@ -109,6 +172,16 @@ export default function EditProductPage() {
           </>
         )}
       </Grid>
+      <ConfirmActionDialog
+        open={deleteOpen}
+        title={tc("delete-confirm-title")}
+        description={tc("delete-confirm-body", { name: product?.name ?? "" })}
+        confirmLabel={tc("delete-confirm")}
+        cancelLabel={tc("cancel")}
+        busy={deleting}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={remove}
+      />
     </Grid>
   );
 }

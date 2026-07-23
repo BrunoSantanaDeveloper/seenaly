@@ -30,10 +30,12 @@ export default function ExperimentJournal({
   experiments,
   columnLabel,
   labels,
+  hrefFor = (experimentId) => `/experiments/${experimentId}`,
 }: {
   experiments: ExperimentCard[];
   columnLabel: (status: ExperimentStatus) => string;
   labels: { hypothesis: string; result: string; conclusion: string };
+  hrefFor?: (experimentId: string) => string;
 }) {
   const order: ExperimentStatus[] = ["running", "planned", "concluded", "abandoned"];
   const lanes = order
@@ -55,7 +57,7 @@ export default function ExperimentJournal({
               <Grid key={experiment.id} size={{ xs: 12, md: 6 }}>
                 <Card
                   component={Link}
-                  href={`/experiments/${experiment.id}`}
+                  href={hrefFor(experiment.id)}
                   className="hover:shadow-darker-sm block h-full no-underline transition-shadow"
                 >
                   <CardContent className="flex flex-col gap-2">

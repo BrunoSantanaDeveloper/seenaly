@@ -13,7 +13,11 @@ import { createClient } from "@flyee/auth/client";
 
 export default function NewExperimentPage() {
   const t = useTranslations("experiments");
-  const productId = useSearchParams().get("product");
+  const searchParams = useSearchParams();
+  const productId = searchParams.get("product");
+  const requestedReturn = searchParams.get("return");
+  const returnHref =
+    productId && requestedReturn?.startsWith(`/products/${productId}/experiments`) ? requestedReturn : "/experiments";
   const { configured, currentOrg } = useOrganization();
   const [productName, setProductName] = useState<string | null>(null);
 
@@ -64,7 +68,7 @@ export default function NewExperimentPage() {
 
         {configured && currentOrg && productId && (
           <Grid size={12}>
-            <ExperimentForm orgId={currentOrg.id} productId={productId} />
+            <ExperimentForm orgId={currentOrg.id} productId={productId} returnHref={returnHref} />
           </Grid>
         )}
       </Grid>

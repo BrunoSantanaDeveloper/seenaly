@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { LicenseInfo } from "@mui/x-license";
 
 import Loading from "@/app/loading";
+import OnboardingGuard from "@/components/activation/onboarding-guard";
 import CookieConsent from "@/components/consent/cookie-consent";
 import AnnouncementBanner from "@/components/layout/announcements/announcement-banner";
 import ContentWrapper from "@/components/layout/containers/content-wrapper";
@@ -29,7 +30,9 @@ export default function DashboardLayout({
       <Main>
         <ContentWrapper>
           <AnnouncementBanner />
-          <Suspense fallback={<Loading />}>{children}</Suspense>
+          <OnboardingGuard>
+            <Suspense fallback={<Loading />}>{children}</Suspense>
+          </OnboardingGuard>
         </ContentWrapper>
       </Main>
       <MenuBackdrop />

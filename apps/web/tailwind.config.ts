@@ -120,6 +120,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--text-contrast))",
           alternative: "hsl(var(--text-contrast-alternative))",
         },
+        "on-primary": "hsl(var(--on-primary))",
         // ---------- Text Colors ---------- // //
 
         // ---------- Background Colors ---------- //

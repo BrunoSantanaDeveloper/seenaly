@@ -68,18 +68,10 @@ async function upsert(supabase: SupabaseClient, key: FlowKey, patch: Record<stri
  * Mark a step complete. When `allRequired` is provided and every required
  * step is now done, stamps completed_at (the activation / aha moment).
  */
-export async function completeStep(
-  supabase: SupabaseClient,
-  key: FlowKey,
-  step: string,
-  allRequired?: string[],
-) {
+export async function completeStep(supabase: SupabaseClient, key: FlowKey, step: string, allRequired?: string[]) {
   const state = await getOnboardingState(supabase, key);
-  const completedSteps = state.completedSteps.includes(step)
-    ? state.completedSteps
-    : [...state.completedSteps, step];
-  const activated =
-    allRequired && allRequired.length > 0 && allRequired.every((s) => completedSteps.includes(s));
+  const completedSteps = state.completedSteps.includes(step) ? state.completedSteps : [...state.completedSteps, step];
+  const activated = allRequired && allRequired.length > 0 && allRequired.every((s) => completedSteps.includes(s));
   return upsert(supabase, key, {
     completed_steps: completedSteps,
     ...(activated && !state.completedAt ? { completed_at: new Date().toISOString() } : {}),
@@ -91,25 +83,35 @@ export const dismissFlow = (supabase: SupabaseClient, key: FlowKey) => upsert(su
 export const reopenFlow = (supabase: SupabaseClient, key: FlowKey) => upsert(supabase, key, { dismissed: false });
 
 export interface FlowProgress {
+  /** Completed required steps. Optional enrichment never dilutes activation. */
   done: number;
+  /** Total required steps. */
   total: number;
   /** 0–100. */
   percent: number;
   /** First not-yet-done step — the natural next nudge. */
   nextStep: OnboardingStep | null;
   complete: boolean;
+  optionalDone: number;
+  optionalTotal: number;
+  optionalNextStep: OnboardingStep | null;
 }
 
 /** Merge step definitions with stored/live state into a progress summary. */
 export function computeProgress(steps: OnboardingStep[], state: OnboardingStateRow): FlowProgress {
   const isDone = (step: OnboardingStep) => step.done ?? state.completedSteps.includes(step.key);
-  const total = steps.length;
-  const done = steps.filter(isDone).length;
+  const required = steps.filter((step) => step.required !== false);
+  const optional = steps.filter((step) => step.required === false);
+  const total = required.length;
+  const done = required.filter(isDone).length;
   return {
     done,
     total,
     percent: total === 0 ? 0 : Math.round((done / total) * 100),
-    nextStep: steps.find((step) => !isDone(step)) ?? null,
-    complete: total > 0 && done === total,
+    nextStep: required.find((step) => !isDone(step)) ?? null,
+    complete: total === 0 || done === total,
+    optionalDone: optional.filter(isDone).length,
+    optionalTotal: optional.length,
+    optionalNextStep: optional.find((step) => !isDone(step)) ?? null,
   };
 }

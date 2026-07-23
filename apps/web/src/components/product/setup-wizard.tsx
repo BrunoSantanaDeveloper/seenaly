@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 export type WizardStep = {
   title: string;
+  /** Compact, accessible label used in the named progress trail. */
+  shortLabel?: string;
   /** Optional one-line reassurance under the title (progressive disclosure). */
   hint?: string;
   content: React.ReactNode;
@@ -27,16 +29,19 @@ export type WizardStep = {
 export default function SetupWizard({
   steps,
   onComplete,
+  onBeforeAdvance,
   onFinishEarly,
   finishEarlyLabel,
   completeLabel = "Finish",
   backLabel = "Back",
   continueLabel = "Continue",
+  nextStepLabel = "Next",
   stepLabel = (current, total) => `Step ${current} of ${total}`,
   className,
 }: {
   steps: WizardStep[];
   onComplete: () => void;
+  onBeforeAdvance?: () => void | boolean | Promise<void | boolean>;
   /**
    * When set, a secondary "finish now" action appears on every non-final step
    * (as long as the step can advance), so the remaining steps are opt-in and a
@@ -48,27 +53,61 @@ export default function SetupWizard({
   /** Pass translated strings for these — the defaults are English fallbacks. */
   backLabel?: string;
   continueLabel?: string;
+  nextStepLabel?: string;
   stepLabel?: (current: number, total: number) => string;
   className?: string;
 }) {
   const [index, setIndex] = useState(0);
+  const [advancing, setAdvancing] = useState(false);
   const step = steps[index];
   const isLast = index === steps.length - 1;
   const canAdvance = step.canAdvance ?? true;
+  const advance = async () => {
+    setAdvancing(true);
+    try {
+      const result = await onBeforeAdvance?.();
+      if (result === false) return;
+      setIndex((current) => Math.min(steps.length - 1, current + 1));
+    } finally {
+      setAdvancing(false);
+    }
+  };
 
   return (
     <Card className={cn("mx-auto w-full max-w-2xl", className)}>
       <CardContent className="flex flex-col gap-6">
         {/* Progress rail — the whole path is visible; the reader sees the end. */}
-        <Box className="flex flex-row items-center gap-2">
-          {steps.map((_, i) => (
-            <span
-              key={i}
+        <Box
+          component="ol"
+          aria-label={stepLabel(index + 1, steps.length)}
+          className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:flex sm:flex-row"
+        >
+          {steps.map((item, i) => (
+            <Box
+              component="li"
+              key={item.shortLabel ?? item.title}
+              aria-current={i === index ? "step" : undefined}
               className={cn(
-                "h-1.5 flex-1 rounded-full transition-colors",
-                i < index ? "bg-primary" : i === index ? "bg-primary/60" : "bg-grey-100",
+                "border-grey-100 flex min-w-0 items-center gap-2 border-t-2 pt-2 sm:flex-1",
+                i < index && "border-primary text-text-primary",
+                i === index && "border-primary text-primary-dark dark:text-primary-light",
+                i > index && "text-text-secondary",
               )}
-            />
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "border-grey-100 flex h-5 w-5 flex-none items-center justify-center rounded-full border text-xs",
+                  i <= index && "border-primary bg-primary text-on-primary",
+                )}
+              >
+                {i < index ? <NiCheck size="tiny" /> : i + 1}
+              </span>
+              <Typography component="span" variant="body2" className="truncate">
+                {item.shortLabel ?? item.title}
+              </Typography>
+              {i === index + 1 && <span className="sr-only">{nextStepLabel}</span>}
+            </Box>
           ))}
         </Box>
 
@@ -119,9 +158,9 @@ export default function SetupWizard({
               <Button
                 variant="contained"
                 color="primary"
-                disabled={!canAdvance}
+                disabled={!canAdvance || advancing}
                 endIcon={<NiArrowRight size="medium" />}
-                onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}
+                onClick={() => void advance()}
               >
                 {continueLabel}
               </Button>

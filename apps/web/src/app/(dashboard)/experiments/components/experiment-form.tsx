@@ -87,10 +87,12 @@ export default function ExperimentForm({
   orgId,
   productId,
   experiment,
+  returnHref = "/experiments",
 }: {
   orgId: string;
   productId: string;
   experiment?: ExperimentWithId;
+  returnHref?: string;
 }) {
   const t = useTranslations("experiments");
   const separators = useCurrencySeparators();
@@ -153,7 +155,7 @@ export default function ExperimentForm({
         router.refresh();
         return;
       }
-      router.push("/experiments");
+      router.push(returnHref);
       router.refresh();
     },
   });
@@ -313,7 +315,7 @@ export default function ExperimentForm({
         <Button type="submit" variant="contained" disabled={formik.isSubmitting}>
           {formik.isSubmitting ? t("saving") : t("save")}
         </Button>
-        <Button variant="text" color="grey" onClick={() => router.push("/experiments")}>
+        <Button variant="text" color="grey" onClick={() => router.push(returnHref)}>
           {t("cancel")}
         </Button>
       </Box>

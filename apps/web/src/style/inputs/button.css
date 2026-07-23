@@ -152,6 +152,8 @@
   }
 
   .MuiButton-containedPrimary {
+    color: hsl(var(--on-primary));
+
     &:hover {
       @apply bg-primary-light;
     }

@@ -68,7 +68,7 @@ export default function DiagnosisReadout({
       {/* Confidence footer */}
       <div className="mt-3 flex items-center justify-between">
         <span className="text-text-secondary text-xs tracking-wider uppercase">{confidenceLabel}</span>
-        <span className="border-primary/50 text-primary rounded border px-2 py-0.5 text-xs tracking-wider uppercase">
+        <span className="border-primary/50 text-primary-dark dark:text-primary-light rounded border px-2 py-0.5 text-xs tracking-wider uppercase">
           {confidenceValue}
         </span>
       </div>

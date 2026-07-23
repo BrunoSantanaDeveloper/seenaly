@@ -24,17 +24,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const ONBOARDING_FLOW = "user-activation";
 
 /**
- * SEENALY CHOICE — keep ONBOARDING_STEPS EMPTY on purpose. Seenaly's activation
- * is org-scoped and state-driven (does the org have product context? a Meta
- * connection?), which this template's static, user-scoped ONBOARDING_STEPS
- * can't express. The real activation surface is
- * `components/activation/activation-checklist.tsx` (flow "activation",
- * org-scoped, live done-predicates, i18n), rendered on `/home` and `/products`.
- * Empty here makes `resolvePostAuthDestination` send new users to the app root
- * (`/home`), where that checklist greets them. Do NOT fill this array — it would
- * spin up a second, inferior checklist via the template's OnboardingChecklistCard.
+ * SEENALY INITIAL ONBOARDING — defines the full-screen mandatory setup step
+ * for new users to register their first Product Context before accessing the dashboard.
  */
-export const ONBOARDING_STEPS: OnboardingStep[] = [];
+export const ONBOARDING_STEPS: OnboardingStep[] = [
+  { key: "welcome-and-product", title: "Configuração Inicial do Produto", href: "/onboarding" },
+];
 
 /** Route hosting the post-signup setup wizard. */
 export const ONBOARDING_ROUTE = "/onboarding";

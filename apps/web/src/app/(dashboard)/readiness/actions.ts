@@ -47,7 +47,9 @@ export type GenerateReadinessResult =
   | { ok: false; error: string; code?: "insufficient_credits" | "no_subscription"; balance?: number; cost?: number };
 
 /** What a readiness check costs and what the org currently has. */
-export type ReadinessCreditInfo = { ok: true; balance: number; cost: number } | { ok: false; error: string };
+export type ReadinessCreditInfo =
+  | { ok: true; balance: number; verdictCost: number; howToCost: number }
+  | { ok: false; error: string };
 
 /**
  * Read the price of a readiness check and the org's balance, so the user sees
@@ -57,12 +59,23 @@ export type ReadinessCreditInfo = { ok: true; balance: number; cost: number } | 
  */
 export async function getReadinessCreditInfo(orgId: string): Promise<ReadinessCreditInfo> {
   const supabase = await createClient();
-  const [{ data: assistant }, { data: balance, error }] = await Promise.all([
+  const [
+    { data: verdictAssistant, error: verdictError },
+    { data: howToAssistant, error: howToError },
+    { data: balance, error: balanceError },
+  ] = await Promise.all([
     supabase.from("assistants").select("credits_per_message").eq("slug", ASSISTANT_SLUG).maybeSingle(),
+    supabase.from("assistants").select("credits_per_message").eq("slug", HOWTO_ASSISTANT_SLUG).maybeSingle(),
     supabase.rpc("org_credit_balance", { target_org: orgId }),
   ]);
+  const error = verdictError ?? howToError ?? balanceError;
   if (error) return { ok: false, error: error.message };
-  return { ok: true, balance: Number(balance ?? 0), cost: Number(assistant?.credits_per_message ?? 0) };
+  return {
+    ok: true,
+    balance: Number(balance ?? 0),
+    verdictCost: Number(verdictAssistant?.credits_per_message ?? 0),
+    howToCost: Number(howToAssistant?.credits_per_message ?? 0),
+  };
 }
 /** A finished scan is a success even when the site was unreachable — the
  *  outcome is recorded and the UI explains it. Only "we could not even try"

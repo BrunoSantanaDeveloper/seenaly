@@ -151,7 +151,7 @@ export default function Notifications() {
             variant="text"
             size="large"
             color="text-primary"
-            aria-label="Notifications"
+            aria-label={t("notifications-title")}
             className={cn(
               "icon-only hover-icon-shrink [&.active]:text-primary! hover:bg-grey-25",
               open && "active bg-grey-25",

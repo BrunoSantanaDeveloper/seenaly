@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { Box, Button, Card, CardContent, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 
 import ActivationProgress from "@/components/product/activation-progress";
 import NiCheck from "@/icons/nexture/ni-check";
@@ -22,6 +22,7 @@ export default function OnboardingChecklist({
   title = "Get set up",
   description = "A few steps to your first result.",
   dismissLabel = "Dismiss",
+  optionalLabel = "Optional",
   steps,
   state,
   onDismiss,
@@ -32,6 +33,8 @@ export default function OnboardingChecklist({
   description?: string;
   /** Accessible name for the dismiss (X) button. Pass a translated string. */
   dismissLabel?: string;
+  /** Heading that separates enrichment from the required activation path. */
+  optionalLabel?: string;
   steps: OnboardingStep[];
   state: OnboardingStateRow;
   onDismiss?: () => void;
@@ -72,41 +75,91 @@ export default function OnboardingChecklist({
         </Box>
 
         <Box className="flex flex-col gap-1">
-          {steps.map((step) => {
-            const done = isDone(step);
-            const body = (
-              <Box
-                className={cn(
-                  "flex flex-row items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors",
-                  !done && step.href && "hover:bg-grey-25",
-                )}
-              >
-                <span
+          {steps
+            .filter((step) => step.required !== false)
+            .map((step) => {
+              const done = isDone(step);
+              const body = (
+                <Box
                   className={cn(
-                    "flex h-6 w-6 flex-none items-center justify-center rounded-full border",
-                    done ? "border-primary bg-primary text-white" : "border-grey-200 text-transparent",
+                    "flex flex-row items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors",
+                    !done && step.href && "hover:bg-grey-25",
                   )}
                 >
-                  <NiCheck size="small" />
-                </span>
-                <Typography
-                  variant="body1"
-                  className={cn("flex-1", done ? "text-text-secondary line-through" : "text-text-primary font-medium")}
-                >
-                  {step.title}
-                </Typography>
-                {!done && step.href && <NiChevronRightSmall size="medium" className="text-text-secondary" />}
-              </Box>
-            );
-            return !done && step.href ? (
-              <Link key={step.key} href={step.href} className="block">
-                {body}
-              </Link>
-            ) : (
-              <Box key={step.key}>{body}</Box>
-            );
-          })}
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 flex-none items-center justify-center rounded-full border",
+                      done ? "border-primary bg-primary text-on-primary" : "border-grey-200 text-transparent",
+                    )}
+                  >
+                    <NiCheck size="small" />
+                  </span>
+                  <Typography
+                    variant="body1"
+                    className={cn(
+                      "flex-1",
+                      done ? "text-text-secondary line-through" : "text-text-primary font-medium",
+                    )}
+                  >
+                    {step.title}
+                  </Typography>
+                  {!done && step.href && <NiChevronRightSmall size="medium" className="text-text-secondary" />}
+                </Box>
+              );
+              return !done && step.href ? (
+                <Link key={step.key} href={step.href} className="block">
+                  {body}
+                </Link>
+              ) : (
+                <Box key={step.key}>{body}</Box>
+              );
+            })}
         </Box>
+
+        {steps.some((step) => step.required === false) && (
+          <>
+            <Divider />
+            <Box className="flex flex-col gap-2">
+              <Chip label={optionalLabel} size="small" variant="outlined" color="grey" className="self-start" />
+              {steps
+                .filter((step) => step.required === false)
+                .map((step) => {
+                  const done = isDone(step);
+                  const body = (
+                    <Box
+                      className={cn(
+                        "flex flex-row items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors",
+                        !done && step.href && "hover:bg-grey-25",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 flex-none items-center justify-center rounded-full border",
+                          done ? "border-primary bg-primary text-on-primary" : "border-grey-200 text-transparent",
+                        )}
+                      >
+                        <NiCheck size="small" />
+                      </span>
+                      <Typography
+                        variant="body1"
+                        className={cn("flex-1", done ? "text-text-secondary line-through" : "font-medium")}
+                      >
+                        {step.title}
+                      </Typography>
+                      {!done && step.href && <NiChevronRightSmall size="medium" className="text-text-secondary" />}
+                    </Box>
+                  );
+                  return !done && step.href ? (
+                    <Link key={step.key} href={step.href} className="block">
+                      {body}
+                    </Link>
+                  ) : (
+                    <Box key={step.key}>{body}</Box>
+                  );
+                })}
+            </Box>
+          </>
+        )}
       </CardContent>
     </Card>
   );
