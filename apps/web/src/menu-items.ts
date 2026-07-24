@@ -105,6 +105,13 @@ export const leftMenuItems: MenuItem[] = [
         description: "menu-admin-backups-description",
       },
       {
+        id: "admin-assists",
+        icon: "NiHeadset",
+        label: "menu-admin-assists",
+        href: "/admin/assists",
+        description: "menu-admin-assists-description",
+      },
+      {
         id: "admin-announcements",
         icon: "NiAnnouncement",
         label: "menu-admin-announcements",

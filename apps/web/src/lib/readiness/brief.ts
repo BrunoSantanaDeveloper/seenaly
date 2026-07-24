@@ -12,6 +12,7 @@
 
 import {
   type CheckoutType,
+  type NotApplicableReason,
   READINESS_GROUPS,
   type ReadinessEvaluation,
   type ReadinessGroupKey,
@@ -68,13 +69,42 @@ const BLOCKER_LABEL: Record<string, string> = {
   "no-price": "o produto não tem preço definido — sem ele não existe teto de CAC",
 };
 
-/** The declared checklist, group by group. */
-export function readinessChecklistBlock(profile: ReadinessProfile): string {
+const NA_REASON_LABEL: Record<NotApplicableReason, string> = {
+  "platform-owns-checkout": "quem controla o checkout é a plataforma de venda, não o usuário",
+  "platform-owns-site": "o site é da plataforma, o usuário não tem página própria",
+  "no-own-server": "exige servidor próprio, que o usuário não tem nesse formato de venda",
+};
+
+/**
+ * The declared checklist, group by group — now annotated with what we actually
+ * PROVED and what is out of this business's reach.
+ *
+ * Both annotations exist to stop the engine giving impossible or unfounded
+ * advice: "install the CAPI" to someone selling on a marketplace they do not
+ * control, or treating an unproven tick as established fact.
+ */
+export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: ReadinessEvaluation): string {
+  const verified = new Set(evaluation?.verified ?? []);
+  const contradicted = new Set(evaluation?.contradicted ?? []);
+  const reasons = evaluation?.notApplicableReasons ?? {};
+
   const sections = READINESS_GROUPS.map((group) => {
-    const lines = group.items.map(
-      (item) =>
-        `- [${profile[item.key] ? "x" : " "}] ${ITEM_LABEL[item.key]}${profile[item.key] ? "" : " (NÃO CONFIRMADO)"}`,
-    );
+    const lines = group.items.map((item) => {
+      const claimed = profile[item.key];
+      const marks: string[] = [];
+      const reason = reasons[item.key];
+      if (reason) marks.push(`NÃO SE APLICA — ${NA_REASON_LABEL[reason]}`);
+      if (verified.has(item.key)) marks.push("VERIFICADO na página");
+      // The divergence between what was claimed and what the page shows is the
+      // single most valuable signal here — never flatten it into "unverified".
+      else if (contradicted.has(item.key))
+        marks.push(
+          "CONTESTADO — o usuário marcou, mas a leitura da página NÃO encontrou. Trate como ausente e aponte a divergência com respeito",
+        );
+      else if (claimed) marks.push("declarado, NÃO verificado");
+      else marks.push("NÃO CONFIRMADO");
+      return `- [${claimed ? "x" : " "}] ${ITEM_LABEL[item.key]} (${marks.join("; ")})`;
+    });
     return [`### ${GROUP_LABEL[group.key]}`, ...lines].join("\n");
   });
 

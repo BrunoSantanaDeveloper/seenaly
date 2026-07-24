@@ -1,13 +1,19 @@
 "use client";
 
+import type { AssistOffering } from "../actions";
+import AssistOffer from "./assist-offer";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Checkbox,
   Chip,
+  Collapse,
   Divider,
   FormControlLabel,
   MenuItem,
@@ -16,19 +22,27 @@ import {
 } from "@mui/material";
 
 import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
+import NiCheck from "@/icons/nexture/ni-check";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiSearch from "@/icons/nexture/ni-search";
+import { type AssistReason, assistReason } from "@/lib/readiness/assist";
 import {
   CHECKOUT_TYPES,
   type CheckoutType,
+  notApplicableReason,
+  observeItem,
   READINESS_GROUPS,
+  READINESS_ITEM_BY_KEY,
   type ReadinessEvaluation,
   type ReadinessGroup,
   type ReadinessGroupKey,
+  type ReadinessItemKey,
   type ReadinessProfile,
 } from "@/lib/readiness/checklist";
+import type { ScanSignals } from "@/lib/readiness/scan-analyze";
+import { cn } from "@/lib/utils";
 
 const GROUP_ICON: Record<ReadinessGroupKey, React.ReactNode> = {
   mensuracao: <NiPulse size="medium" />,
@@ -39,19 +53,24 @@ const GROUP_ICON: Record<ReadinessGroupKey, React.ReactNode> = {
 };
 
 /**
- * The readiness intake — the user marks ONLY what they can confirm.
+ * The readiness intake — and the place the whole product is decided.
  *
- * Deliberately not a form of text fields: the user knows facts about their own
- * setup, so the fastest honest capture is a tick list. An unticked box is never
- * reported back as "you don't have it" — it may simply be unknown, and not
- * knowing whether the pixel fires is itself the finding.
+ * Two failures shaped this component:
  *
- * Two rendering modes, same controls (DRY across the two page modes):
- *  - default: a titled Card walking every group (the "sections"/edit view);
- *  - `bare` + `groupKeys`: just the controls for the given groups, no Card and
- *    no group header — for a `SetupWizard` step, which already supplies the
- *    title and the "why" as its hint (mirrors how product-form renders fields
- *    directly inside the wizard).
+ * 1. A beginner (the framed-art merchant) hit "Pixel da Meta instalado" on step
+ *    one and had no idea what it meant, so he could not answer honestly and was
+ *    about to leave. Hence: every item carries a plain-language explanation, a
+ *    difficulty badge, and — when it needs a professional — the exact scope to
+ *    hand them, so he becomes an INFORMED buyer instead of a burned one.
+ *
+ * 2. A self-declared checklist feeding an AI verdict is garbage-in-garbage-out:
+ *    ticking "pixel installed" when it is not produces a confidently WRONG
+ *    verdict, which is worse than none. Hence: claims we can disprove are
+ *    REFUSED at the moment of ticking, with the evidence shown.
+ *
+ * The refusal is never a dead end — it always offers do-it / delegate / skip.
+ * And we only refuse with proof: no scan, or a client-rendered page, means we
+ * cannot tell, so we trust the user (see `observeItem`).
  */
 export default function ReadinessChecklist({
   profile,
@@ -60,6 +79,16 @@ export default function ReadinessChecklist({
   disabled,
   groupKeys,
   bare = false,
+  signals = null,
+  scanUrl = null,
+  hasLandingPage = false,
+  onVerifyNow,
+  scanning = false,
+  assistOffering = null,
+  assistOpenItems = [],
+  scanAttempts = 0,
+  creditBalance = null,
+  onRequestAssist,
 }: {
   profile: ReadinessProfile;
   evaluation: ReadinessEvaluation;
@@ -69,33 +98,281 @@ export default function ReadinessChecklist({
   groupKeys?: ReadinessGroupKey[];
   /** Drop the outer Card + intro + per-group header (for a wizard step). */
   bare?: boolean;
+  /** Latest scan — the evidence that makes refusal possible. */
+  signals?: ScanSignals | null;
+  /** The page we actually read, quoted back in the refusal. */
+  scanUrl?: string | null;
+  hasLandingPage?: boolean;
+  /** Re-read the page so a fix can be proved in seconds. */
+  onVerifyNow?: () => void;
+  scanning?: boolean;
+  /** The concierge catalog entry; null when the service is switched off. */
+  assistOffering?: AssistOffering | null;
+  /** Items with a request already in the queue — never sell the same one twice. */
+  assistOpenItems?: string[];
+  /** How many times the page has been scanned — part of the resistance signal. */
+  scanAttempts?: number;
+  creditBalance?: number | null;
+  onRequestAssist?: (key: ReadinessItemKey, reason: AssistReason, note: string) => Promise<boolean>;
 }) {
   const t = useTranslations("readiness");
+  const [openHelp, setOpenHelp] = useState<Set<ReadinessItemKey>>(new Set());
+  const [refused, setRefused] = useState<Set<ReadinessItemKey>>(new Set());
+  const [copied, setCopied] = useState<ReadinessItemKey | null>(null);
+  // Explicitly giving up on an item is the clearest "I can't do this" we ever
+  // get — it is what earns the concierge offer (see lib/readiness/assist.ts).
+  const [skipped, setSkipped] = useState<Set<ReadinessItemKey>>(new Set());
+
+  const toggleSet = (
+    setter: React.Dispatch<React.SetStateAction<Set<ReadinessItemKey>>>,
+    key: ReadinessItemKey,
+    force?: boolean,
+  ) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      const shouldHave = force ?? !next.has(key);
+      if (shouldHave) next.add(key);
+      else next.delete(key);
+      return next;
+    });
 
   const set = <K extends keyof ReadinessProfile>(key: K, value: ReadinessProfile[K]) =>
     onChange({ ...profile, [key]: value });
 
+  /**
+   * Ticking an item. A claim the evidence disproves is refused — the box stays
+   * unticked and the user gets the proof plus three ways forward.
+   */
+  const claim = (key: ReadinessItemKey, checked: boolean) => {
+    if (checked && observeItem(key, signals) === false) {
+      toggleSet(setRefused, key, true);
+      toggleSet(setOpenHelp, key, false);
+      return;
+    }
+    toggleSet(setRefused, key, false);
+    set(key, checked);
+  };
+
+  const copySpec = async (key: ReadinessItemKey, spec: string) => {
+    try {
+      await navigator.clipboard.writeText(spec);
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => (current === key ? null : current)), 2000);
+    } catch {
+      // Clipboard blocked (permissions, insecure context): the text is on
+      // screen and selectable, so this is a silent degradation, not a failure.
+    }
+  };
+
   const groups = groupKeys ? READINESS_GROUPS.filter((group) => groupKeys.includes(group.key)) : READINESS_GROUPS;
+
+  const itemRow = (key: ReadinessItemKey) => {
+    const meta = READINESS_ITEM_BY_KEY[key];
+    const naReason = notApplicableReason(key, profile, { hasLandingPage });
+    const isVerified = evaluation.verified.includes(key);
+    const helpOpen = openHelp.has(key);
+    // A claim ticked BEFORE the evidence existed must not survive it. Guarding
+    // only the moment of ticking would let anyone tick everything first and
+    // scan later, keeping every false claim — so a standing claim the scan
+    // disproves shows the same refusal, permanently, until it is resolved.
+    const isContradicted = evaluation.contradicted.includes(key);
+    const wasRefused = refused.has(key) || isContradicted;
+    const hireSpec = meta.difficulty === "specialist" ? t(`item-hire-${key}`) : null;
+
+    // The concierge is EARNED: it appears only after this specific item has
+    // shown real resistance, and never for something already proved, already
+    // requested, or that this business cannot do anyway.
+    const offer =
+      assistOffering && onRequestAssist
+        ? assistReason(key, {
+            contradicted: isContradicted,
+            skipped: skipped.has(key),
+            openedHelp: helpOpen,
+            scanAttempts,
+            resolved: isVerified,
+            notApplicable: Boolean(naReason),
+          })
+        : null;
+
+    return (
+      <Box key={key} className={cn("flex flex-col py-0.5", naReason && "opacity-60")}>
+        <Box className="flex flex-row flex-wrap items-center gap-x-2">
+          <FormControlLabel
+            className="m-0"
+            control={
+              <Checkbox checked={profile[key]} disabled={disabled} onChange={(e) => claim(key, e.target.checked)} />
+            }
+            label={
+              <Typography variant="body2" component="span">
+                {t(`item-${key}`)}
+              </Typography>
+            }
+          />
+          {isVerified && (
+            <Chip
+              icon={<NiCheck size="small" />}
+              label={t("badge-verified")}
+              size="small"
+              variant="outlined"
+              color="success"
+              className="flex-none"
+            />
+          )}
+          {isContradicted && (
+            <Chip
+              label={t("badge-contradicted")}
+              size="small"
+              variant="outlined"
+              color="warning"
+              className="flex-none"
+            />
+          )}
+          {naReason && (
+            <Chip
+              label={t("badge-not-applicable")}
+              size="small"
+              variant="outlined"
+              color="grey"
+              className="flex-none"
+            />
+          )}
+          <Button
+            variant="text"
+            color="grey"
+            size="small"
+            className="min-w-0"
+            onClick={() => toggleSet(setOpenHelp, key)}
+            aria-expanded={helpOpen}
+          >
+            {t("dont-know")}
+          </Button>
+        </Box>
+
+        {/* Refusal: the box stayed unticked, and here is the proof + a way out. */}
+        <Collapse in={wasRefused} unmountOnExit>
+          <Alert severity="warning" className="neutral bg-background-paper/60! mb-2 ml-8">
+            <Typography variant="subtitle2">{t("refused-title")}</Typography>
+            <Typography variant="body2">{t("refused-body", { item: t(`item-${key}`), url: scanUrl ?? "" })}</Typography>
+            <Box className="mt-2 flex flex-row flex-wrap gap-1">
+              <Button size="small" variant="outlined" color="grey" onClick={() => toggleSet(setOpenHelp, key, true)}>
+                {t("refused-do-it")}
+              </Button>
+              {hireSpec && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="grey"
+                  onClick={() => {
+                    toggleSet(setOpenHelp, key, true);
+                    copySpec(key, hireSpec);
+                  }}
+                >
+                  {copied === key ? t("copied") : t("refused-delegate")}
+                </Button>
+              )}
+              <Button
+                size="small"
+                variant="text"
+                color="grey"
+                onClick={() => {
+                  toggleSet(setRefused, key, false);
+                  toggleSet(setSkipped, key, true);
+                }}
+              >
+                {t("refused-skip")}
+              </Button>
+            </Box>
+            <Typography variant="body2" className="text-text-secondary mt-1">
+              {t("skip-cost")}
+            </Typography>
+          </Alert>
+        </Collapse>
+
+        {/* The fourth exit, once this item has actually proved hard. It sits
+            outside both collapses so giving up does not make everything vanish
+            — the way out stays on screen. */}
+        <Collapse in={Boolean(offer)} unmountOnExit>
+          <Box className="mb-2 ml-8">
+            {offer && assistOffering && onRequestAssist && (
+              <AssistOffer
+                reason={offer}
+                offering={assistOffering}
+                itemLabel={t(`item-${key}`)}
+                alreadyOpen={assistOpenItems.includes(key)}
+                balance={creditBalance}
+                onRequest={(note) => onRequestAssist(key, offer, note)}
+              />
+            )}
+          </Box>
+        </Collapse>
+
+        {/* The teaching, at the moment of the question. */}
+        <Collapse in={helpOpen} unmountOnExit>
+          <Box className="bg-grey-25/60 mb-2 ml-8 flex flex-col gap-2 rounded-2xl p-3">
+            <Box className="flex flex-row flex-wrap items-center gap-2">
+              <Chip
+                label={meta.difficulty === "diy" ? t("difficulty-diy") : t("difficulty-specialist")}
+                size="small"
+                variant="outlined"
+                color={meta.difficulty === "diy" ? "success" : "grey"}
+              />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" className="text-text-secondary uppercase">
+                {t("what-is")}
+              </Typography>
+              <Typography variant="body2" className="leading-6">
+                {t(`item-what-${key}`)}
+              </Typography>
+            </Box>
+
+            {naReason && (
+              <Typography variant="body2" className="text-text-secondary">
+                {t(`na-reason-${naReason}`)}
+              </Typography>
+            )}
+
+            {hireSpec && (
+              <Box className="flex flex-col gap-1">
+                <Typography variant="subtitle2" className="text-text-secondary uppercase">
+                  {t("hire-title")}
+                </Typography>
+                <Typography variant="body2" className="leading-6 italic">
+                  “{hireSpec}”
+                </Typography>
+                <Box>
+                  <Button size="small" variant="outlined" color="grey" onClick={() => copySpec(key, hireSpec)}>
+                    {copied === key ? t("copied") : t("copy-spec")}
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* The try → prove → celebrate loop: fix it, then prove it in seconds. */}
+            {meta.verification === "proved" && onVerifyNow && hasLandingPage && (
+              <Box>
+                <Button size="small" variant="outlined" color="grey" onClick={onVerifyNow} disabled={scanning}>
+                  {scanning ? t("verifying-now") : t("verify-now")}
+                </Button>
+              </Box>
+            )}
+
+            {meta.helpSlug && (
+              <Box>
+                <Button size="small" variant="text" color="grey" href={`/help/${meta.helpSlug}`} target="_blank">
+                  {t("full-guide")}
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </Collapse>
+      </Box>
+    );
+  };
 
   const items = (group: ReadinessGroup) => (
     <Box className="flex flex-col pl-1">
-      {group.items.map((item) => (
-        <FormControlLabel
-          key={item.key}
-          control={
-            <Checkbox
-              checked={profile[item.key]}
-              disabled={disabled}
-              onChange={(event) => set(item.key, event.target.checked)}
-            />
-          }
-          label={
-            <Typography variant="body2" component="span">
-              {t(`item-${item.key}`)}
-            </Typography>
-          }
-        />
-      ))}
+      {group.items.map((item) => itemRow(item.key))}
 
       {/* Where the money is actually taken — a select, because "none" is a real
           and blocking answer, not an unchecked box. */}
@@ -135,10 +412,18 @@ export default function ReadinessChecklist({
     </Box>
   );
 
+  /** Nobody should feel stupid for not knowing — say it out loud. */
+  const reassurance = (
+    <Typography variant="body2" className="text-text-secondary">
+      {t("intake-reassure")}
+    </Typography>
+  );
+
   // Bare: only the controls (the wizard step owns the title + why + progress).
   if (bare) {
     return (
-      <Box className="flex flex-col gap-4">
+      <Box className="flex flex-col gap-3">
+        {reassurance}
         {groups.map((group) => (
           <Box key={group.key}>{items(group)}</Box>
         ))}
@@ -188,6 +473,7 @@ export default function ReadinessChecklist({
           <Typography variant="body2" className="text-text-secondary">
             {t("checklist-body")}
           </Typography>
+          {reassurance}
         </Box>
         {groups.map(groupBlock)}
       </CardContent>

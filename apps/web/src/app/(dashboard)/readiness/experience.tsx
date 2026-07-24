@@ -4,9 +4,12 @@ import { type DiagnosisRating, recordDiagnosisFeedback } from "../diagnosis/acti
 import { registerExperimentFromReadinessFinding } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
 import {
+  type AssistOffering,
   generateFindingHowTo,
   generateReadiness,
+  getAssistInfo,
   getReadinessCreditInfo,
+  requestAssist,
   saveReadiness,
   scanProductSite,
 } from "./actions";
@@ -15,10 +18,11 @@ import ReadinessScan, { type ScanView } from "./components/readiness-scan";
 import ReadinessSignals from "./components/readiness-signals";
 import ReadinessVerdict, { type HowToState, type ReadinessMeta } from "./components/readiness-verdict";
 import ReadinessWizard from "./components/readiness-wizard";
+import VerifiedCelebration from "./components/verified-celebration";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -125,6 +129,19 @@ export function ReadinessExperience({
   // The user ticked a fix as done AFTER this verdict was produced, so the
   // verdict on screen is now behind reality.
   const [staleVerdict, setStaleVerdict] = useState(false);
+  // The instant the scan PROVES a new item, celebrate it by name — machine
+  // verified, so it cannot be faked (see verified-celebration.tsx).
+  const [justVerified, setJustVerified] = useState<ReadinessItemKey[]>([]);
+  const [celebrateOpen, setCelebrateOpen] = useState(false);
+  // The concierge: catalog price + which items already have an open request, so
+  // the same session is never sold twice.
+  const [assistOffering, setAssistOffering] = useState<AssistOffering | null>(null);
+  const [assistOpenItems, setAssistOpenItems] = useState<string[]>([]);
+  // How many times this page has been read — a second failed proof is what
+  // separates real resistance from a first attempt.
+  const [scanAttempts, setScanAttempts] = useState(0);
+  const verifiedRef = useRef<Set<ReadinessItemKey>>(new Set());
+  const verifiedSeededRef = useRef(false);
   // Checklist + scan live in a modal now, off the main result scroll.
   const [reviewOpen, setReviewOpen] = useState(false);
   const fullScreenDialog = useMediaQuery("(max-width:640px)");
@@ -141,9 +158,45 @@ export function ReadinessExperience({
       evaluateReadiness(profile, {
         hasLandingPage: Boolean(product?.landing_page_url),
         hasPrice: product?.price != null || hasPlanPrice,
+        // The scan is the evidence that turns a claim into a verified fact —
+        // and the only thing that lets us refuse a false one.
+        signals: scan?.ok ? scan.signals : null,
       }),
-    [profile, product, hasPlanPrice],
+    [profile, product, hasPlanPrice, scan],
   );
+
+  // A stable signature of the proved set, so the celebration effect runs only
+  // when what the scan proved actually changes — not on every render.
+  const verifiedSignature = useMemo(() => [...evaluation.verified].sort().join("|"), [evaluation.verified]);
+
+  // Switching products must re-seed silently: the next product's already-proved
+  // items are its baseline, not a fresh win to celebrate.
+  useEffect(() => {
+    verifiedSeededRef.current = false;
+  }, [selectedProductId]);
+
+  // Fire ONLY on growth within a session. The first pass after load seeds the
+  // baseline (proofs already on file are not a new achievement); any item that
+  // appears after that is a real, just-earned proof.
+  useEffect(() => {
+    if (!loaded) return;
+    const current = new Set(evaluation.verified);
+    if (!verifiedSeededRef.current) {
+      verifiedSeededRef.current = true;
+      verifiedRef.current = current;
+      return;
+    }
+    const fresh = evaluation.verified.filter((key) => !verifiedRef.current.has(key));
+    verifiedRef.current = current;
+    if (fresh.length > 0) {
+      setJustVerified(fresh);
+      setCelebrateOpen(true);
+      track("readiness_item_verified", { count: fresh.length });
+    }
+    // verifiedSignature is the intended trigger; evaluation.verified is read
+    // through it and stays stable between real changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifiedSignature, loaded]);
 
   const loadProducts = useCallback(async () => {
     if (!currentOrg) return;
@@ -187,6 +240,7 @@ export function ReadinessExperience({
       { data: verdicts, error: verdictsError },
       { data: plans, error: plansError },
       { data: scanRow, error: scanError },
+      { count: scanCount },
     ] = await Promise.all([
       supabase.from("product_readiness").select("*").eq("product_id", selectedProductId).maybeSingle(),
       supabase
@@ -204,6 +258,9 @@ export function ReadinessExperience({
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // Total reads of this page, ever. Resistance must survive a reload: the
+      // user who tried yesterday and failed is still stuck today.
+      supabase.from("product_scans").select("id", { count: "exact", head: true }).eq("product_id", selectedProductId),
     ]);
     if (readinessError || verdictsError || plansError || scanError) {
       setDataLoadError(true);
@@ -231,6 +288,7 @@ export function ReadinessExperience({
         : null,
     );
 
+    setScanAttempts(scanCount ?? 0);
     setStaleVerdict(false);
 
     // Restore how-tos the org already PAID for — losing them on reload would
@@ -330,6 +388,38 @@ export function ReadinessExperience({
   useEffect(() => {
     loadCredit();
   }, [loadCredit]);
+
+  const loadAssist = useCallback(async () => {
+    if (!currentOrg || !selectedProductId) return;
+    const info = await getAssistInfo(currentOrg.id, selectedProductId);
+    // A missing catalog means the service is off — the offer simply never
+    // appears. That is a valid state, not an error to shout about.
+    if (!info.ok) return;
+    setAssistOffering(info.offering);
+    setAssistOpenItems(info.openItems);
+  }, [currentOrg, selectedProductId]);
+
+  useEffect(() => {
+    loadAssist();
+  }, [loadAssist]);
+
+  /**
+   * Buy one guided session for the item the user is stuck on. Refreshes both
+   * the queue (so the offer turns into "already requested") and the balance.
+   */
+  const requestAssistFor = async (key: ReadinessItemKey, reason: string, note: string) => {
+    if (!selectedProductId) return false;
+    setError(null);
+    const result = await requestAssist(selectedProductId, key, reason, note);
+    if (!result.ok) {
+      if (result.code === "insufficient_credits") setOutOfCredits(true);
+      else setError(result.error);
+      return false;
+    }
+    track("readiness_assist_requested", { item: key, reason, already: result.alreadyOpen });
+    await Promise.all([loadAssist(), loadCredit()]);
+    return true;
+  };
 
   useEffect(() => {
     loadReadiness();
@@ -466,6 +556,7 @@ export function ReadinessExperience({
       setError(scanError.message);
       return;
     }
+    setScanAttempts((previous) => previous + 1);
     setScan(
       scanRow
         ? {
@@ -575,6 +666,7 @@ export function ReadinessExperience({
       {/* Covers both entry points into generation: finishing the guided wizard
           and re-verifying from the result view. */}
       <ProcessingOverlay open={busy} title={t("verifying")} stages={stages} patienceLabel={t("stage-patience")} />
+      <VerifiedCelebration open={celebrateOpen} items={justVerified} onClose={() => setCelebrateOpen(false)} />
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12} spacing={2.5} container className="items-center">
           <Grid size={{ xs: 12, md: "grow" }}>
@@ -738,6 +830,11 @@ export function ReadinessExperience({
                 saveState={saveState}
                 onRetrySave={() => void persist()}
                 onBeforeAdvance={() => (dirty ? persist() : Promise.resolve(true))}
+                assistOffering={assistOffering}
+                assistOpenItems={assistOpenItems}
+                scanAttempts={scanAttempts}
+                creditBalance={credit?.balance ?? null}
+                onRequestAssist={requestAssistFor}
               />
             </Grid>
           </>
@@ -849,6 +946,16 @@ export function ReadinessExperience({
                 evaluation={evaluation}
                 onChange={setProfile}
                 disabled={busy || scanning}
+                signals={scan?.ok ? scan.signals : null}
+                scanUrl={scan?.finalUrl ?? scan?.requestedUrl ?? null}
+                hasLandingPage={Boolean(product.landing_page_url)}
+                onVerifyNow={runScan}
+                scanning={scanning}
+                assistOffering={assistOffering}
+                assistOpenItems={assistOpenItems}
+                scanAttempts={scanAttempts}
+                creditBalance={credit?.balance ?? null}
+                onRequestAssist={requestAssistFor}
               />
               <Box className="bg-background sticky bottom-0 flex flex-row flex-wrap items-center gap-2 py-2">
                 {reVerifyButton}

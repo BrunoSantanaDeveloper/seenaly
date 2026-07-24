@@ -1,5 +1,6 @@
 "use client";
 
+import type { AssistOffering } from "../actions";
 import ReadinessChecklist from "./readiness-checklist";
 import ReadinessScan, { type ScanView } from "./readiness-scan";
 import ReadinessSignals from "./readiness-signals";
@@ -8,10 +9,12 @@ import { useTranslations } from "next-intl";
 import { Box, Button, Typography } from "@mui/material";
 
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
+import type { AssistReason } from "@/lib/readiness/assist";
 import {
   READINESS_GROUPS,
   READINESS_ITEM_KEYS,
   type ReadinessEvaluation,
+  type ReadinessItemKey,
   type ReadinessProfile,
 } from "@/lib/readiness/checklist";
 
@@ -44,6 +47,11 @@ export default function ReadinessWizard({
   saveState,
   onRetrySave,
   onBeforeAdvance,
+  assistOffering = null,
+  assistOpenItems = [],
+  scanAttempts = 0,
+  creditBalance = null,
+  onRequestAssist,
 }: {
   profile: ReadinessProfile;
   evaluation: ReadinessEvaluation;
@@ -60,6 +68,12 @@ export default function ReadinessWizard({
   saveState: "idle" | "saving" | "saved" | "error";
   onRetrySave: () => void;
   onBeforeAdvance: () => Promise<boolean>;
+  /** Concierge plumbing — step one is where a beginner actually gives up. */
+  assistOffering?: AssistOffering | null;
+  assistOpenItems?: string[];
+  scanAttempts?: number;
+  creditBalance?: number | null;
+  onRequestAssist?: (key: ReadinessItemKey, reason: AssistReason, note: string) => Promise<boolean>;
 }) {
   const t = useTranslations("readiness");
   const confirmed = READINESS_ITEM_KEYS.filter((key) => profile[key]).length;
@@ -83,6 +97,18 @@ export default function ReadinessWizard({
             groupKeys={[group.key]}
             bare
             disabled={busy}
+            // Step one is exactly where the beginner stalls, so the teaching and
+            // the evidence have to be right here, not behind the verdict.
+            signals={scan?.ok ? scan.signals : null}
+            scanUrl={scan?.finalUrl ?? scan?.requestedUrl ?? null}
+            hasLandingPage={hasUrl}
+            onVerifyNow={onScan}
+            scanning={scanning}
+            assistOffering={assistOffering}
+            assistOpenItems={assistOpenItems}
+            scanAttempts={scanAttempts}
+            creditBalance={creditBalance}
+            onRequestAssist={onRequestAssist}
           />
         ),
         // Every dimension is optional — never block advancing on a blank one.

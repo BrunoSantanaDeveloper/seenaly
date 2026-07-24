@@ -43,3 +43,25 @@ export async function notifyUsers(userIds: string[], input: NotificationInput): 
 }
 
 export const notifyUser = (userId: string, input: NotificationInput) => notifyUsers([userId], input);
+
+/**
+ * Notify the platform team (every superadmin) — for tenant events a human has
+ * to act on, like a paid concierge session being requested.
+ *
+ * Service-role by necessity: a tenant user cannot read other people's profiles
+ * under RLS, and must not be able to. Best-effort like every notification: the
+ * caller's durable record (the queue row) is the source of truth, so a failure
+ * here degrades to "the team sees it in the console" rather than losing work.
+ */
+export async function notifyPlatformTeam(input: NotificationInput): Promise<NotifyResult> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { sent: false };
+  }
+  const service = createServiceClient();
+  const { data, error } = await service.from("profiles").select("id").eq("is_superadmin", true);
+  if (error) return { sent: false, error: error.message };
+  return notifyUsers(
+    ((data as { id: string }[]) ?? []).map((row) => row.id),
+    { type: "system", ...input },
+  );
+}

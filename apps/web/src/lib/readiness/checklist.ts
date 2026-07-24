@@ -12,6 +12,8 @@
  * one place.
  */
 
+import type { ScanSignals } from "./scan-analyze";
+
 export type ReadinessGroupKey = "mensuracao" | "pagina" | "checkout" | "descoberta" | "funil";
 
 /** The boolean facts the user confirms. Keys match `product_readiness` columns. */
@@ -38,6 +40,27 @@ export type ReadinessItemKey =
   | "emailFollowup"
   | "remarketingAudience";
 
+/**
+ * How much of a claim we can actually PROVE.
+ *
+ * A self-declared checklist that feeds an AI verdict is garbage-in-garbage-out:
+ * ticking "pixel installed" when it is not produces a confidently WRONG verdict,
+ * which is worse than none. So claims are verified against the page scan where
+ * evidence exists — and we are honest about where it does not.
+ *
+ * - `proved`   — the scan sees it. A contradicted claim is REFUSED, with proof.
+ * - `weak`     — the scan only hints (a viewport tag is not "tested on mobile").
+ *                We surface the hint and never refuse: rejecting on a guess is
+ *                worse than trusting.
+ * - `declared` — invisible to any scan (CAPI is server-side by definition, PIX
+ *                sits behind a checkout flow). Trusted, but carried into the
+ *                verdict as UNVERIFIED so confidence is discounted honestly.
+ */
+export type VerificationTier = "proved" | "weak" | "declared";
+
+/** Can the user do it alone, or does it normally need a professional? */
+export type ItemDifficulty = "diy" | "specialist";
+
 export interface ReadinessItem {
   key: ReadinessItemKey;
   /**
@@ -45,6 +68,12 @@ export interface ReadinessItem {
    * predictably wasteful. Drives the free, local blocker list — no LLM call.
    */
   critical?: boolean;
+  /** How much of this claim the scanner can prove. */
+  verification: VerificationTier;
+  /** Sets honest expectations BEFORE the user opens anything. */
+  difficulty: ItemDifficulty;
+  /** Optional Help Center article (help_articles) for the deep guide. */
+  helpSlug?: string;
 }
 
 export interface ReadinessGroup {
@@ -61,42 +90,57 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
   {
     key: "mensuracao",
     items: [
-      { key: "pixelInstalled", critical: true },
-      { key: "conversionEventTested", critical: true },
-      { key: "capiInstalled" },
-      { key: "analyticsInstalled" },
+      // The two that block a beginner on step 1 are both provable — the refusal
+      // lands exactly where the pain is.
+      { key: "pixelInstalled", critical: true, verification: "proved", difficulty: "specialist" },
+      { key: "conversionEventTested", critical: true, verification: "declared", difficulty: "specialist" },
+      { key: "capiInstalled", verification: "declared", difficulty: "specialist" },
+      { key: "analyticsInstalled", verification: "proved", difficulty: "specialist" },
     ],
   },
   {
     key: "pagina",
-    items: [{ key: "pageHasProof" }, { key: "pageMobileTested" }, { key: "pageFast" }],
+    items: [
+      { key: "pageHasProof", verification: "declared", difficulty: "diy" },
+      { key: "pageMobileTested", verification: "weak", difficulty: "diy" },
+      { key: "pageFast", verification: "weak", difficulty: "specialist" },
+    ],
   },
   {
     key: "checkout",
     items: [
-      { key: "paymentPix" },
-      { key: "paymentCard" },
-      { key: "checkoutShort" },
-      { key: "hasGuarantee" },
-      { key: "abandonedRecovery" },
+      { key: "paymentPix", verification: "declared", difficulty: "diy" },
+      { key: "paymentCard", verification: "declared", difficulty: "diy" },
+      { key: "checkoutShort", verification: "declared", difficulty: "specialist" },
+      { key: "hasGuarantee", verification: "weak", difficulty: "diy" },
+      { key: "abandonedRecovery", verification: "declared", difficulty: "specialist" },
     ],
   },
   {
     key: "descoberta",
     items: [
-      { key: "seoBasics" },
-      { key: "indexable" },
-      { key: "sitemapRobots" },
-      { key: "structuredData" },
-      { key: "socialProfiles" },
-      { key: "organicContent" },
+      { key: "seoBasics", verification: "proved", difficulty: "diy" },
+      { key: "indexable", verification: "proved", difficulty: "specialist" },
+      { key: "sitemapRobots", verification: "proved", difficulty: "specialist" },
+      { key: "structuredData", verification: "proved", difficulty: "specialist" },
+      { key: "socialProfiles", verification: "weak", difficulty: "diy" },
+      { key: "organicContent", verification: "declared", difficulty: "diy" },
     ],
   },
   {
     key: "funil",
-    items: [{ key: "emailCapture" }, { key: "emailFollowup" }, { key: "remarketingAudience" }],
+    items: [
+      { key: "emailCapture", verification: "weak", difficulty: "diy" },
+      { key: "emailFollowup", verification: "declared", difficulty: "diy" },
+      { key: "remarketingAudience", verification: "declared", difficulty: "specialist" },
+    ],
   },
 ];
+
+/** Item lookup by key — the UI needs the metadata without walking the groups. */
+export const READINESS_ITEM_BY_KEY: Record<ReadinessItemKey, ReadinessItem> = Object.fromEntries(
+  READINESS_GROUPS.flatMap((group) => group.items).map((item) => [item.key, item]),
+) as Record<ReadinessItemKey, ReadinessItem>;
 
 export const READINESS_ITEM_KEYS: ReadinessItemKey[] = READINESS_GROUPS.flatMap((group) =>
   group.items.map((item) => item.key),
@@ -218,6 +262,111 @@ export function toReadinessRow(profile: ReadinessProfile): Record<string, unknow
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Verification — never trust a claim we can disprove                         */
+/* -------------------------------------------------------------------------- */
+
+/** The scan's answer about one claim. Only `contradicted` refuses a tick. */
+export type VerificationOutcome = "verified" | "contradicted" | "unverifiable";
+
+/**
+ * What the scan OBSERVED for one item: true = present, false = absent,
+ * null = cannot tell (and therefore never grounds for refusing anything).
+ *
+ * The `jsRenderedLikely` guard is the critical one: on a client-rendered page
+ * the tags are injected after our fetch, so absence proves nothing. Refusing a
+ * true "pixel installed" claim on an SPA would be a confident lie — exactly the
+ * failure this whole mechanism exists to prevent.
+ */
+export function observeItem(key: ReadinessItemKey, signals: ScanSignals | null): boolean | null {
+  if (!signals || signals.jsRenderedLikely) return null;
+  switch (key) {
+    case "pixelInstalled":
+      return signals.tracking.metaPixel;
+    case "analyticsInstalled":
+      return signals.tracking.ga4 || signals.tracking.gtm;
+    case "seoBasics":
+      return Boolean(signals.seo.title) && Boolean(signals.seo.metaDescription);
+    case "indexable":
+      return !signals.seo.noindex && !signals.discovery.robotsDisallowsAll;
+    case "sitemapRobots": {
+      // "published" means both. A definitive `missing` disproves it; an `error`
+      // means we could not check, which is not evidence of absence.
+      const { sitemapXml, robotsTxt } = signals.discovery;
+      if (sitemapXml === "error" || robotsTxt === "error") return null;
+      return sitemapXml === "found" && robotsTxt === "found";
+    }
+    case "structuredData":
+      // Malformed JSON-LD still counts as PRESENT (the engine flags the invalid
+      // one separately) — refusing would overstate what we know.
+      return signals.seo.structuredDataTypes.length > 0;
+
+    // Weak hints: surfaced to the user, never used to refuse (see verifyItem).
+    case "pageMobileTested":
+      return signals.seo.hasViewport;
+    case "hasGuarantee":
+    case "socialProfiles":
+    case "emailCapture":
+    case "pageFast":
+      return null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * The verdict on one claim. A tick is refused ONLY when the item is in the
+ * `proved` tier AND the evidence positively disproves it. Everything else is
+ * trusted — we never reject on a guess.
+ */
+export function verifyItem(key: ReadinessItemKey, claimed: boolean, signals: ScanSignals | null): VerificationOutcome {
+  if (READINESS_ITEM_BY_KEY[key]?.verification !== "proved") return "unverifiable";
+  const observed = observeItem(key, signals);
+  if (observed === null) return "unverifiable";
+  if (observed) return "verified";
+  return claimed ? "contradicted" : "unverifiable";
+}
+
+/** Items the user claims but the evidence disproves — the refusal list. */
+export function verifyAgainstScan(profile: ReadinessProfile, signals: ScanSignals | null): ReadinessItemKey[] {
+  return READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "contradicted");
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Applicability — do not ask for what this business cannot do                */
+/* -------------------------------------------------------------------------- */
+
+/** Why an item probably does not apply. A stable slug the UI translates. */
+export type NotApplicableReason = "platform-owns-checkout" | "platform-owns-site" | "no-own-server";
+
+/**
+ * Whether an item is out of this business's reach.
+ *
+ * Driven by DECLARED channel ownership, never by a missing URL: not having a
+ * page is "I haven't done it yet", not "it doesn't apply to me". Marking page
+ * items as inapplicable just because no URL is on file would make the product
+ * lie to a user who simply has not built the page.
+ */
+export function notApplicableReason(
+  key: ReadinessItemKey,
+  profile: ReadinessProfile,
+  context: { hasLandingPage: boolean },
+): NotApplicableReason | null {
+  const onPlatform = profile.checkoutType === "platform";
+  if (!onPlatform) return null;
+
+  // The platform owns the checkout flow — he cannot shorten or instrument it.
+  if (key === "checkoutShort" || key === "abandonedRecovery") return "platform-owns-checkout";
+
+  // Without a page of his own he has no server and no site to work on: those
+  // belong to the platform.
+  if (!context.hasLandingPage) {
+    if (key === "capiInstalled") return "no-own-server";
+    if (key === "sitemapRobots" || key === "structuredData") return "platform-owns-site";
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Local evaluation — free, instant, fully explainable                        */
 /* -------------------------------------------------------------------------- */
 
@@ -225,6 +374,8 @@ export function toReadinessRow(profile: ReadinessProfile): Record<string, unknow
 export interface ReadinessContext {
   hasLandingPage: boolean;
   hasPrice: boolean;
+  /** Latest successful scan, when one exists — enables verification. */
+  signals?: ScanSignals | null;
 }
 
 /**
@@ -241,8 +392,25 @@ export type ReadinessBlocker =
 
 export interface ReadinessGroupProgress {
   key: ReadinessGroupKey;
+  /** Items the user ticked (all items, applicable or not) — kept as-is so the
+   *  client/server agreement and the existing tests never move. */
   confirmed: number;
   total: number;
+  /** Items that actually apply to this business (total minus platform-owned). */
+  applicable: number;
+  /**
+   * Provable items the page scan PROVED. This is the inforgeable number — it can
+   * only grow by fixing the thing and letting the scanner see it, never by
+   * ticking a box. It is what the celebration is allowed to fire on.
+   */
+  verified: number;
+  /**
+   * The honest "done" count over `applicable`: a provable item counts only once
+   * the scan proves it (ticking is not enough — that is the anti-fraud), while a
+   * declared/weak item counts when confirmed, because the scanner can never see
+   * it and the user's word is the best truth available.
+   */
+  achieved: number;
 }
 
 export interface ReadinessEvaluation {
@@ -252,6 +420,20 @@ export interface ReadinessEvaluation {
   blockers: ReadinessBlocker[];
   /** Nothing confirmed and nothing declared — the intake has not been filled. */
   untouched: boolean;
+  /**
+   * Claims the scan positively PROVED. This — not `confirmed` — is what the
+   * progress UI celebrates: a number you cannot inflate by ticking boxes.
+   */
+  verified: ReadinessItemKey[];
+  /** Claims the scan disproves. The UI refuses these ticks, with evidence. */
+  contradicted: ReadinessItemKey[];
+  /** Out of this business's reach — de-emphasised, never hidden. */
+  notApplicable: ReadinessItemKey[];
+  /** Why each of those does not apply, so consumers never recompute (and never
+   *  recompute with the wrong context, which would state a false reason). */
+  notApplicableReasons: Partial<Record<ReadinessItemKey, NotApplicableReason>>;
+  /** `total` minus what does not apply, so gaps that aren't his don't shame him. */
+  applicableTotal: number;
 }
 
 /**
@@ -263,11 +445,36 @@ export interface ReadinessEvaluation {
  * credit on the engine.
  */
 export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessContext): ReadinessEvaluation {
-  const byGroup = READINESS_GROUPS.map((group) => ({
-    key: group.key,
-    confirmed: group.items.filter((item) => profile[item.key]).length,
-    total: group.items.length,
-  }));
+  // Verification and applicability come first because the honest per-dimension
+  // progress is built from them — but neither touches `confirmed`, `total` or
+  // `blockers`, which keep their exact prior meaning.
+  const signals = context.signals ?? null;
+  const verified = READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "verified");
+  const contradicted = READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "contradicted");
+  const notApplicableReasons: Partial<Record<ReadinessItemKey, NotApplicableReason>> = {};
+  for (const key of READINESS_ITEM_KEYS) {
+    const reason = notApplicableReason(key, profile, context);
+    if (reason) notApplicableReasons[key] = reason;
+  }
+  const notApplicable = Object.keys(notApplicableReasons) as ReadinessItemKey[];
+
+  const verifiedSet = new Set(verified);
+  const naSet = new Set(notApplicable);
+  const isProvable = (key: ReadinessItemKey) => READINESS_ITEM_BY_KEY[key].verification === "proved";
+
+  const byGroup: ReadinessGroupProgress[] = READINESS_GROUPS.map((group) => {
+    const keys = group.items.map((item) => item.key);
+    const applicableKeys = keys.filter((key) => !naSet.has(key));
+    return {
+      key: group.key,
+      confirmed: keys.filter((key) => profile[key]).length,
+      total: keys.length,
+      applicable: applicableKeys.length,
+      verified: applicableKeys.filter((key) => verifiedSet.has(key)).length,
+      // Provable ⇒ must be proved by the scan; everything else ⇒ the user's tick.
+      achieved: applicableKeys.filter((key) => verifiedSet.has(key) || (!isProvable(key) && profile[key])).length,
+    };
+  });
   const confirmed = byGroup.reduce((sum, group) => sum + group.confirmed, 0);
   const total = READINESS_ITEM_KEYS.length;
 
@@ -289,5 +496,10 @@ export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessC
     byGroup,
     blockers,
     untouched: confirmed === 0 && profile.checkoutType === null,
+    verified,
+    contradicted,
+    notApplicable,
+    notApplicableReasons,
+    applicableTotal: total - notApplicable.length,
   };
 }

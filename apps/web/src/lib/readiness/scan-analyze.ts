@@ -232,7 +232,11 @@ export function analyzeScan(input: AnalyzeInput): ScanSignals {
       tiktokPixel: /analytics\.tiktok\.com|ttq\s*\.\s*(load|track)/i.test(html),
     },
     https: input.finalUrl.startsWith("https://"),
-    jsRenderedLikely: visibleText.length < JS_RENDERED_TEXT_THRESHOLD,
+    // Thin server-rendered text is only evidence of client rendering if there
+    // is JS that could do the rendering. A short page with NO script tag cannot
+    // inject anything — treating it as an SPA would permanently disable
+    // verification for every legitimately minimal landing page.
+    jsRenderedLikely: visibleText.length < JS_RENDERED_TEXT_THRESHOLD && /<script\b/i.test(html),
     visibleTextLength: visibleText.length,
     bytes: input.bytes,
     fetchMs: input.fetchMs,

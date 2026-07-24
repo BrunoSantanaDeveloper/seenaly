@@ -22,13 +22,18 @@ import {
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
   itemsForDimension,
+  notApplicableReason,
+  READINESS_ITEM_BY_KEY,
   READINESS_ITEM_KEYS,
   type ReadinessProfile,
   resolvableItems,
   sanitizeRelatedItems,
   toReadinessProfile,
   toReadinessRow,
+  verifyAgainstScan,
+  verifyItem,
 } from "../apps/web/src/lib/readiness/checklist";
+import { type AssistSignals, assistReason } from "../apps/web/src/lib/readiness/assist";
 import { analyzeScan } from "../apps/web/src/lib/readiness/scan-analyze";
 import { isBlockedAddress } from "../apps/web/src/lib/readiness/scan";
 
@@ -157,6 +162,265 @@ for (const dimension of ["mensuracao", "pagina", "checkout", "descoberta", "funi
 }
 
 /* ========================================================================== */
+section("Verification — refuse only with proof");
+/* ========================================================================== */
+
+// A minimal signals object; each test overrides just what it needs.
+const signalsWith = (over: Record<string, unknown> = {}) =>
+  ({
+    seo: {
+      title: "t",
+      titleLength: 1,
+      metaDescription: "d",
+      metaDescriptionLength: 1,
+      canonical: null,
+      lang: null,
+      hasViewport: true,
+      h1Count: 1,
+      firstH1: null,
+      ogTitle: false,
+      ogDescription: false,
+      ogImage: false,
+      structuredDataTypes: ["Product"],
+      noindex: false,
+      imagesTotal: 0,
+      imagesMissingAlt: 0,
+      ...((over.seo as object) ?? {}),
+    },
+    discovery: {
+      robotsTxt: "found",
+      robotsDisallowsAll: false,
+      sitemapReferencedInRobots: true,
+      sitemapXml: "found",
+      ...((over.discovery as object) ?? {}),
+    },
+    tracking: { metaPixel: true, ga4: true, gtm: false, tiktokPixel: false, ...((over.tracking as object) ?? {}) },
+    https: true,
+    jsRenderedLikely: false,
+    visibleTextLength: 900,
+    bytes: 1000,
+    fetchMs: 100,
+    ...over,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+
+// The core promise: a false claim is caught.
+check(
+  "claimed pixel + no pixel on the page => contradicted",
+  verifyItem("pixelInstalled", true, signalsWith({ tracking: { metaPixel: false } })),
+  "contradicted",
+);
+check("claimed pixel + pixel present => verified", verifyItem("pixelInstalled", true, signalsWith()), "verified");
+// Never refuse without evidence.
+check("no scan at all => never contradicted", verifyItem("pixelInstalled", true, null), "unverifiable");
+// The critical false-positive guard: on a client-rendered page the tags are
+// injected after our fetch, so absence proves nothing.
+check(
+  "JS-rendered page => never contradicted",
+  verifyItem("pixelInstalled", true, signalsWith({ jsRenderedLikely: true, tracking: { metaPixel: false } })),
+  "unverifiable",
+);
+// Unclaimed + absent is not a lie, just a gap.
+check("unclaimed + absent => unverifiable", verifyItem("pixelInstalled", false, signalsWith({ tracking: { metaPixel: false } })), "unverifiable");
+
+// Tier discipline: things we cannot see are never refused.
+for (const key of ["capiInstalled", "conversionEventTested", "paymentPix", "checkoutShort"] as const) {
+  check(`declared item never refused: ${key}`, verifyItem(key, true, signalsWith({ tracking: { metaPixel: false } })), "unverifiable");
+}
+// Weak hints must not refuse either — rejecting on a guess is worse than trusting.
+for (const key of ["pageMobileTested", "pageFast", "hasGuarantee", "socialProfiles", "emailCapture"] as const) {
+  check(`weak item never refused: ${key}`, verifyItem(key, true, signalsWith({ seo: { hasViewport: false } })), "unverifiable");
+}
+
+// `sitemapRobots` means BOTH published; an `error` is not evidence of absence.
+check(
+  "sitemap missing => contradicted",
+  verifyItem("sitemapRobots", true, signalsWith({ discovery: { sitemapXml: "missing" } })),
+  "contradicted",
+);
+check(
+  "sitemap check errored => unverifiable, never refused",
+  verifyItem("sitemapRobots", true, signalsWith({ discovery: { sitemapXml: "error" } })),
+  "unverifiable",
+);
+check(
+  "noindex disproves 'indexable'",
+  verifyItem("indexable", true, signalsWith({ seo: { noindex: true } })),
+  "contradicted",
+);
+
+check(
+  "verifyAgainstScan lists only the disproved claims",
+  verifyAgainstScan(p({ pixelInstalled: true, capiInstalled: true }), signalsWith({ tracking: { metaPixel: false, ga4: false } })),
+  ["pixelInstalled"],
+);
+
+// Every item must declare its tier and difficulty, or the UI lies by omission.
+check(
+  "all 21 items declare verification + difficulty",
+  READINESS_ITEM_KEYS.every(
+    (key) => Boolean(READINESS_ITEM_BY_KEY[key]?.verification) && Boolean(READINESS_ITEM_BY_KEY[key]?.difficulty),
+  ),
+  true,
+);
+
+/* ========================================================================== */
+section("Per-dimension progress — celebration may only fire on proof");
+/* ========================================================================== */
+
+// Anti-fraud: a provable item the user TICKS but the scan disproves earns no
+// progress, while a declared item the scanner can never see is trusted when
+// ticked. The whole point of the "verified" progress is that it cannot be
+// inflated by clicking.
+const antifraud = evaluateReadiness(p({ pixelInstalled: true, capiInstalled: true, conversionEventTested: true }), {
+  hasLandingPage: true,
+  hasPrice: true,
+  signals: signalsWith({ tracking: { metaPixel: false, ga4: false, gtm: false, tiktokPixel: false } }),
+});
+const mensuracao = antifraud.byGroup.find((g) => g.key === "mensuracao")!;
+check("ticked-but-disproved pixel earns 0 verified", mensuracao.verified, 0);
+check("declared items still count as achieved when ticked", mensuracao.achieved, 2); // capi + event
+check("confirmed still counts every tick (unchanged meaning)", mensuracao.confirmed, 3);
+
+// Proof counts even when the user never ticked the box — the scanner is the
+// source of truth for provable items.
+const provenOnly = evaluateReadiness(p(), {
+  hasLandingPage: true,
+  hasPrice: true,
+  signals: signalsWith(), // metaPixel + ga4 present by default
+});
+const provenMensuracao = provenOnly.byGroup.find((g) => g.key === "mensuracao")!;
+check("scanner proof alone raises verified", provenMensuracao.verified, 2); // pixel + analytics
+check("proven items are achieved even unticked", provenMensuracao.achieved, 2);
+check("proof does not fake a tick", provenMensuracao.confirmed, 0);
+
+// Invariants every ring depends on: verified ⊆ achieved ⊆ applicable ⊆ total.
+for (const g of provenOnly.byGroup) {
+  check(`${g.key}: verified <= achieved`, g.verified <= g.achieved, true);
+  check(`${g.key}: achieved <= applicable`, g.achieved <= g.applicable, true);
+  check(`${g.key}: applicable <= total`, g.applicable <= g.total, true);
+}
+// A platform seller's inapplicable items shrink the denominator, never shame him.
+const platformProgress = evaluateReadiness(p({ checkoutType: "platform" }), { hasLandingPage: false });
+for (const g of platformProgress.byGroup) {
+  check(`${g.key}: applicable excludes NA`, g.applicable <= g.total, true);
+}
+
+/* ========================================================================== */
+section("Applicability — only what this business can actually do");
+/* ========================================================================== */
+
+const ctx = { hasLandingPage: false };
+check(
+  "platform seller: checkout details do not apply",
+  notApplicableReason("checkoutShort", p({ checkoutType: "platform" }), ctx),
+  "platform-owns-checkout",
+);
+check(
+  "platform seller without own page: CAPI has no server",
+  notApplicableReason("capiInstalled", p({ checkoutType: "platform" }), ctx),
+  "no-own-server",
+);
+// The distinction that keeps the product honest.
+check(
+  "missing URL alone never makes an item inapplicable",
+  notApplicableReason("sitemapRobots", p({ checkoutType: "own" }), { hasLandingPage: false }),
+  null,
+);
+check(
+  "own checkout: nothing is inapplicable",
+  READINESS_ITEM_KEYS.every((key) => notApplicableReason(key, p({ checkoutType: "own" }), ctx) === null),
+  true,
+);
+check(
+  "undeclared checkout: nothing is inapplicable",
+  READINESS_ITEM_KEYS.every((key) => notApplicableReason(key, p(), ctx) === null),
+  true,
+);
+check(
+  "platform seller WITH own page keeps the site items",
+  notApplicableReason("sitemapRobots", p({ checkoutType: "platform" }), { hasLandingPage: true }),
+  null,
+);
+
+// GUARDRAIL: relevance changes what we ASK, never the economic truth.
+const platformSeller = p({ checkoutType: "platform" });
+check(
+  "blockers are identical for a platform seller",
+  evaluateReadiness(platformSeller, { hasLandingPage: false, hasPrice: false }).blockers,
+  ["no-page", "no-measurement", "no-payment", "no-price"],
+);
+const evalPlatform = evaluateReadiness(platformSeller, { hasLandingPage: false, hasPrice: false });
+check("total stays 21 regardless of applicability", evalPlatform.total, 21);
+check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 21 - evalPlatform.notApplicable.length);
+check("applicableTotal never exceeds total", evalPlatform.applicableTotal <= evalPlatform.total, true);
+
+/* ========================================================================== */
+section("Concierge offer — earned by resistance, never always-on");
+/* ========================================================================== */
+
+const sig = (over: Partial<AssistSignals> = {}): AssistSignals => ({
+  contradicted: false,
+  skipped: false,
+  openedHelp: false,
+  scanAttempts: 0,
+  resolved: false,
+  notApplicable: false,
+  ...over,
+});
+
+// The default must be SILENCE. A fresh user who has done nothing yet is not
+// struggling, and offering paid help there turns the tool into an upsell funnel.
+check("no offer with no signals at all", assistReason("pixelInstalled", sig()), null);
+check("no offer merely because an item is unconfirmed", assistReason("capiInstalled", sig()), null);
+check("opening the explanation alone is not resistance", assistReason("pixelInstalled", sig({ openedHelp: true })), null);
+check(
+  "one scan with no other signal is not resistance",
+  assistReason("pixelInstalled", sig({ scanAttempts: 1 })),
+  null,
+);
+
+// Real resistance: claimed it, the page disproved it, and they scanned again.
+check(
+  "disproved claim after a retry earns the offer",
+  assistReason("pixelInstalled", sig({ contradicted: true, scanAttempts: 2 })),
+  "contradicted-after-retry",
+);
+check(
+  "a disproved claim on the FIRST scan is not yet resistance",
+  assistReason("pixelInstalled", sig({ contradicted: true, scanAttempts: 1 })),
+  null,
+);
+// They read what it is and skipped anyway — they know they cannot do it.
+check(
+  "skipping a specialist item earns the offer",
+  assistReason("pixelInstalled", sig({ skipped: true, openedHelp: true })),
+  "skipped-specialist",
+);
+// Taught, scanned, still not proved: the teaching did not get them there.
+check(
+  "taught + scanned + still unproved earns the offer",
+  assistReason("pixelInstalled", sig({ openedHelp: true, scanAttempts: 1 })),
+  "stuck-on-specialist",
+);
+
+// NEVER sell what they can do themselves — that would be predatory.
+for (const key of ["pageHasProof", "paymentPix", "organicContent", "emailFollowup"] as const) {
+  check(`no offer for a DIY item: ${key}`, assistReason(key, sig({ skipped: true, openedHelp: true })), null);
+}
+// NEVER sell what is already done, or what was never theirs to do.
+check(
+  "no offer once the item is proved",
+  assistReason("pixelInstalled", sig({ contradicted: true, scanAttempts: 5, resolved: true })),
+  null,
+);
+check(
+  "no offer for an item that does not apply",
+  assistReason("capiInstalled", sig({ skipped: true, openedHelp: true, notApplicable: true })),
+  null,
+);
+
+/* ========================================================================== */
 section("SSRF address guard");
 /* ========================================================================== */
 
@@ -266,6 +530,17 @@ const spa = analyzeScan({
   html: `<html><head><title>App</title></head><body><div id="root"></div><script src="/bundle.js"></script></body></html>`,
 });
 check("JS-rendered page flagged", spa.jsRenderedLikely, true);
+
+// A short page with NO script cannot be client-rendered. Flagging it would
+// silently disable verification for every legitimately minimal landing page.
+check(
+  "short page WITHOUT scripts is not treated as JS-rendered",
+  analyzeScan({
+    ...base,
+    html: `<html><head><title>Loja</title></head><body><h1>Quadros</h1><p>Fale no WhatsApp.</p></body></html>`,
+  }).jsRenderedLikely,
+  false,
+);
 
 check(
   "malformed JSON-LD surfaced, not crashed",

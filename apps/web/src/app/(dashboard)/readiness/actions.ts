@@ -4,6 +4,7 @@ import { mapProductRow } from "../products/lib/map";
 
 import { recordAudit } from "@/lib/audit";
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
+import { notifyPlatformTeam } from "@/lib/notifications";
 import {
   type OrganicPresence,
   readinessChecklistBlock,
@@ -37,6 +38,8 @@ import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@f
 
 const ASSISTANT_SLUG = "readiness-engine";
 const HOWTO_ASSISTANT_SLUG = "readiness-howto";
+/** The concierge catalog entry (migration 0032) — price lives in the DB. */
+const ASSIST_OFFERING_SLUG = "readiness-item-session";
 
 export type SaveReadinessResult = { ok: true } | { ok: false; error: string };
 export type GenerateReadinessResult =
@@ -185,6 +188,182 @@ export async function scanProductSite(productId: string): Promise<ScanProductRes
   });
 
   return { ok: true, scanned: outcome.ok };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Concierge — the paid human exit when the step-by-step was not enough       */
+/* -------------------------------------------------------------------------- */
+
+/** The catalog entry, so the price is shown BEFORE the user commits. */
+export type AssistOffering = { id: string; name: string; description: string; credits: number; minutes: number };
+export type AssistOfferingResult =
+  | { ok: true; offering: AssistOffering | null; openItems: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Read the concierge catalog plus which items already have an OPEN request.
+ *
+ * Both together: the UI must never offer to sell a session for something the
+ * org already asked for and is waiting on — that is how you double-charge a
+ * confused user.
+ */
+export async function getAssistInfo(orgId: string, productId: string): Promise<AssistOfferingResult> {
+  const supabase = await createClient();
+  const [{ data: offering, error: offeringError }, { data: open, error: openError }] = await Promise.all([
+    supabase
+      .from("assist_offerings")
+      .select("id, name, description, credits, estimated_minutes")
+      .eq("slug", ASSIST_OFFERING_SLUG)
+      .eq("is_active", true)
+      .maybeSingle(),
+    supabase
+      .from("readiness_assists")
+      .select("item_key")
+      .eq("product_id", productId)
+      .in("status", ["requested", "scheduled", "in_progress"]),
+  ]);
+  // A missing catalog row is not an error — it means the service is switched
+  // off, and the UI simply never offers it.
+  if (offeringError && offeringError.code !== "PGRST116") return { ok: false, error: offeringError.message };
+  if (openError) return { ok: false, error: openError.message };
+  return {
+    ok: true,
+    offering: offering
+      ? {
+          id: offering.id as string,
+          name: offering.name as string,
+          description: offering.description as string,
+          credits: Number(offering.credits ?? 0),
+          minutes: Number(offering.estimated_minutes ?? 0),
+        }
+      : null,
+    openItems: ((open as { item_key: string }[]) ?? []).map((row) => row.item_key),
+  };
+}
+
+export type RequestAssistResult =
+  | { ok: true; id: string; alreadyOpen: boolean }
+  | { ok: false; error: string; code?: "insufficient_credits" | "no_subscription" };
+
+/**
+ * Ask the Seenaly team to do one readiness item WITH the user, on a call.
+ *
+ * Charging order is the whole risk here, so it is explicit: we insert FIRST
+ * (the partial unique index makes a double-click or a race collapse into one
+ * open request) and charge SECOND, rolling the row back if the debit fails.
+ * The alternative — charge then insert — can take the money and lose the
+ * request, which is the one outcome a burned-by-agencies user must never see.
+ */
+export async function requestAssist(
+  productId: string,
+  itemKey: string,
+  reason: string,
+  contactNote: string,
+): Promise<RequestAssistResult> {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { ok: false, error: "Sessão expirada." };
+
+  // Never trust the client's idea of what a checklist item is.
+  if (!(READINESS_ITEM_KEYS as string[]).includes(itemKey)) {
+    return { ok: false, error: "Item inválido." };
+  }
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("id, org_id, name")
+    .eq("id", productId)
+    .maybeSingle();
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+
+  const { data: offering } = await supabase
+    .from("assist_offerings")
+    .select("id, credits")
+    .eq("slug", ASSIST_OFFERING_SLUG)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!offering) return { ok: false, error: "Este serviço não está disponível no momento." };
+  const cost = Number(offering.credits ?? 0);
+
+  // Already asked and waiting: return the existing request instead of billing
+  // again. Idempotency is a billing guarantee here, not a nicety.
+  const { data: existing } = await supabase
+    .from("readiness_assists")
+    .select("id")
+    .eq("product_id", productId)
+    .eq("item_key", itemKey)
+    .in("status", ["requested", "scheduled", "in_progress"])
+    .maybeSingle();
+  if (existing) return { ok: true, id: existing.id as string, alreadyOpen: true };
+
+  const { data: entitlements } = await supabase.rpc("org_entitlements", { target_org: product.org_id });
+  const ent = entitlements as { active?: boolean; credit_balance?: number } | null;
+  if (!ent?.active) return { ok: false, code: "no_subscription", error: "Nenhuma assinatura ativa." };
+  if (cost > 0 && (ent.credit_balance ?? 0) < cost) {
+    return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para pedir a sessão guiada." };
+  }
+
+  const { data: created, error: insertError } = await supabase
+    .from("readiness_assists")
+    .insert({
+      org_id: product.org_id,
+      product_id: productId,
+      offering_id: offering.id,
+      item_key: itemKey,
+      reason,
+      // Free text only. The UI states we never ask for passwords, and the note
+      // is stored as-is for the operator to read before the call.
+      contact_note: contactNote.slice(0, 2000) || null,
+      credits_charged: cost,
+      requested_by: user.user.id,
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) {
+    // The partial unique index fired: someone (or a double-click) got here
+    // first. That is a success from the user's point of view, not an error.
+    if (insertError?.code === "23505") {
+      const { data: raced } = await supabase
+        .from("readiness_assists")
+        .select("id")
+        .eq("product_id", productId)
+        .eq("item_key", itemKey)
+        .in("status", ["requested", "scheduled", "in_progress"])
+        .maybeSingle();
+      if (raced) return { ok: true, id: raced.id as string, alreadyOpen: true };
+    }
+    return { ok: false, error: insertError?.message ?? "Falha ao registrar o pedido." };
+  }
+
+  if (cost > 0) {
+    const { error: creditError } = await supabase.rpc("consume_credits", {
+      target_org: product.org_id,
+      amount: cost,
+      reason: `Sessão guiada — ${itemKey}`,
+    });
+    if (creditError) {
+      // Roll the request back so we never leave a queued job nobody paid for.
+      await supabase.from("readiness_assists").delete().eq("id", created.id);
+      return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para pedir a sessão guiada." };
+    }
+  }
+
+  await recordAudit(supabase, "readiness.assist_requested", {
+    orgId: product.org_id as string,
+    entityType: "product",
+    entityId: productId,
+    metadata: { item: itemKey, reason, credits: cost },
+  });
+
+  // Tell the team. Best-effort by design: a notification failure must never
+  // undo a paid, recorded request — the row in the queue is the source of truth.
+  await notifyPlatformTeam({
+    title: "Nova sessão guiada pedida",
+    body: `${product.name}: ${itemKey} (${reason})`,
+    href: "/admin/assists",
+  });
+
+  return { ok: true, id: created.id, alreadyOpen: false };
 }
 
 export type HowToResult =
@@ -447,6 +626,9 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
   const evaluation = evaluateReadiness(profile, {
     hasLandingPage: Boolean(product.landingPageUrl),
     hasPrice: product.price != null || (product.plans?.some((plan) => plan.price != null) ?? false),
+    // Same evidence the client used, so screen and verdict never disagree about
+    // what was actually proved.
+    signals: scanRecord?.ok ? scanRecord.signals : null,
   });
 
   // Subscription gate. Credits are only DEBITED after a valid verdict (step 6)
@@ -509,7 +691,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     productContextBlock(product),
     "",
     "## Checklist de prontidão declarado pelo usuário",
-    readinessChecklistBlock(profile),
+    readinessChecklistBlock(profile, evaluation),
     "",
     "## Sinais locais (verificação determinística já exibida ao usuário)",
     readinessSignalsBlock(evaluation),

@@ -1,5 +1,6 @@
 "use client";
 
+import DimensionRings from "./readiness-progress";
 import { useTranslations } from "next-intl";
 
 import { Alert, Box, Typography } from "@mui/material";
@@ -23,7 +24,10 @@ export default function ReadinessSignals({ evaluation }: { evaluation: Readiness
   const hasBlockers = evaluation.blockers.length > 0;
 
   return (
-    <Box className="flex flex-col gap-2">
+    <Box className="flex flex-col gap-4">
+      {/* The honest scoreboard first: how much of the structure the scan proved.
+          It leads because it is the one number the user cannot inflate. */}
+      <DimensionRings evaluation={evaluation} />
       {hasBlockers ? (
         <Alert severity="warning" className="neutral bg-background-paper/60!">
           <Typography variant="subtitle2">{t("blockers-title", { count: evaluation.blockers.length })}</Typography>
