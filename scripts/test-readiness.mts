@@ -16,7 +16,10 @@
  * The repo has no test runner; this follows the established `tsx scripts/*.mts`
  * convention. No network, no database, no keys — it is safe to run anywhere.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import {
   EMPTY_READINESS_PROFILE,
@@ -275,6 +278,34 @@ check(
   }),
   true,
 );
+
+// A `recommendedEvents: true` flag with no translation would render the raw
+// i18n key on screen — check every locale actually carries real, non-empty
+// copy for it, not just the pt-BR source.
+const LOCALES = ["pt-BR", "en", "es", "de", "fr"] as const;
+const MESSAGES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "packages/content/messages");
+const readinessMessages = Object.fromEntries(
+  LOCALES.map((locale) => [
+    locale,
+    JSON.parse(readFileSync(path.join(MESSAGES_DIR, `${locale}.json`), "utf8")).readiness as Record<string, string>,
+  ]),
+) as Record<(typeof LOCALES)[number], Record<string, string>>;
+
+/** Every item where `flag` is true must carry real, non-empty `prefix-<key>` copy in every locale. */
+function checkTipCoverage(flag: "recommendedEvents" | "recommendedParameters", prefix: string) {
+  for (const key of READINESS_ITEM_KEYS.filter((k) => READINESS_ITEM_BY_KEY[k]?.[flag])) {
+    for (const locale of LOCALES) {
+      check(
+        `${prefix}-${key} has real copy in ${locale}`,
+        typeof readinessMessages[locale][`${prefix}-${key}`] === "string" &&
+          readinessMessages[locale][`${prefix}-${key}`].trim().length > 0,
+        true,
+      );
+    }
+  }
+}
+checkTipCoverage("recommendedEvents", "item-events");
+checkTipCoverage("recommendedParameters", "item-parameters");
 
 /* ========================================================================== */
 section("Per-dimension progress — celebration may only fire on proof");

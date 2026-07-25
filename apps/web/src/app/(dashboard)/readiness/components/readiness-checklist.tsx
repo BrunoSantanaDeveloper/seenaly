@@ -28,11 +28,13 @@ import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiClipboard from "@/icons/nexture/ni-clipboard";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiExternal from "@/icons/nexture/ni-external";
+import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import NiSlider from "@/icons/nexture/ni-slider";
 import { type AssistReason, assistReason } from "@/lib/readiness/assist";
 import {
   CHECKOUT_TYPES,
@@ -184,6 +186,13 @@ export default function ReadinessChecklist({
     const isContradicted = evaluation.contradicted.includes(key);
     const wasRefused = refused.has(key) || isContradicted;
     const hireSpec = meta.difficulty === "specialist" ? t(`item-hire-${key}`) : null;
+    // The official flow this item links out to (e.g. Meta's own CAPI setup)
+    // asks the user to pick from a menu of platform events with no guidance —
+    // a generic doc link does not answer "which one is mine".
+    const eventsTip = meta.recommendedEvents ? t(`item-events-${key}`) : null;
+    // The step right after: a dense checkbox grid of "which fields to send",
+    // no priority order given — same failure, one screen later.
+    const parametersTip = meta.recommendedParameters ? t(`item-parameters-${key}`) : null;
 
     // The concierge is EARNED: it appears only after this specific item has
     // shown real resistance, and never for something already proved, already
@@ -336,6 +345,49 @@ export default function ReadinessChecklist({
                 {t(`item-what-${key}`)}
               </Typography>
             </Box>
+
+            {/* The official flow this item links out to hands the user a menu
+                of ~12 generic platform events with zero guidance — this is
+                the answer to "which one is mine", scoped to what THIS product
+                sells (digital products / self-service offers). Boxed and
+                icon-led so it reads as an instruction to follow, not prose to
+                skim past. */}
+            {eventsTip && (
+              <Box className="bg-primary/5 flex flex-row items-start gap-2 rounded-2xl p-3">
+                <span className="text-primary mt-0.5 flex-none">
+                  <NiListCheck size="small" />
+                </span>
+                <Box>
+                  <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+                    {t("events-tip-title")}
+                  </Typography>
+                  <Typography variant="body2" className="leading-6">
+                    {eventsTip}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
+            {/* One screen later in the same official flow: a dense grid of
+                "which fields to send" with the truly required ones already
+                locked (greyed out) — the decision is only in the optional
+                ones, and nothing there says which optional field is worth
+                checking. */}
+            {parametersTip && (
+              <Box className="bg-primary/5 flex flex-row items-start gap-2 rounded-2xl p-3">
+                <span className="text-primary mt-0.5 flex-none">
+                  <NiSlider size="small" />
+                </span>
+                <Box>
+                  <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+                    {t("parameters-tip-title")}
+                  </Typography>
+                  <Typography variant="body2" className="leading-6">
+                    {parametersTip}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
 
             {naReason && (
               <Typography variant="body2" className="text-text-secondary">

@@ -82,6 +82,23 @@ export interface ReadinessItem {
    * spectrum invariant promises never to gate behind a prerequisite.
    */
   officialDocUrl?: string;
+  /**
+   * Flags an item where the official flow (once opened via `officialDocUrl`)
+   * itself asks the user to pick from a menu of platform events — e.g. Meta's
+   * CAPI setup lists ~12 standard events with no indication of which apply.
+   * A generic doc link does not answer that; content lives in
+   * `item-events-<key>`, scoped to this product's initial recorte (digital
+   * products / self-service offers), so the tip is a short recommendation, not
+   * a generic listing.
+   */
+  recommendedEvents?: boolean;
+  /**
+   * Same idea, one step later in the official flow: after picking events,
+   * Meta's own wizard presents a dense grid of "which fields to send"
+   * checkboxes with no priority order. Content lives in
+   * `item-parameters-<key>`.
+   */
+  recommendedParameters?: boolean;
 }
 
 export interface ReadinessGroup {
@@ -106,6 +123,8 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
         verification: "proved",
         difficulty: "specialist",
         officialDocUrl: "https://www.facebook.com/business/help/952192354843755?id=1205376682832142",
+        recommendedEvents: true,
+        recommendedParameters: true,
       },
       { key: "conversionEventTested", critical: true, verification: "declared", difficulty: "specialist" },
       { key: "capiInstalled", verification: "declared", difficulty: "specialist" },
