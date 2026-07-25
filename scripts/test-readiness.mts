@@ -264,6 +264,18 @@ check(
   true,
 );
 
+// officialDocUrl renders as a real clickable link out to a third-party site —
+// a typo here is a dead or wrong link at the exact moment we're building
+// trust, so any set value must be a well-formed https URL.
+check(
+  "every set officialDocUrl is https",
+  READINESS_ITEM_KEYS.every((key) => {
+    const url = READINESS_ITEM_BY_KEY[key]?.officialDocUrl;
+    return url === undefined || url.startsWith("https://");
+  }),
+  true,
+);
+
 /* ========================================================================== */
 section("Per-dimension progress — celebration may only fire on proof");
 /* ========================================================================== */

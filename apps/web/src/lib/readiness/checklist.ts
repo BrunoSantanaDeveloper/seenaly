@@ -74,6 +74,14 @@ export interface ReadinessItem {
   difficulty: ItemDifficulty;
   /** Optional Help Center article (help_articles) for the deep guide. */
   helpSlug?: string;
+  /**
+   * The platform's OWN official documentation for this item (trust 1 — the
+   * highest tier in docs/PRODUCT.md's knowledge model). Lets a user who wants
+   * to try it themselves go straight to the source instead of only being
+   * offered "hire someone" or "pay for a session" — the DIY path the maturity
+   * spectrum invariant promises never to gate behind a prerequisite.
+   */
+  officialDocUrl?: string;
 }
 
 export interface ReadinessGroup {
@@ -92,7 +100,13 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
     items: [
       // The two that block a beginner on step 1 are both provable — the refusal
       // lands exactly where the pain is.
-      { key: "pixelInstalled", critical: true, verification: "proved", difficulty: "specialist" },
+      {
+        key: "pixelInstalled",
+        critical: true,
+        verification: "proved",
+        difficulty: "specialist",
+        officialDocUrl: "https://www.facebook.com/business/help/952192354843755?id=1205376682832142",
+      },
       { key: "conversionEventTested", critical: true, verification: "declared", difficulty: "specialist" },
       { key: "capiInstalled", verification: "declared", difficulty: "specialist" },
       { key: "analyticsInstalled", verification: "proved", difficulty: "specialist" },

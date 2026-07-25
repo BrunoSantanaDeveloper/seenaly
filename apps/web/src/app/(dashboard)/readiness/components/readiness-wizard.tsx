@@ -179,7 +179,6 @@ export default function ReadinessWizard({
         continueLabel={t("wizard-continue")}
         nextStepLabel={t("wizard-next")}
         stepLabel={(current, total) => t("wizard-step", { current, total })}
-        className="max-w-3xl"
       />
     </Box>
   );

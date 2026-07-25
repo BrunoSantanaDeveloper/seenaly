@@ -27,6 +27,7 @@ import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiClipboard from "@/icons/nexture/ni-clipboard";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
+import NiExternal from "@/icons/nexture/ni-external";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
 import NiScreen from "@/icons/nexture/ni-screen";
@@ -355,11 +356,30 @@ export default function ReadinessChecklist({
 
             {/* One action row, not stacked buttons: each carries its own icon
                 and weight, so the eye reads them as distinct choices rather
-                than a repeated shape. "Verificar agora" is the try → prove →
-                celebrate loop — the one that matters most here — so it gets
-                the tinted "pastel" treatment; the rest stay outlined/text. */}
-            {(hireSpec || (meta.verification === "proved" && onVerifyNow && hasLandingPage) || meta.helpSlug) && (
+                than a repeated shape. Reading order matches the journey: try
+                it yourself from the source → prove it → if that fails,
+                delegate. "Verificar agora" is the try → prove → celebrate
+                loop — the one that matters most here — so it gets the tinted
+                "pastel" treatment; the rest stay outlined/text. */}
+            {(meta.officialDocUrl ||
+              hireSpec ||
+              (meta.verification === "proved" && onVerifyNow && hasLandingPage) ||
+              meta.helpSlug) && (
               <Box className="flex flex-row flex-wrap items-center gap-2">
+                {meta.officialDocUrl && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="grey"
+                    startIcon={<NiExternal size="small" />}
+                    href={meta.officialDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("official-doc")}
+                  </Button>
+                )}
+
                 {hireSpec && (
                   <Button
                     size="small"
