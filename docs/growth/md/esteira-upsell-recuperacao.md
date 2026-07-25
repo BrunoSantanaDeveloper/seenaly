@@ -2,7 +2,7 @@
 title: "Esteira de oferta: order bump, upsell, downsell e recuperação"
 description: "O ticket médio (não o CPA) é o que desbloqueia escala: order bump e upsell 1-click puxam o AOV; downsell recupera 5–15% das recusas; e a recuperação mais rentável é a do upsell (via webinário automático para quem já comprou o front) — enquanto recuperação de carrinho abandonado converte pouco. Como diagnosticar um funil sem esteira."
 tags: [order-bump, upsell, downsell, recovery, aov, ltv, funnel-economics]
-related: [funil-perpetuo-ticket-frio, tipos-funil-escolha, checkout-br-pagamentos, mensuracao-funil-metricas]
+related: [funil-perpetuo-ticket-frio, tipos-funil-escolha, checkout-br-pagamentos, mensuracao-funil-metricas, escada-valor-backend-ltv]
 sources: ["Thiago Ruas — live sobre esteira e recuperação em funis perpétuos BR", "prática consolidada de resposta direta sobre maximização de ticket médio"]
 trust: 5
 captured: 2026-07-10
@@ -96,3 +96,6 @@ resposta direta; percentuais são da experiência relatada, não pesquisa:
   infoproduto as regras são das plataformas (cards trust 1 futuros).
 - A esteira **não conserta front fraco**: sem conversão no front não há quem subir de
   ticket — valide o front primeiro.
+- Esteira maximiza o valor de **uma sessão de compra**; se a conta já explora bem a
+  esteira e ainda assim empaca, o teto pode ser de arquitetura de produto ao longo do
+  tempo — ver [escada-valor-backend-ltv](escada-valor-backend-ltv.md).

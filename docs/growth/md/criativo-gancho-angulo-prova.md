@@ -2,7 +2,7 @@
 title: "Anatomia do criativo de performance: gancho, ângulo e prova"
 description: "Decomposição do criativo de resposta direta em gancho (3 primeiros segundos), ângulo (enquadramento de dor/desejo) e prova — como diagnosticar qual camada falhou usando hook rate, hold rate e CTR, e por que se testa uma camada por vez."
 tags: [creative, hook, angle, proof, content, ugc, testing]
-related: [congruencia-anuncio-pagina, oferta-value-equation]
+related: [congruencia-anuncio-pagina, oferta-value-equation, taxonomia-ganchos-visuais]
 sources: ["prática consolidada de direct response e creative strategy (taxonomia de creative testing)", "métricas derivadas do Gerenciador de Anúncios — ver corpus meta-ads-docs para as definições oficiais"]
 trust: 4
 captured: 2026-07-10
@@ -18,7 +18,8 @@ Um criativo de performance não é uma peça única — é um empilhamento de tr
 funções distintas, e cada uma falha de um jeito mensuravelmente diferente:
 
 1. **Gancho** (primeiros ~3 segundos / primeira dobra da imagem): interrompe a rolagem.
-   Não vende nada; compra os próximos segundos de atenção.
+   Não vende nada; compra os próximos segundos de atenção (catálogo de arquétipos táticos
+   em [taxonomia-ganchos-visuais](taxonomia-ganchos-visuais.md)).
 2. **Ângulo**: o enquadramento da dor/desejo escolhido para esta peça — mesma oferta,
    ângulos diferentes ("economize tempo" vs "pare de perder venda") alcançam públicos
    psicológicos diferentes.

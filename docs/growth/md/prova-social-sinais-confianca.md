@@ -38,6 +38,14 @@ diferentes, e confundi-los faz a página exibir prova onde falta segurança, e v
   - **Demonstração/amostra** → "não sei o que estou comprando".
   - **Garantia** → medo de perder o dinheiro (aversão à perda).
 
+Nuance de mercado (trust 5, repertório sem fonte nomeada verificável): em nichos
+saturados por promessas agressivas e garantias genéricas, parte do público relata reagir
+com **mais** ceticismo a garantias-padrão ("satisfação garantida") do que a evidência
+concreta e verificável. Isso **não invalida** o achado do Baymard acima — garantia
+continua reduzindo risco percebido — mas sugere que, em mercados desgastados, garantia
+sozinha rende menos do que garantia **acompanhada** de prova específica. Trate como
+hipótese a testar por nicho, não como substituição da garantia.
+
 ## Quando se aplica
 
 - Páginas de vendas, VSL e a etapa de checkout (sinais de segurança pertencem ao
