@@ -21,12 +21,17 @@ import {
   Typography,
 } from "@mui/material";
 
+import NiBook from "@/icons/nexture/ni-book";
 import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
 import NiCheck from "@/icons/nexture/ni-check";
+import NiChevronDown from "@/icons/nexture/ni-chevron-down";
+import NiClipboard from "@/icons/nexture/ni-clipboard";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiSearch from "@/icons/nexture/ni-search";
+import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import { type AssistReason, assistReason } from "@/lib/readiness/assist";
 import {
   CHECKOUT_TYPES,
@@ -236,15 +241,20 @@ export default function ReadinessChecklist({
               className="flex-none"
             />
           )}
+          {/* Styled as a link (primary text + icon + rotating chevron), not
+              plain gray text — it has to READ as clickable, not just be
+              clickable. Same disclosure language as readiness-verdict.tsx. */}
           <Button
             variant="text"
-            color="grey"
+            color="primary"
             size="small"
             className="min-w-0"
+            startIcon={<NiQuestionHexagon size="small" />}
+            endIcon={<NiChevronDown size="small" className={cn("transition-transform", helpOpen && "rotate-180")} />}
             onClick={() => toggleSet(setOpenHelp, key)}
             aria-expanded={helpOpen}
           >
-            {t("dont-know")}
+            {helpOpen ? t("hide-explanation") : t("dont-know")}
           </Button>
         </Box>
 
@@ -340,28 +350,53 @@ export default function ReadinessChecklist({
                 <Typography variant="body2" className="leading-6 italic">
                   “{hireSpec}”
                 </Typography>
-                <Box>
-                  <Button size="small" variant="outlined" color="grey" onClick={() => copySpec(key, hireSpec)}>
+              </Box>
+            )}
+
+            {/* One action row, not stacked buttons: each carries its own icon
+                and weight, so the eye reads them as distinct choices rather
+                than a repeated shape. "Verificar agora" is the try → prove →
+                celebrate loop — the one that matters most here — so it gets
+                the tinted "pastel" treatment; the rest stay outlined/text. */}
+            {(hireSpec || (meta.verification === "proved" && onVerifyNow && hasLandingPage) || meta.helpSlug) && (
+              <Box className="flex flex-row flex-wrap items-center gap-2">
+                {hireSpec && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="grey"
+                    startIcon={copied === key ? <NiCheck size="small" /> : <NiClipboard size="small" />}
+                    onClick={() => copySpec(key, hireSpec)}
+                  >
                     {copied === key ? t("copied") : t("copy-spec")}
                   </Button>
-                </Box>
-              </Box>
-            )}
+                )}
 
-            {/* The try → prove → celebrate loop: fix it, then prove it in seconds. */}
-            {meta.verification === "proved" && onVerifyNow && hasLandingPage && (
-              <Box>
-                <Button size="small" variant="outlined" color="grey" onClick={onVerifyNow} disabled={scanning}>
-                  {scanning ? t("verifying-now") : t("verify-now")}
-                </Button>
-              </Box>
-            )}
+                {meta.verification === "proved" && onVerifyNow && hasLandingPage && (
+                  <Button
+                    size="small"
+                    variant="pastel"
+                    color="primary"
+                    startIcon={<NiShieldCheck size="small" />}
+                    onClick={onVerifyNow}
+                    disabled={scanning}
+                  >
+                    {scanning ? t("verifying-now") : t("verify-now")}
+                  </Button>
+                )}
 
-            {meta.helpSlug && (
-              <Box>
-                <Button size="small" variant="text" color="grey" href={`/help/${meta.helpSlug}`} target="_blank">
-                  {t("full-guide")}
-                </Button>
+                {meta.helpSlug && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="grey"
+                    startIcon={<NiBook size="small" />}
+                    href={`/help/${meta.helpSlug}`}
+                    target="_blank"
+                  >
+                    {t("full-guide")}
+                  </Button>
+                )}
               </Box>
             )}
           </Box>
