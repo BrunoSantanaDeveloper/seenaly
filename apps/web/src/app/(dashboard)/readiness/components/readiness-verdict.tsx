@@ -20,10 +20,13 @@ import {
   Typography,
 } from "@mui/material";
 
+import NiArrowRight from "@/icons/nexture/ni-arrow-right";
+import NiBook from "@/icons/nexture/ni-book";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
+import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
 import type { Confidence, EvidenceSource } from "@/lib/diagnosis/schema";
@@ -38,9 +41,9 @@ import type {
 import { cn } from "@/lib/utils";
 
 const VERDICT_ICON: Record<Verdict, React.ReactNode> = {
-  pronto: <NiShieldCheck size="medium" />,
-  quase: <NiFlag size="medium" />,
-  nao_pronto: <NiShieldCross size="medium" />,
+  pronto: <NiShieldCheck size="large" />,
+  quase: <NiFlag size="large" />,
+  nao_pronto: <NiShieldCross size="large" />,
 };
 
 /** The verdict drives the whole card's tone — it is the answer they came for. */
@@ -172,14 +175,36 @@ export default function ReadinessVerdict({
     />
   );
 
-  const section = (title: string, body: React.ReactNode) => (
-    <Box className="flex flex-col gap-0.5">
-      <Typography variant="subtitle2" className="text-text-secondary uppercase">
-        {title}
-      </Typography>
-      {body}
-    </Box>
-  );
+  /**
+   * Every section now carries an icon in its label — the earlier version had
+   * four sections in a row with IDENTICAL typography (uppercase gray label +
+   * body text), so nothing anchored the eye and the card read as one dense
+   * paragraph. `emphasize` boxes the one section that is not descriptive but
+   * ACTIONABLE (what to actually do), matching the tinted-box language
+   * already used for the checklist's own teaching tips.
+   */
+  const section = (icon: React.ReactNode, title: string, body: React.ReactNode, emphasize = false) =>
+    emphasize ? (
+      <Box className="bg-primary/5 flex flex-row items-start gap-2 rounded-2xl p-3">
+        <span className="text-primary mt-0.5 flex-none">{icon}</span>
+        <Box className="flex flex-col gap-0.5">
+          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+            {title}
+          </Typography>
+          {body}
+        </Box>
+      </Box>
+    ) : (
+      <Box className="flex flex-col gap-0.5">
+        <Box className="flex flex-row items-center gap-1.5">
+          <span className="text-text-secondary flex-none">{icon}</span>
+          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+            {title}
+          </Typography>
+        </Box>
+        {body}
+      </Box>
+    );
 
   const findingCard = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
     const items = resolvableItems(finding.dimension, finding.related_items);
@@ -216,6 +241,7 @@ export default function ReadinessVerdict({
         </Box>
 
         {section(
+          <NiFlag size="small" />,
           t("section-problem"),
           <Typography variant="body2" className="leading-6">
             {finding.finding}
@@ -224,6 +250,7 @@ export default function ReadinessVerdict({
 
         {finding.evidence.length > 0 &&
           section(
+            <NiSearch size="small" />,
             t("section-evidence"),
             <Box className="flex flex-col gap-1.5">
               {finding.evidence.map((evidence, evidenceIndex) => (
@@ -243,7 +270,10 @@ export default function ReadinessVerdict({
             </Box>,
           )}
 
+        {/* The one line the whole card exists to deliver — boxed and tinted
+            so it visually wins against the descriptive sections around it. */}
         {section(
+          <NiArrowRight size="small" />,
           t("section-action"),
           <Typography
             variant="body1"
@@ -251,9 +281,11 @@ export default function ReadinessVerdict({
           >
             {finding.recommended_action}
           </Typography>,
+          true,
         )}
 
         {section(
+          <NiCheck size="small" />,
           t("section-success"),
           <Typography variant="body2" className="leading-6">
             {finding.success_criterion}
@@ -366,6 +398,7 @@ export default function ReadinessVerdict({
 
             {finding.technical_basis.length > 0 &&
               section(
+                <NiBook size="small" />,
                 t("section-technical-basis"),
                 <Box className="flex flex-col gap-0.5">
                   {finding.technical_basis.map((basis, basisIndex) => (
@@ -424,12 +457,15 @@ export default function ReadinessVerdict({
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-5">
-        <Box className="flex flex-row flex-wrap items-center gap-3">
-          <span className={`flex h-12 w-12 flex-none items-center justify-center rounded-2xl ${tone}`}>
+        {/* The verdict word IS the answer the user paid credits for — it has to
+            out-weigh everything else on the card, not read as one more line
+            next to a chip. */}
+        <Box className="flex flex-row flex-wrap items-center gap-4">
+          <span className={`flex h-16 w-16 flex-none items-center justify-center rounded-2xl ${tone}`}>
             {VERDICT_ICON[output.verdict]}
           </span>
           <Box className="grow">
-            <Typography variant="h5" component="h2" className="card-title mb-0">
+            <Typography variant="h4" component="h2" className="card-title mb-0 font-bold">
               {t(`verdict-${output.verdict}`)}
             </Typography>
             <Typography variant="body2" className="text-text-secondary">

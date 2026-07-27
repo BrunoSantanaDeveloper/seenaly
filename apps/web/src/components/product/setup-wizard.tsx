@@ -74,7 +74,7 @@ export default function SetupWizard({
   };
 
   return (
-    <Card className={cn("mx-auto w-full max-w-2xl", className)}>
+    <Card className={cn("mx-auto w-full", className)}>
       <CardContent className="flex flex-col gap-6">
         {/* Progress rail — the whole path is visible; the reader sees the end. */}
         <Box
