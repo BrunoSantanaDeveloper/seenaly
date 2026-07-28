@@ -27,7 +27,8 @@
     "db:sync-assistants": "tsx scripts/sync-assistants.mts",
     "prepare": "husky || true",
     "pre-commit": "lint-staged",
-    "typecheck": "npm run typecheck -w @flyee/web"
+    "typecheck": "npm run typecheck -w @flyee/web",
+    "test:diagnosis-steps": "tsx scripts/test-diagnosis-steps.mts"
   },
   "devDependencies": {
     "husky": "9.1.7",

@@ -4,8 +4,16 @@ import { useTranslations } from "next-intl";
 
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 
+import NiArrowRight from "@/icons/nexture/ni-arrow-right";
+import NiBook from "@/icons/nexture/ni-book";
+import NiCalendar from "@/icons/nexture/ni-calendar";
+import NiCheck from "@/icons/nexture/ni-check";
+import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
+import NiFlag from "@/icons/nexture/ni-flag";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiSearch from "@/icons/nexture/ni-search";
 import type { Confidence, DiagnosisOutput, EvidenceSource } from "@/lib/diagnosis/schema";
+import { splitActionSteps } from "@/lib/diagnosis/steps";
 
 /** Usefulness rating on a diagnosis — the signal that lets us tune the engine. */
 export type DiagnosisRating = "useful" | "not_useful" | "incorrect";
@@ -52,14 +60,39 @@ export default function DiagnosisCard({
 }) {
   const t = useTranslations("diagnosis");
 
-  const section = (title: string, body: React.ReactNode) => (
-    <Box className="flex flex-col gap-1">
-      <Typography variant="subtitle2" className="text-text-secondary uppercase">
-        {title}
-      </Typography>
-      {body}
-    </Box>
-  );
+  /**
+   * Nine sections shared identical typography (uppercase gray label + body),
+   * so the card read as one undifferentiated column of prose and the reader had
+   * to parse every line to find the one they wanted. An icon per section gives
+   * the eye an anchor; `emphasize` boxes the section that is not descriptive
+   * but ACTIONABLE — the same tinted language used across readiness.
+   */
+  const section = (icon: React.ReactNode, title: string, body: React.ReactNode, emphasize = false) =>
+    emphasize ? (
+      <Box className="bg-primary/5 flex flex-row items-start gap-2 rounded-2xl p-3">
+        <span className="text-primary mt-0.5 flex-none">{icon}</span>
+        <Box className="flex min-w-0 flex-col gap-1">
+          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+            {title}
+          </Typography>
+          {body}
+        </Box>
+      </Box>
+    ) : (
+      <Box className="flex flex-col gap-1">
+        <Box className="flex flex-row items-center gap-1.5">
+          <span className="text-text-secondary flex-none">{icon}</span>
+          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+            {title}
+          </Typography>
+        </Box>
+        {body}
+      </Box>
+    );
+
+  // The action is one string, but for a cold-start account it is genuinely a
+  // sequence — render the steps the model already wrote instead of a wall.
+  const actionSteps = splitActionSteps(output.recommended_action);
 
   return (
     <Card component="section">
@@ -93,6 +126,7 @@ export default function DiagnosisCard({
         )}
 
         {section(
+          <NiPulse size="small" />,
           t("section-diagnosis"),
           <Typography variant="body1" className="leading-6">
             {output.diagnosis}
@@ -100,6 +134,7 @@ export default function DiagnosisCard({
         )}
 
         {section(
+          <NiSearch size="small" />,
           t("section-evidence"),
           <Box className="flex flex-col gap-1.5">
             {output.evidence.map((item, index) => (
@@ -121,6 +156,7 @@ export default function DiagnosisCard({
 
         {output.technical_basis.length > 0 &&
           section(
+            <NiBook size="small" />,
             t("section-technical-basis"),
             <Box className="flex flex-col gap-1">
               {output.technical_basis.map((item, index) => (
@@ -134,20 +170,36 @@ export default function DiagnosisCard({
         <Divider />
 
         {section(
+          <NiFlag size="small" />,
           t("section-hypothesis"),
           <Typography variant="body1" className="leading-6">
             {output.hypothesis}
           </Typography>,
         )}
 
+        {/* The payoff of the whole card — boxed, and rendered as the numbered
+            sequence the model actually wrote instead of one dense paragraph. */}
         {section(
+          <NiArrowRight size="small" />,
           t("section-action"),
-          <Typography variant="body1" className="leading-6 font-medium">
-            {output.recommended_action}
-          </Typography>,
+          actionSteps.length > 1 ? (
+            <Box component="ol" className="m-0 flex list-decimal flex-col gap-1.5 pl-5">
+              {actionSteps.map((step, index) => (
+                <Typography key={index} component="li" variant="body1" className="leading-6 font-medium">
+                  {step}
+                </Typography>
+              ))}
+            </Box>
+          ) : (
+            <Typography variant="body1" className="leading-6 font-medium">
+              {output.recommended_action}
+            </Typography>
+          ),
+          true,
         )}
 
         {section(
+          <NiExclamationHexagon size="small" />,
           t("section-risk"),
           <Typography variant="body2" className="text-text-secondary leading-6">
             {output.risk}
@@ -155,6 +207,7 @@ export default function DiagnosisCard({
         )}
 
         {section(
+          <NiCheck size="small" />,
           t("section-success"),
           <Typography variant="body2" className="leading-6">
             {output.success_criterion}
@@ -162,6 +215,7 @@ export default function DiagnosisCard({
         )}
 
         {section(
+          <NiCalendar size="small" />,
           t("section-next-review"),
           <Typography variant="body2" className="text-text-secondary leading-6">
             {output.next_review}
