@@ -689,6 +689,7 @@
     "margin-estimated": "Estimated margin: ~{pct}%",
     "completeness-ready-more": "Ready to start. The more context, the sharper the diagnosis — next: {field}",
     "completeness-full": "Context complete — the engine has everything for a precise diagnosis.",
+    "completeness-jump-hint": "Still missing — tap an item to jump straight to the field:",
     "hint-mainPromise": "What the customer gains, in one line. E.g. 'Document visits in seconds'.",
     "hint-audience": "Who it's for. E.g. 'Independent doctors seeing private patients'.",
     "hint-price": "Price of the offer you advertise. E.g. $199.",

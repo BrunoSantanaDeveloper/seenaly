@@ -1,7 +1,13 @@
 "use client";
 
 import { saveProduct } from "../actions";
-import { computeCompleteness } from "../lib/completeness";
+import {
+  type CompletenessField,
+  computeCompleteness,
+  type ContextSection,
+  SECTION_BY_FIELD,
+  sectionCompleteness,
+} from "../lib/completeness";
 import type { ProductInput, ProductStatus, ProductWithChildren } from "../types";
 import { FormikProvider, useFormik } from "formik";
 import { useRouter } from "next/navigation";
@@ -10,6 +16,9 @@ import { useEffect, useMemo, useState } from "react";
 import * as yup from "yup";
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Autocomplete,
   Box,
@@ -32,6 +41,7 @@ import HelpDisclosure from "@/components/product/help-disclosure";
 import OptionalFieldGroup, { type OptionalField } from "@/components/product/optional-fields";
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
+import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiPlus from "@/icons/nexture/ni-plus";
@@ -241,11 +251,18 @@ export default function ProductForm({
   product,
   variant = "sections",
   onSaveSuccess,
+  focusField = null,
 }: {
   orgId: string;
   product?: ProductWithChildren;
   variant?: "sections" | "wizard";
   onSaveSuccess?: (productId: string) => Promise<void> | void;
+  /**
+   * A request (from a sibling card, e.g. the next-step suggestions) to open the
+   * section holding `field` and scroll to it. `nonce` lets the same field be
+   * requested twice in a row.
+   */
+  focusField?: { field: CompletenessField; nonce: number } | null;
 }) {
   const t = useTranslations("products");
   // Funnel labels are shared with the Organic module (one funnel language).
@@ -328,6 +345,38 @@ export default function ProductForm({
   const currencySymbol = CURRENCY_SYMBOLS[formik.values.currency?.toUpperCase()] ?? formik.values.currency;
 
   const completeness = computeCompleteness(toInput(formik.values, orgId, product?.id));
+
+  // Sections render collapsed by default (compact overview; each summary shows
+  // its own fill state, so the gaps stay visible without opening anything).
+  // A missing-field chip — here or on the next-step card — opens the exact
+  // section and scrolls to it: "you're missing X" must never mean "now hunt
+  // for where X lives".
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const openSection = (section: ContextSection) => {
+    setExpandedSections((previous) => new Set(previous).add(section));
+    window.setTimeout(() => {
+      document.getElementById(`context-section-${section}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  };
+  const toggleSection = (section: string) =>
+    setExpandedSections((previous) => {
+      const next = new Set(previous);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
+
+  useEffect(() => {
+    if (focusField) openSection(SECTION_BY_FIELD[focusField.field]);
+  }, [focusField]);
+
+  // A failed submit must never hide its own error inside a collapsed section —
+  // open everything so the inline message is on screen.
+  useEffect(() => {
+    if (formik.submitCount > 0 && !formik.isValid) {
+      setExpandedSections(new Set(["identity", "offer", "economics", "funnel", "meta"]));
+    }
+  }, [formik.submitCount, formik.isValid]);
 
   const text = (
     name: keyof FormValues,
@@ -953,7 +1002,7 @@ export default function ProductForm({
     );
   }
 
-  // ---- Sections: full context at once + completeness (competence feedback) ----
+  // ---- Sections: compact accordion overview + completeness (competence feedback) ----
   return (
     <FormikProvider value={formik}>
       <Box component="form" onSubmit={formik.handleSubmit} className="flex flex-col">
@@ -968,30 +1017,87 @@ export default function ProductForm({
               </Typography>
             </Box>
             <LinearProgress variant="determinate" value={completeness.score} />
-            {completeness.ready ? (
-              <Typography variant="body2" className="text-text-secondary">
-                {completeness.missing.length > 0
-                  ? t("completeness-ready-more", { field: t(`field-${completeness.missing[0]}`) })
-                  : t("completeness-full")}
-              </Typography>
+            {/* Every missing field, each one a door: click → the section holding
+                it opens and scrolls into view. "próximo: X" as inert text made
+                the user hunt for where X even lives (several fields sit behind
+                opt-in "add" chips). */}
+            {completeness.missing.length > 0 ? (
+              <Box className="flex flex-col gap-1.5">
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("completeness-jump-hint")}
+                </Typography>
+                <Box className="flex flex-row flex-wrap gap-1.5">
+                  {completeness.missing.map((field) => (
+                    <Chip
+                      key={field}
+                      label={t(`field-${field}`)}
+                      icon={<NiPlus size="small" />}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      className="cursor-pointer"
+                      onClick={() => openSection(SECTION_BY_FIELD[field])}
+                    />
+                  ))}
+                </Box>
+              </Box>
             ) : (
               <Typography variant="body2" className="text-text-secondary">
-                {t("completeness-next")}: {t(`field-${completeness.missing[0]}`)}
+                {t("completeness-full")}
               </Typography>
             )}
           </CardContent>
         </Card>
 
-        {sectionCards.map((card) => (
-          <Card key={card.key} component="section" className="mb-5">
-            <CardContent>
-              <Typography variant="h6" component="h2" className="card-title mb-3">
-                {card.title}
-              </Typography>
-              {card.content}
-            </CardContent>
-          </Card>
-        ))}
+        {/* Collapsed by default: the summary row carries each section's own
+            fill state, so the gap map stays visible with zero scrolling — and
+            nothing here is hidden knowledge, just folded. */}
+        <Box className="mb-5 flex flex-col">
+          {sectionCards.map((card) => {
+            const fill = (["identity", "offer", "economics", "funnel"] as ContextSection[]).includes(
+              card.key as ContextSection,
+            )
+              ? sectionCompleteness(toInput(formik.values, orgId, product?.id), card.key as ContextSection)
+              : null;
+            return (
+              <Accordion
+                key={card.key}
+                id={`context-section-${card.key}`}
+                className="basic bordered mb-2"
+                expanded={expandedSections.has(card.key)}
+                onChange={() => toggleSection(card.key)}
+              >
+                <AccordionSummary expandIcon={<NiChevronDownSmall className="text-text-primary" />}>
+                  <Box className="flex w-full flex-row flex-wrap items-center justify-between gap-2 pr-3">
+                    <Typography variant="subtitle1" component="h2" className="mb-0">
+                      {card.title}
+                    </Typography>
+                    {fill &&
+                      (fill.filled === fill.total ? (
+                        <Chip
+                          icon={<NiCheck size="small" />}
+                          label={`${fill.filled}/${fill.total}`}
+                          size="small"
+                          variant="outlined"
+                          color="success"
+                          className="flex-none"
+                        />
+                      ) : (
+                        <Chip
+                          label={`${fill.filled}/${fill.total}`}
+                          size="small"
+                          variant="outlined"
+                          color="grey"
+                          className="flex-none"
+                        />
+                      ))}
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>{card.content}</AccordionDetails>
+              </Accordion>
+            );
+          })}
+        </Box>
 
         {errorAlert}
 

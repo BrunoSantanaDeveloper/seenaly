@@ -31,6 +31,7 @@ export default function ProductNextStepCard({
   ready,
   missing,
   hasReadiness,
+  onFieldClick,
 }: {
   productId: string;
   /** Essential context (name + promise + audience) is filled. */
@@ -39,6 +40,8 @@ export default function ProductNextStepCard({
   missing: CompletenessField[];
   /** A readiness verdict already exists for this product. */
   hasReadiness: boolean;
+  /** Jump to the form section holding this field (opens + scrolls). */
+  onFieldClick?: (field: CompletenessField) => void;
 }) {
   const t = useTranslations("products");
   // Only the few that actually change the answer — a long list is noise.
@@ -55,8 +58,12 @@ export default function ProductNextStepCard({
         label: t("next-step-cta-readiness"),
       };
   const secondary = hasReadiness
-    ? { href: `/products/${productId}/readiness`, label: t("next-step-cta-readiness-again") }
-    : { href: `/products/${productId}/diagnosis`, label: t("next-step-cta") };
+    ? {
+        href: `/products/${productId}/readiness`,
+        icon: <NiShieldCheck size="small" />,
+        label: t("next-step-cta-readiness-again"),
+      }
+    : { href: `/products/${productId}/diagnosis`, icon: <NiPulse size="small" />, label: t("next-step-cta") };
 
   // The card wears the hue of the action it leads with — the same colour that
   // pillar carries on the home journey map and in the workspace rail. The CTA
@@ -94,13 +101,15 @@ export default function ProductNextStepCard({
           </Box>
         </Box>
 
-        <Box className="flex flex-row flex-wrap items-center gap-1">
+        <Box className="flex flex-row flex-wrap items-center gap-2">
           <Button variant="contained" color="primary" href={primary.href} LinkComponent={Link} startIcon={primary.icon}>
             {primary.label}
           </Button>
-          {/* Quiet alternative — everything stays one click away, nothing is
-              gated, but only one action reads as "the" next step. */}
-          <Button variant="text" color="grey" href={secondary.href} LinkComponent={Link}>
+          {/* Quiet alternative — subordinate to the primary but still shaped
+              like a button: bare gray text kept reading as a caption, not a
+              clickable route (the same affordance failure fixed on the
+              readiness disclosure). */}
+          <Button variant="outlined" color="grey" href={secondary.href} LinkComponent={Link} startIcon={secondary.icon}>
             {secondary.label}
           </Button>
         </Box>
@@ -110,10 +119,22 @@ export default function ProductNextStepCard({
             <Typography variant="body2" className="text-text-secondary">
               {t("next-step-improve")}
             </Typography>
-            <Box component="ul" className="m-0 list-disc space-y-0.5 pl-5">
+            {/* Each suggestion IS a field of the form right below — so each row
+                is a door to it, not inert prose. The field name is the visible
+                click target; the why stays as supporting text. */}
+            <Box className="flex flex-col items-start gap-0.5">
               {suggestions.map((field) => (
-                <Typography key={field} component="li" variant="body2" className="text-text-secondary">
-                  <span className="text-text-primary">{t(`field-${field}`)}</span> — {t(`why-${field}`)}
+                <Typography key={field} component="p" variant="body2" className="text-text-secondary mb-0">
+                  <Button
+                    variant="text"
+                    color="primary"
+                    size="small"
+                    className="min-w-0 p-0 align-baseline"
+                    onClick={() => onFieldClick?.(field)}
+                  >
+                    {t(`field-${field}`)}
+                  </Button>{" "}
+                  — {t(`why-${field}`)}
                 </Typography>
               ))}
             </Box>

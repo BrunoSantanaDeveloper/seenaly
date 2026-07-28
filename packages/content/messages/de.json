@@ -689,6 +689,7 @@
     "margin-estimated": "Geschätzte Marge: ~{pct} %",
     "completeness-ready-more": "Bereit zum Start. Je mehr Kontext, desto präziser die Diagnose — nächstes: {field}",
     "completeness-full": "Kontext vollständig — der Motor hat alles für eine präzise Diagnose.",
+    "completeness-jump-hint": "Fehlt noch — tippe auf einen Eintrag, um direkt zum Feld zu springen:",
     "hint-mainPromise": "Was der Kunde gewinnt, in einem Satz. Z. B. 'Dokumentiere Termine in Sekunden'.",
     "hint-audience": "Für wen es ist. Z. B. 'Selbstständige Ärzte mit Privatpatienten'.",
     "hint-price": "Preis des Angebots, das du bewirbst. Z. B. 199 €.",

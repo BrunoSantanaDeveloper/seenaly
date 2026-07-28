@@ -4,7 +4,7 @@ import { deleteProduct } from "../actions";
 import ProductNextStepCard from "../components/next-step-card";
 import ProductForm from "../components/product-form";
 import ProductsHeader from "../components/products-header";
-import { computeCompleteness } from "../lib/completeness";
+import { type CompletenessField, computeCompleteness } from "../lib/completeness";
 import { mapProductRow } from "../lib/map";
 import type { ProductWithChildren } from "../types";
 import { useParams, useRouter } from "next/navigation";
@@ -35,6 +35,10 @@ export default function EditProductPage() {
   const [loadError, setLoadError] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // A suggestion on the next-step card points at a field of the form below —
+  // clicking it opens the right section and scrolls there. The nonce lets the
+  // same field be requested again after the user scrolls away.
+  const [focusField, setFocusField] = useState<{ field: CompletenessField; nonce: number } | null>(null);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -162,11 +166,12 @@ export default function EditProductPage() {
                 ready={completeness!.ready}
                 missing={completeness!.missing}
                 hasReadiness={hasReadiness}
+                onFieldClick={(field) => setFocusField((prev) => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))}
               />
             </Grid>
             <Grid size={12}>
               <Box>
-                <ProductForm orgId={product.orgId} product={product} />
+                <ProductForm orgId={product.orgId} product={product} focusField={focusField} />
               </Box>
             </Grid>
           </>

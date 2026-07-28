@@ -46,6 +46,36 @@ function isFilled(values: ProductInput, field: CompletenessField): boolean {
   }
 }
 
+/**
+ * Which edit-form section holds each field, so "you're missing X" can jump
+ * straight to where X lives instead of leaving the user to hunt — several of
+ * these fields sit behind opt-in "add" chips and are genuinely hard to find.
+ * Keys match the section ids in product-form.tsx.
+ */
+export const CONTEXT_SECTIONS = ["identity", "offer", "economics", "funnel"] as const;
+export type ContextSection = (typeof CONTEXT_SECTIONS)[number];
+
+export const SECTION_BY_FIELD: Record<CompletenessField, ContextSection> = {
+  name: "identity",
+  mainPromise: "offer",
+  audience: "offer",
+  price: "economics",
+  targetCac: "economics",
+  avgTicket: "economics",
+  conversionType: "funnel",
+  funnelStage: "funnel",
+  landingPageUrl: "funnel",
+  optimizationEvent: "funnel",
+  objections: "funnel",
+  proofs: "funnel",
+};
+
+/** Per-section fill state — the at-a-glance gap map for collapsed sections. */
+export function sectionCompleteness(values: ProductInput, section: ContextSection): { filled: number; total: number } {
+  const fields = COMPLETENESS_FIELDS.filter((field) => SECTION_BY_FIELD[field] === section);
+  return { filled: fields.filter((field) => isFilled(values, field)).length, total: fields.length };
+}
+
 export interface Completeness {
   score: number; // 0-100
   filled: number;

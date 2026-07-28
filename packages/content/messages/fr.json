@@ -689,6 +689,7 @@
     "margin-estimated": "Marge estimée : ~{pct} %",
     "completeness-ready-more": "Prêt à démarrer. Plus il y a de contexte, plus le diagnostic est précis — suivant : {field}",
     "completeness-full": "Contexte complet — le moteur a tout pour un diagnostic précis.",
+    "completeness-jump-hint": "Il manque encore — touchez un élément pour aller droit au champ :",
     "hint-mainPromise": "Ce que le client gagne, en une phrase. Ex. : « Documentez les consultations en quelques secondes ».",
     "hint-audience": "Pour qui c'est. Ex. : « Médecins indépendants en clientèle privée ».",
     "hint-price": "Prix de l'offre que vous annoncez. Ex. : 199 €.",
