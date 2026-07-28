@@ -17,6 +17,7 @@
     "harness:check": "node scripts/sync-agent-harness.mjs --check",
     "harness:test": "node scripts/test-agent-harness.mjs",
     "test:readiness": "tsx scripts/test-readiness.mts",
+    "test:creative-plan": "tsx scripts/test-creative-plan.mts",
     "test:onboarding": "tsx scripts/test-onboarding.mts",
     "tokens:generate": "npm run generate -w @flyee/design-tokens",
     "knowledge:ingest": "tsx scripts/ingest-knowledge.mts",

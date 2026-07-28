@@ -1,3 +1,4 @@
+import { PlanSignal, PlanSignalsProvider } from "./plan-signals";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -16,6 +17,7 @@ export default async function LibraryPage() {
       body: t("creatives-body"),
       href: "/creatives",
       action: t("creatives-action"),
+      signal: "creatives" as const,
     },
     {
       icon: <NiTrendUp size="large" />,
@@ -23,6 +25,7 @@ export default async function LibraryPage() {
       body: t("organic-body"),
       href: "/organic-growth/content",
       action: t("organic-action"),
+      signal: "organic" as const,
     },
     {
       icon: <NiDocumentChart size="large" />,
@@ -30,39 +33,45 @@ export default async function LibraryPage() {
       body: t("reviews-body"),
       href: "/organic-growth/reviews",
       action: t("reviews-action"),
+      signal: "reviews" as const,
     },
   ];
 
   return (
-    <Grid container spacing={4}>
-      <Grid size={12}>
-        <Typography variant="h1" component="h1">
-          {t("title")}
-        </Typography>
-        <Typography variant="body1" className="text-text-secondary max-w-3xl">
-          {t("body")}
-        </Typography>
-      </Grid>
-      {items.map((item) => (
-        <Grid key={item.title} size={{ xs: 12, md: 6, xl: 4 }}>
-          <Card className="h-full">
-            <CardContent className="flex h-full flex-col items-start gap-4">
-              <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-14 w-14 items-center justify-center rounded-2xl">
-                {item.icon}
-              </span>
-              <Typography variant="h4" component="h2">
-                {item.title}
-              </Typography>
-              <Typography variant="body1" className="text-text-secondary grow">
-                {item.body}
-              </Typography>
-              <Button component={Link} href={item.href} variant="contained">
-                {item.action}
-              </Button>
-            </CardContent>
-          </Card>
+    <PlanSignalsProvider>
+      <Grid container spacing={4}>
+        <Grid size={12}>
+          <Typography variant="h1" component="h1">
+            {t("title")}
+          </Typography>
+          <Typography variant="body1" className="text-text-secondary max-w-3xl">
+            {t("body")}
+          </Typography>
         </Grid>
-      ))}
-    </Grid>
+        {items.map((item) => (
+          <Grid key={item.title} size={{ xs: 12, md: 6, xl: 4 }}>
+            <Card className="h-full">
+              <CardContent className="flex h-full flex-col items-start gap-4">
+                <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-14 w-14 items-center justify-center rounded-2xl">
+                  {item.icon}
+                </span>
+                <Typography variant="h4" component="h2">
+                  {item.title}
+                </Typography>
+                <Typography variant="body1" className="text-text-secondary grow">
+                  {item.body}
+                </Typography>
+                {/* Live plan coverage — the plan is the tissue connecting the
+                    three surfaces; silent when no plan exists. */}
+                <PlanSignal kind={item.signal} />
+                <Button component={Link} href={item.href} variant="contained">
+                  {item.action}
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </PlanSignalsProvider>
   );
 }

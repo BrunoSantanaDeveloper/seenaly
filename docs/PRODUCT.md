@@ -79,6 +79,28 @@ O resultado é um **veredito explicável** (checklist e sinais relativos antes d
 
 Invariante reforçado: a Prontidão **não é um portão** que trava a conta. É a recomendação de fazer primeiro o que é barato e decisivo. O usuário pode ignorá-la e ir direto ao tráfego pago — mas terá sido avisado, com evidência, de onde o dinheiro vazaria.
 
+## Evidência criativa antes do tráfego pago — o Plano de Teste Criativo
+
+Depois da estrutura (Prontidão), o segundo movimento barato é o **sinal criativo**: entrar no tráfego pago sem nenhuma evidência criativa significa pagar em mídia para descobrir qual ângulo funciona. O **Plano de Teste Criativo** (fase 8) é o motor de diagnóstico apontado para a *evidência criativa* do produto — mesma engine, mesmo formato estruturado, mesma honestidade (`insufficient_data`/`missing_data`), armazenado em `diagnoses` com `scope = 'creative_plan'`. Nenhum domínio novo.
+
+O que ele responde: *"que evidência criativa você já tem, que evidência falta, e qual é o caminho mais barato (teste orgânico) para gerá-la antes de pagar por ela?"* A saída são 3–5 **hipóteses falsificáveis** — cada uma com ângulo, gancho, prova, formato e emoção em **slugs canônicos da taxonomia da biblioteca** (sanitizados; saída do modelo nunca é confiada), rationale ancorada no contexto + playbook, um **prompt copiável** para a pessoa gerar o conteúdo em ferramenta de IA externa (proibido sugerir semelhança de pessoas reais), a quantidade de conteúdos por hipótese (≥ o mínimo de coorte do módulo Organic) e um critério de sucesso **relativo à própria conta**.
+
+Invariantes:
+
+- **Caveat de transferência (campo obrigatório do schema):** sinal orgânico mede audiência morna; o anúncio pago mede conversão em audiência fria. O teste orgânico **ordena** as hipóteses para o teste pago — nunca prevê o resultado pago.
+- **Tempo em faixa condicional, nunca prazo prometido** (`volume_note` declara a suposição de ritmo).
+- **Não é portão nem obrigação** — quem já tem criativos vê o plano como oferta secundária; quem tem biblioteca vazia o vê como porta de entrada.
+- Seenaly **não gera o conteúdo** — gera o brief/prompt (analisa e recomenda, não opera). Publicação/agendamento seguem fora de escopo.
+
+O laço com o resto do produto (nada novo é criado, tudo se conecta):
+
+- Cada hipótese materializa, sob demanda, um **criativo `planned` etiquetado** na biblioteca (tabela `creative_plan_links`, idempotente por `(diagnosis_id, hypothesis_key)`) e/ou um **experimento** no journal (idempotente por `(diagnosis_id, change_made)` com a key embutida).
+- A cobertura é **verificada por máquina** (na biblioteca → publicado → com leitura n/5), lida dos vínculos criativo↔publicação orgânica já existentes na migração 0024 — nunca afirmada pelo usuário.
+- Os resultados voltam pelo import CSV do Organic Growth; o Review promove o vencedor a candidato orgânico→pago **por design**.
+- O briefing do diagnóstico pago recebe um bloco de **evidência criativa pré-paga** (contagens por tag, dentro dos invariantes: métricas de redes diferentes nunca ranqueadas; presença nunca é atribuição) — o tráfego pago começa com hipóteses ranqueadas por evidência.
+
+Gatilhos na jornada: biblioteca vazia (ação primária do EmptyState), achado `midia` da Prontidão (que antes era beco sem saída) e pedido de coleta do diagnóstico. A `/library` mostra o estado vivo do plano nos três cards (criativos cobertos, hipóteses aguardando import, volume para leitura).
+
 ## Recorte inicial
 
 **Copiloto especialista em Meta Ads para produtos digitais e ofertas self-service.** Não competir de frente com Madgicx/Smartly/Motion. Foco: leitura da conta Meta Ads, cadastro profundo do produto/oferta, análise de criativos, diagnóstico de gargalo, recomendação com evidências, geração de experimentos, memória do que foi testado, base de conhecimento oficial, saída sempre contextual.
@@ -114,6 +136,8 @@ As fases **não** são um funil sequencial onde tudo espera a conexão Meta. O c
 | 5 | Memória de experimentos (iniciante registra o 1º teste planejado) | **implementada** (migration `0014`, UI `/experiments` journal por status, "registrar diagnóstico como experimento", experimentos concluídos injetados no briefing do motor — loop de aprendizado verificado: não re-testa o refutado) |
 | 6 | Camada de funil/vendas reais | **implementada** (migration `0015`, snapshots manuais por produto/período, UI `/funnel` com breakdown por estágio, injetada no briefing do motor — verificado que discrimina página × checkout × oferta pelas taxas). Integrações de plataforma (Hotmart/Kiwify/webhooks) ficam como enriquecimento futuro na mesma tabela |
 | 7 | **Camada de Prontidão (pré-tráfego)**: modo "prontidão" do motor (mesma engine + formato fixo, grounding no `growth-playbook`), intake estrutural leve reusando o contexto do produto, veredito explicável na Home / pós-cadastro; scanner técnico da URL como enriquecimento opcional (fase B) | **fase A implementada** (2026-07-21) — migration `0028` (tabela `product_readiness` + `diagnoses.scope = 'readiness'` + assistente `readiness-engine`), UI `/readiness` (checklist declarado → veredito priorizado por alavancagem, com esforço × impacto e critério de sucesso por achado), **bloqueadores determinísticos calculados localmente** (grátis, sem LLM, visíveis enquanto o usuário marca) e sequenciamento da jornada (prontidão antes do diagnóstico no card pós-cadastro e no checklist de ativação). É **zero-data** e reusa motor + `growth-playbook` + modelo de cobrança — nenhum domínio novo. **Fase B também implementada** (2026-07-21): migration `0029` (`product_scans`, série temporal — scans que falharam são preservados, pois "sua página não respondeu" é um achado), `lib/readiness/scan.ts` (fetch com **guarda SSRF**: só http/https, só portas padrão, resolução DNS com rejeição de loopback/privado/link-local/CGNAT/IPv4-mapped, redirecionamentos seguidos manualmente e revalidados a cada salto, timeout e teto de bytes) + `scan-analyze.ts` puro, bloco de scan no briefing e card `/readiness` que exibe observado ao lado de declarado. Suíte `npm run test:readiness` (72 asserções) cobre avaliador, guarda SSRF e analisador. **Fase C também implementada**: laço fechado (achado → experimento rastreado, por achado, idempotente por `(diagnosis_id, change_made)` — sem migration nova) e presença orgânica real no briefing (conteúdos vinculados + Review), como contexto da descoberta e nunca como atribuição. **Migrations `0028`–`0029` pendentes de aplicação** (`0027` já aplicada); Core Web Vitals via API oficial fica para depois |
+
+| 8 | **Plano de Teste Criativo (pré-pago)**: modo "creative_plan" do motor (mesma engine + formato fixo, grounding em `growth-playbook` + `meta-ads-docs`), hipóteses em slugs canônicos com prompt copiável, materialização hipótese→criativo etiquetado (`creative_plan_links`) e hipótese→experimento, cobertura verificada por máquina na superfície de Criativos, sinais vivos na `/library`, bloco de evidência criativa no briefing do diagnóstico pago | **implementada** (2026-07-28) — migration `0033` (tabela `creative_plan_links` + `diagnoses.scope = 'creative_plan'` + assistente `creative-plan-engine`, 3 créditos), lib `apps/web/src/lib/creative-plan/`, ação `generateCreativePlan`, suíte `npm run test:creative-plan` (25 asserções). **Migration `0033` pendente de aplicação** |
 
 ### Mapa produto → infraestrutura do template
 

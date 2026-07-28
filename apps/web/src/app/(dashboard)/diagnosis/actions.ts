@@ -1,5 +1,6 @@
 "use server";
 
+import { buildCreativeEvidenceBlock } from "../creatives/plan-actions";
 import { computeFunnelRates, type FunnelCounts } from "../funnel/types";
 import { mapProductRow } from "../products/lib/map";
 import type { ProductWithChildren } from "../products/types";
@@ -245,6 +246,12 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     plans: planRows ?? [],
   });
 
+  // 1b. Pre-paid creative evidence (docs/PRODUCT.md phase 8): which library
+  // creatives already carry linked organic publications, aggregated per tag.
+  // Counts only — the cross-network invariant forbids ranking raw metrics —
+  // and it exists to ORDER paid hypotheses, never to predict paid results.
+  const evidenceBlock = await buildCreativeEvidenceBlock(productId);
+
   // 2. SaaS gate: active subscription. Credits are only DEBITED after a valid
   // diagnosis is produced (step 7) — a failed RAG/LLM call must never charge the
   // user. We still pre-check the balance here so a broke org is rejected before
@@ -325,6 +332,9 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     "",
     "## Biblioteca de criativos",
     creativesBlock((creativeRows as CreativeSummaryRow[]) ?? []),
+    "",
+    "## Evidência criativa pré-paga (teste orgânico)",
+    evidenceBlock,
     "",
     "## Memória de experimentos",
     experimentsBlock((experimentRows as ExperimentSummaryRow[]) ?? []),

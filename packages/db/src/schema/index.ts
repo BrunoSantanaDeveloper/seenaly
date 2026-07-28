@@ -9,6 +9,7 @@ export * from "./product-context";
 export * from "./diagnoses";
 export * from "./readiness";
 export * from "./creatives";
+export * from "./creative-plan";
 export * from "./experiments";
 export * from "./organic-growth";
 export * from "./funnel";

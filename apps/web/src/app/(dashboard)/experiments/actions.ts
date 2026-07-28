@@ -2,6 +2,7 @@
 
 import type { ExperimentInput } from "./types";
 
+import { isCreativePlanOutput } from "@/lib/creative-plan/schema";
 import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
 import { isReadinessOutput } from "@/lib/readiness/schema";
 import { createClient } from "@flyee/auth/server";
@@ -188,6 +189,62 @@ export async function registerExperimentFromReadinessFinding(
       change_made: changeMade,
       reason: `Prontidão — ${finding.dimension} (impacto ${finding.impact}, esforço ${finding.effort})`,
       primary_metric: finding.success_criterion,
+      created_by: user.user?.id ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) return { ok: false, error: insertError?.message ?? "Falha ao registrar o experimento." };
+  return { ok: true, id: created.id as string };
+}
+
+/**
+ * Register one Creative Test Plan hypothesis as a tracked ORGANIC experiment.
+ *
+ * Per HYPOTHESIS, not per plan — a plan carries up to five independent bets
+ * and collapsing them would destroy exactly the learning the journal exists to
+ * keep. Idempotency reuses the (diagnosis_id, change_made) convention: the
+ * change line embeds the hypothesis key, so clicking twice reuses the entry.
+ */
+export async function registerExperimentFromPlanHypothesis(planId: string, hypothesisKey: string): Promise<SaveResult> {
+  const supabase = await createClient();
+  const { data: plan, error } = await supabase
+    .from("diagnoses")
+    .select("id, org_id, product_id, output, scope")
+    .eq("id", planId)
+    .maybeSingle();
+  if (error || !plan) return { ok: false, error: error?.message ?? "Plano não encontrado." };
+  if (plan.scope !== "creative_plan") return { ok: false, error: "Este registro não é um plano de teste criativo." };
+
+  const output = plan.output;
+  if (!isCreativePlanOutput(output)) return { ok: false, error: "O plano está fora do formato esperado." };
+  const hypothesis = output.hypotheses.find((h) => h.key === hypothesisKey);
+  if (!hypothesis) return { ok: false, error: "Hipótese não encontrada no plano." };
+
+  // Deterministic from the plan output — the idempotency anchor.
+  const changeMade = `Teste orgânico [${hypothesis.key}]: publicar ${hypothesis.content_count}x ${hypothesis.format} — ângulo "${hypothesis.angle}", gancho "${hypothesis.hook}"`;
+  const { data: existing, error: existingError } = await supabase
+    .from("experiments")
+    .select("id")
+    .eq("diagnosis_id", plan.id)
+    .eq("change_made", changeMade)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) return { ok: false, error: existingError.message };
+  if (existing) return { ok: true, id: existing.id as string };
+
+  const { data: user } = await supabase.auth.getUser();
+  const { data: created, error: insertError } = await supabase
+    .from("experiments")
+    .insert({
+      org_id: plan.org_id,
+      product_id: plan.product_id,
+      diagnosis_id: plan.id,
+      title: `Teste orgânico: ${hypothesis.angle}`.slice(0, 80),
+      status: "planned",
+      hypothesis: hypothesis.rationale,
+      change_made: changeMade,
+      reason: `Plano de teste criativo — hipótese ${hypothesis.key}`,
+      primary_metric: hypothesis.success_criterion,
       created_by: user.user?.id ?? null,
     })
     .select("id")

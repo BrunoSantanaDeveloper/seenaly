@@ -867,6 +867,7 @@ export function ReadinessExperience({
                 howToCost={credit?.howToCost ?? 0}
                 registeredByIndex={registeredByIndex}
                 experimentHref={(id) => `/products/${product.id}/experiments/${id}`}
+                creativePlanHref={`/products/${product.id}/creatives`}
               />
 
               {/* Marking a fix done makes the on-screen verdict older than
