@@ -2347,7 +2347,7 @@
     "welcome-title": "Product created!",
     "welcome-body": "Before spending on ads, let's check in about a minute whether your structure is ready to convert — for free. Tick only what you already have; the rest is optional.",
     "wizard-scan-title": "Check your page automatically (optional)",
-    "wizard-scan-hint": "If you have a page, Seenaly can read it and check SEO, indexing and pixels for you.",
+    "wizard-scan-hint": "If you have a page, let Seenaly read it before asking: whatever it finds is confirmed for you, so you never answer it twice. The rest — CAPI, payments, checkout — no page read can see, so those we ask.",
     "wizard-review-title": "Ready to see your verdict",
     "wizard-review-hint": "These blockers came up instantly, for free. The full verdict tells you what to fix first.",
     "wizard-review-note": "The verdict uses AI and spends credits. You can come back and adjust your answers anytime.",

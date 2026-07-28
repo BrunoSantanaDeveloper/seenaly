@@ -2347,7 +2347,7 @@
     "welcome-title": "Produit créé !",
     "welcome-body": "Avant de dépenser en publicité, vérifions en une minute environ si votre structure est prête à convertir — gratuitement. Cochez seulement ce que vous avez déjà ; le reste est optionnel.",
     "wizard-scan-title": "Vérifier votre page automatiquement (optionnel)",
-    "wizard-scan-hint": "Si vous avez une page, Seenaly peut la lire et vérifier le SEO, l'indexation et les pixels pour vous.",
+    "wizard-scan-hint": "Si vous avez une page, laissez Seenaly la lire avant de vous interroger : ce qu’il trouve est confirmé et vous ne le ressaisissez pas. Le reste — CAPI, paiement, paiement en ligne — aucune lecture ne le voit, nous vous le demandons donc.",
     "wizard-review-title": "Prêt à voir votre verdict",
     "wizard-review-hint": "Ces bloqueurs sont apparus immédiatement, gratuitement. Le verdict complet indique quoi corriger en premier.",
     "wizard-review-note": "Le verdict utilise l'IA et consomme des crédits. Vous pouvez revenir ajuster vos réponses à tout moment.",

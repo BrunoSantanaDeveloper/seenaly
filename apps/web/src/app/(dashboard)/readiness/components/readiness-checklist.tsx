@@ -217,10 +217,17 @@ export default function ReadinessChecklist({
     return (
       <Box key={key} className={cn("flex flex-col py-0.5", naReason && "opacity-60")}>
         <Box className="flex flex-row flex-wrap items-center gap-x-2">
+          {/* A proved item is settled by evidence, not opinion — so its box is
+              read-only. Leaving it editable would re-open the very gap the
+              early scan closes: un-ticking something we can literally see. */}
           <FormControlLabel
             className="m-0"
             control={
-              <Checkbox checked={profile[key]} disabled={disabled} onChange={(e) => claim(key, e.target.checked)} />
+              <Checkbox
+                checked={profile[key]}
+                disabled={disabled || isVerified}
+                onChange={(e) => claim(key, e.target.checked)}
+              />
             }
             label={
               <Typography variant="body2" component="span">

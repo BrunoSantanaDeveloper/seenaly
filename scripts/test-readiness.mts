@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   EMPTY_READINESS_PROFILE,
+  autoConfirmProven,
   evaluateReadiness,
   findingResolution,
   isFindingPending,
@@ -500,6 +501,54 @@ const evalPlatform = evaluateReadiness(platformSeller, { hasLandingPage: false, 
 check("total stays 25 regardless of applicability", evalPlatform.total, 25);
 check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 25 - evalPlatform.notApplicable.length);
 check("applicableTotal never exceeds total", evalPlatform.applicableTotal <= evalPlatform.total, true);
+
+/* ========================================================================== */
+section("Auto-confirm from the page read — one way only");
+/* ========================================================================== */
+
+// What the read proves is settled without asking.
+{
+  const after = autoConfirmProven(p(), signalsWith());
+  check("a proved pixel is confirmed without being asked", after.pixelInstalled, true);
+  check("a proved analytics is confirmed", after.analyticsInstalled, true);
+}
+
+// THE guard: absence is never disproof, so it can only ever turn things ON.
+{
+  const claimed = p({ pixelInstalled: true, seoBasics: true });
+  const after = autoConfirmProven(claimed, signalsWith({ tracking: { metaPixel: false, ga4: false, gtm: false } }));
+  check("a missing pixel never un-confirms the user", after.pixelInstalled, true);
+  check("nothing else is turned off either", after.seoBasics, true);
+}
+
+// Items no page read can settle are left alone, to be asked.
+{
+  const after = autoConfirmProven(p(), signalsWith());
+  check("declared-tier items are untouched", after.capiInstalled, false);
+  check("weak-tier items are untouched", after.pageMobileTested, false);
+  check("checkout items are untouched", after.paymentPix, false);
+}
+
+// A JS-rendered page proves nothing — do not confirm from it.
+check(
+  "a client-rendered page confirms nothing",
+  autoConfirmProven(p(), signalsWith({ jsRenderedLikely: true })).pixelInstalled,
+  false,
+);
+check("no scan at all confirms nothing", autoConfirmProven(p(), null).pixelInstalled, false);
+
+// Identity when there is nothing to add, so callers can skip a needless write.
+{
+  const already = p({
+    pixelInstalled: true,
+    analyticsInstalled: true,
+    seoBasics: true,
+    indexable: true,
+    sitemapRobots: true,
+    structuredData: true,
+  });
+  check("returns the same object when nothing changes", autoConfirmProven(already, signalsWith()) === already, true);
+}
 
 /* ========================================================================== */
 section("Finding resolution — a tick is not proof");

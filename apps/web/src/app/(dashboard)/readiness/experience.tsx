@@ -13,9 +13,7 @@ import {
   saveReadiness,
   scanProductSite,
 } from "./actions";
-import ReadinessChecklist from "./components/readiness-checklist";
-import ReadinessScan, { type ScanView } from "./components/readiness-scan";
-import ReadinessSignals from "./components/readiness-signals";
+import { type ScanView } from "./components/readiness-scan";
 import ReadinessVerdict, { type HowToState, type ReadinessMeta } from "./components/readiness-verdict";
 import ReadinessWizard from "./components/readiness-wizard";
 import VerifiedCelebration from "./components/verified-celebration";
@@ -54,9 +52,11 @@ import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import { track } from "@/lib/analytics";
 import {
+  autoConfirmProven,
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
   observeItem,
+  READINESS_ITEM_KEYS,
   type ReadinessItemKey,
   type ReadinessProfile,
   toReadinessProfile,
@@ -574,19 +574,21 @@ export function ReadinessExperience({
       return;
     }
     setScanAttempts((previous) => previous + 1);
-    setScan(
-      scanRow
-        ? {
-            requestedUrl: scanRow.requested_url as string,
-            finalUrl: (scanRow.final_url as string | null) ?? null,
-            ok: scanRow.ok === true,
-            statusCode: (scanRow.status_code as number | null) ?? null,
-            error: (scanRow.error as string | null) ?? null,
-            createdAt: scanRow.created_at as string,
-            signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
-          }
-        : null,
-    );
+    const view: ScanView | null = scanRow
+      ? {
+          requestedUrl: scanRow.requested_url as string,
+          finalUrl: (scanRow.final_url as string | null) ?? null,
+          ok: scanRow.ok === true,
+          statusCode: (scanRow.status_code as number | null) ?? null,
+          error: (scanRow.error as string | null) ?? null,
+          createdAt: scanRow.created_at as string,
+          signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
+        }
+      : null;
+    setScan(view);
+    // Handed back so the caller can fold the proof into the profile without
+    // waiting a render for `scan` state to settle.
+    return view;
   }, [selectedProductId]);
 
   const runScan = async () => {
@@ -605,7 +607,19 @@ export function ReadinessExperience({
         return;
       }
       track("readiness_scanned", { reachable: result.scanned });
-      await refreshScan();
+      const view = await refreshScan();
+
+      // Everything the read PROVED is now settled — confirm it instead of
+      // asking the user to declare what we just saw with our own eyes. This is
+      // one-way (see `autoConfirmProven`): absence never un-confirms anything,
+      // because a client-rendered page hides its tags from an HTML fetch.
+      const proven = autoConfirmProven(profile, view?.ok ? view.signals : null);
+      if (proven !== profile) {
+        const gained = READINESS_ITEM_KEYS.filter((key) => proven[key] && !profile[key]);
+        setProfile(proven);
+        await persist(proven);
+        track("readiness_autoconfirmed", { items: gained.length });
+      }
     } finally {
       setScanning(false);
     }
@@ -970,23 +984,29 @@ export function ReadinessExperience({
               </IconButton>
             </DialogTitle>
             <DialogContent dividers className="flex flex-col gap-4">
-              <ReadinessSignals evaluation={evaluation} />
-              <ReadinessScan
-                scan={scan}
-                hasUrl={Boolean(product.landing_page_url)}
-                onScan={runScan}
-                busy={scanning || busy}
-              />
-              <ReadinessChecklist
+              {/* The SAME guided wizard, not a flat wall of 25 checkboxes.
+                  Generating a verdict used to retire the step-by-step forever,
+                  which hit hardest exactly the beginner who generated early
+                  with almost nothing filled: the guided teaching disappeared
+                  the moment they needed it most. The verdict is a RESULT, not
+                  a replacement for the intake. */}
+              <ReadinessWizard
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}
-                disabled={busy || scanning}
-                signals={scan?.ok ? scan.signals : null}
-                scanUrl={scan?.finalUrl ?? scan?.requestedUrl ?? null}
-                hasLandingPage={Boolean(product.landing_page_url)}
-                onVerifyNow={runScan}
+                scan={scan}
+                hasUrl={Boolean(product.landing_page_url)}
+                onScan={runScan}
                 scanning={scanning}
+                onComplete={() => {
+                  setReviewOpen(false);
+                  verify();
+                }}
+                busy={busy}
+                credit={credit}
+                saveState={saveState}
+                onRetrySave={() => void persist()}
+                onBeforeAdvance={() => (dirty ? persist() : Promise.resolve(true))}
                 assistOffering={assistOffering}
                 assistOpenItems={assistOpenItems}
                 scanAttempts={scanAttempts}
@@ -994,7 +1014,6 @@ export function ReadinessExperience({
                 onRequestAssist={requestAssistFor}
               />
               <Box className="bg-background sticky bottom-0 flex flex-row flex-wrap items-center gap-2 py-2">
-                {reVerifyButton}
                 <Button variant="text" color="grey" onClick={() => setReviewOpen(false)}>
                   {t("review-close")}
                 </Button>

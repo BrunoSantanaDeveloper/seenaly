@@ -420,6 +420,34 @@ export function verifyAgainstScan(profile: ReadinessProfile, signals: ScanSignal
   return READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "contradicted");
 }
 
+/**
+ * Fold everything the page read PROVED into the profile, so those items are
+ * settled by evidence instead of being asked.
+ *
+ * Asking someone to declare a pixel we can see for ourselves is redundant work
+ * and an open invitation to answer wrong. Reading first and confirming what is
+ * demonstrably there removes both.
+ *
+ * ONE-WAY ON PURPOSE — it can only ever turn an item ON. Absence is not
+ * disproof: a client-rendered page hides its tags from an HTML fetch, so
+ * writing `false` from "not found" would assert exactly the confident lie this
+ * whole layer exists to prevent. Items the read cannot settle are left exactly
+ * as they were, to be asked.
+ */
+export function autoConfirmProven(profile: ReadinessProfile, signals: ScanSignals | null): ReadinessProfile {
+  if (!signals) return profile;
+  let next: ReadinessProfile | null = null;
+  for (const key of READINESS_ITEM_KEYS) {
+    if (profile[key]) continue;
+    if (READINESS_ITEM_BY_KEY[key]?.verification !== "proved") continue;
+    if (observeItem(key, signals) !== true) continue;
+    next ??= { ...profile };
+    next[key] = true;
+  }
+  // Same object when nothing changed, so callers can skip a pointless write.
+  return next ?? profile;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Is a verdict finding actually fixed? (declared vs proved)                  */
 /* -------------------------------------------------------------------------- */

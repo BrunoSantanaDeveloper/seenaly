@@ -32,6 +32,7 @@ export default function SetupWizard({
   onBeforeAdvance,
   onFinishEarly,
   finishEarlyLabel,
+  canFinishEarly = true,
   completeLabel = "Finish",
   backLabel = "Back",
   continueLabel = "Continue",
@@ -49,6 +50,13 @@ export default function SetupWizard({
    */
   onFinishEarly?: () => void;
   finishEarlyLabel?: string;
+  /**
+   * Whether finishing early makes sense YET. Lets the caller hide the shortcut
+   * while it would produce nothing — e.g. "generate with what I confirmed" on
+   * screen one, where the user has confirmed nothing and the label is simply
+   * untrue. Default true keeps the original behaviour for every other caller.
+   */
+  canFinishEarly?: boolean;
   completeLabel?: string;
   /** Pass translated strings for these — the defaults are English fallbacks. */
   backLabel?: string;
@@ -139,7 +147,7 @@ export default function SetupWizard({
           <Box className="flex flex-row items-center gap-2">
             {/* Remaining steps are opt-in: let the user finish now instead of
                 being forced through them. */}
-            {!isLast && onFinishEarly && (
+            {!isLast && onFinishEarly && canFinishEarly && (
               <Button variant="text" color="grey" disabled={!canAdvance} onClick={onFinishEarly}>
                 {finishEarlyLabel ?? completeLabel}
               </Button>
@@ -158,7 +166,11 @@ export default function SetupWizard({
               <Button
                 variant="contained"
                 color="primary"
-                disabled={!canAdvance || advancing}
+                disabled={!canAdvance}
+                // `onBeforeAdvance` usually saves before moving on, and a button
+                // that only greys out for a second reads as "nothing happened" —
+                // the wait has to be visible, not merely inert.
+                loading={advancing}
                 endIcon={<NiArrowRight size="medium" />}
                 onClick={() => void advance()}
               >

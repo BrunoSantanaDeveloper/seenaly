@@ -2347,7 +2347,7 @@
     "welcome-title": "Produkt angelegt!",
     "welcome-body": "Bevor du Geld für Werbung ausgibst, prüfen wir in etwa einer Minute, ob deine Struktur bereit ist zu konvertieren — kostenlos. Hake nur ab, was du bereits hast; der Rest ist optional.",
     "wizard-scan-title": "Deine Seite automatisch prüfen (optional)",
-    "wizard-scan-hint": "Wenn du eine Seite hast, kann Seenaly sie lesen und SEO, Indexierung und Pixel für dich prüfen.",
+    "wizard-scan-hint": "Wenn du eine Seite hast, lass Seenaly sie zuerst lesen: Was gefunden wird, gilt als bestätigt — du beantwortest es kein zweites Mal. Den Rest — CAPI, Zahlung, Checkout — sieht keine Seitenprüfung, danach fragen wir.",
     "wizard-review-title": "Bereit für dein Urteil",
     "wizard-review-hint": "Diese Blocker erschienen sofort und kostenlos. Das vollständige Urteil zeigt, was zuerst zu beheben ist.",
     "wizard-review-note": "Das Urteil nutzt KI und verbraucht Credits. Du kannst jederzeit zurückkehren und deine Antworten anpassen.",

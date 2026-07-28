@@ -104,6 +104,21 @@ export default function ReadinessWizard({
       ),
       canAdvance: !busy,
     },
+    // Reading the page comes BEFORE the questions, not after: asking someone to
+    // declare a pixel we can see for ourselves is redundant work AND an
+    // invitation to answer wrong. What the read PROVES is confirmed here and
+    // never asked again (`autoConfirmProven` in experience.tsx).
+    //
+    // It settles 6 of the 25 items at most — CAPI is server-side, checkout and
+    // activation live behind the login, funnel and organic are not on the page
+    // — so the questions that follow are the ones no page read could answer.
+    {
+      title: t("wizard-scan-title"),
+      shortLabel: t("wizard-short-scan"),
+      hint: t("wizard-scan-hint"),
+      content: <ReadinessScan scan={scan} hasUrl={hasUrl} onScan={onScan} busy={scanning || busy} />,
+      canAdvance: !busy,
+    },
     // One step per dimension — the "why" becomes the step hint, so the checklist
     // renders bare (no repeated header), exactly like product-form's fields.
     // Only the groups this model actually has (activation is trial-first only).
@@ -138,14 +153,6 @@ export default function ReadinessWizard({
         canAdvance: !busy,
       }),
     ),
-    // Optional enrichment: let us read the page instead of them self-reporting.
-    {
-      title: t("wizard-scan-title"),
-      shortLabel: t("wizard-short-scan"),
-      hint: t("wizard-scan-hint"),
-      content: <ReadinessScan scan={scan} hasUrl={hasUrl} onScan={onScan} busy={scanning || busy} />,
-      canAdvance: !busy,
-    },
     // Review: the free blockers land here (real value before any credit spent),
     // and the single primary action generates the full verdict.
     {
@@ -197,6 +204,15 @@ export default function ReadinessWizard({
         onBeforeAdvance={onBeforeAdvance}
         onFinishEarly={onComplete}
         finishEarlyLabel={t("wizard-finish-early")}
+        // "Gerar com o que já confirmei" has to be TRUE when it is offered.
+        // With nothing confirmed it would spend credits on a verdict made of
+        // missing data and teach a beginner the product has nothing to say.
+        // Picking a funnel model is not a confirmation, so it does not count —
+        // the shortcut simply waits until there is something to generate FROM,
+        // which the page read usually supplies on step two. Nothing is gated:
+        // the free blockers keep updating live and the final step always
+        // offers the full verdict.
+        canFinishEarly={confirmed > 0}
         completeLabel={busy ? t("verifying") : t("see-verdict")}
         backLabel={t("wizard-back")}
         continueLabel={t("wizard-continue")}
