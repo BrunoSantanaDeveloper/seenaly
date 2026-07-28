@@ -1105,6 +1105,8 @@
     "section-diagnosis": "Diagnóstico",
     "section-evidence": "Evidencias",
     "section-technical-basis": "Base técnica",
+    "section-funnel": "Los números que leí",
+    "section-funnel-labelled": "Los números que leí · {period}",
     "section-hypothesis": "Hipótesis",
     "section-action": "Acción recomendada",
     "section-risk": "Riesgo",

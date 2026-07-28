@@ -1,5 +1,7 @@
 "use client";
 
+import FunnelBreakdown from "../../funnel/components/funnel-breakdown";
+import type { FunnelCounts } from "../../funnel/types";
 import { useTranslations } from "next-intl";
 
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
@@ -7,6 +9,7 @@ import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from
 import NiArrowRight from "@/icons/nexture/ni-arrow-right";
 import NiBook from "@/icons/nexture/ni-book";
 import NiCalendar from "@/icons/nexture/ni-calendar";
+import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
 import NiFlag from "@/icons/nexture/ni-flag";
@@ -38,6 +41,12 @@ export interface DiagnosisMeta {
   knowledgeRefs: { title: string; trust_level: number }[];
 }
 
+/** The funnel snapshot the engine reasoned from, when one exists. */
+export interface DiagnosisFunnel {
+  counts: FunnelCounts;
+  label: string | null;
+}
+
 /**
  * Renders the fixed 9-field answer format. The reader must be able to check
  * the reasoning: every claim shows the source it is anchored to, and an
@@ -47,18 +56,26 @@ export interface DiagnosisMeta {
 export default function DiagnosisCard({
   output,
   meta,
+  funnel = null,
   feedback,
   onFeedback,
   feedbackBusy,
 }: {
   output: DiagnosisOutput;
   meta: DiagnosisMeta;
+  /**
+   * The funnel numbers behind the reasoning. Rendered ONLY when they exist —
+   * a chart drawn from no data would fabricate precision the diagnosis itself
+   * is careful not to claim.
+   */
+  funnel?: DiagnosisFunnel | null;
   /** Current user's rating, when the card is interactive. */
   feedback?: DiagnosisRating | null;
   onFeedback?: (rating: DiagnosisRating) => void;
   feedbackBusy?: boolean;
 }) {
   const t = useTranslations("diagnosis");
+  const tf = useTranslations("funnel");
 
   /**
    * Nine sections shared identical typography (uppercase gray label + body),
@@ -153,6 +170,30 @@ export default function DiagnosisCard({
             ))}
           </Box>,
         )}
+
+        {/* The numbers the reasoning stands on, drawn as the funnel they are.
+            Present only when a real snapshot exists: with no data the card
+            stays text, because a chart of nothing invents precision the
+            diagnosis explicitly refuses to claim. */}
+        {funnel &&
+          section(
+            <NiChartFunnel size="small" />,
+            funnel.label ? t("section-funnel-labelled", { period: funnel.label }) : t("section-funnel"),
+            <FunnelBreakdown
+              bare
+              dense
+              counts={funnel.counts}
+              labels={{
+                visits: tf("field-visits"),
+                signups: tf("field-signups"),
+                checkout: tf("field-checkoutInitiated"),
+                purchases: tf("field-purchases"),
+                ofPrevious: tf("of-previous"),
+                refundRate: tf("refund-rate"),
+                noData: tf("no-data"),
+              }}
+            />,
+          )}
 
         {output.technical_basis.length > 0 &&
           section(

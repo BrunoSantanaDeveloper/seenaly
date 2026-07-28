@@ -3,7 +3,7 @@
 import { registerExperimentFromDiagnosis } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
 import { type DiagnosisRating, generateDiagnosis, recordDiagnosisFeedback } from "./actions";
-import DiagnosisCard, { type DiagnosisMeta } from "./components/diagnosis-card";
+import DiagnosisCard, { type DiagnosisFunnel, type DiagnosisMeta } from "./components/diagnosis-card";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -62,6 +62,9 @@ export function DiagnosisExperience({
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [rows, setRows] = useState<DiagnosisRow[]>([]);
+  // The funnel numbers behind the latest diagnosis — null when none exist, and
+  // the card then stays text rather than drawing a chart of nothing.
+  const [funnel, setFunnel] = useState<DiagnosisFunnel | null>(null);
   const [feedbackByDiagnosis, setFeedbackByDiagnosis] = useState<Record<string, DiagnosisRating>>({});
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
@@ -116,18 +119,50 @@ export function DiagnosisExperience({
     // Campaign diagnoses only — the readiness verdict (scope 'readiness') is a
     // DIFFERENT output shape and lives on /readiness. Loading it here would feed
     // DiagnosisCard an object with no `evidence`, crashing the whole screen.
-    const { data, error: diagnosesError } = await supabase
-      .from("diagnoses")
-      .select("id, output, created_at, had_campaign_data, knowledge_refs")
-      .eq("product_id", selectedProductId)
-      .neq("scope", "readiness")
-      .order("created_at", { ascending: false })
-      .limit(10);
+    const [{ data, error: diagnosesError }, { data: funnelRow, error: funnelError }] = await Promise.all([
+      supabase
+        .from("diagnoses")
+        .select("id, output, created_at, had_campaign_data, knowledge_refs")
+        .eq("product_id", selectedProductId)
+        .neq("scope", "readiness")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      // The same snapshot the engine reasoned from, so the card can SHOW the
+      // numbers behind the words instead of only describing them.
+      supabase
+        .from("funnel_snapshots")
+        .select("label, visits, signups, checkout_initiated, purchases, refunds, net_revenue")
+        .eq("product_id", selectedProductId)
+        .order("period_end", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
     if (diagnosesError) {
       setDataLoadError(true);
       setLoaded(true);
       return;
     }
+    // The funnel is ENRICHMENT: it makes the diagnosis richer, it is not the
+    // diagnosis. So its failure degrades to "no funnel shown" and never takes
+    // the answer the user came for off the screen. (Caught for real: the query
+    // errors while migration 0034 — which adds funnel_snapshots.signups — is
+    // still pending, and it was blanking the whole result.)
+    setFunnel(
+      funnelRow && !funnelError
+        ? {
+            label: (funnelRow.label as string | null) ?? null,
+            counts: {
+              visits: funnelRow.visits as number | null,
+              signups: funnelRow.signups as number | null,
+              checkout_initiated: funnelRow.checkout_initiated as number | null,
+              purchases: funnelRow.purchases as number | null,
+              refunds: funnelRow.refunds as number | null,
+              net_revenue: funnelRow.net_revenue as number | null,
+            },
+          }
+        : null,
+    );
     // Defence in depth: never hand a malformed payload to the card (the app has
     // no granular error boundary, so one bad row would white-screen everything).
     const list = ((data as DiagnosisRow[]) ?? []).filter((r) => isDiagnosisOutput(r.output));
@@ -368,6 +403,7 @@ export function DiagnosisExperience({
                   knowledgeRefs: latest.knowledge_refs ?? [],
                 } satisfies DiagnosisMeta
               }
+              funnel={funnel}
               feedback={feedbackByDiagnosis[latest.id] ?? null}
               onFeedback={(rating) => submitFeedback(latest.id, rating)}
               feedbackBusy={feedbackBusy}
