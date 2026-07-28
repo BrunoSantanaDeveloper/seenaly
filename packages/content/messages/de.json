@@ -2323,6 +2323,7 @@
     "stage-patience": "Läuft noch. Analysen mit viel Kontext können bis zu einer Minute dauern.",
     "plan-title": "Korrekturplan",
     "plan-body": "Nach Hebelwirkung sortiert. Öffne einen Punkt für Details und die Schritt-für-Schritt-Anleitung.",
+    "plan-jump-hint": "Offene Punkte — tippe auf einen, um direkt dorthin zu springen:",
     "plan-blockers": "Zuerst beheben",
     "plan-blockers-hint": "Solange das so bleibt, ist Werbebudget absehbar verschwendet.",
     "plan-quick": "Schnelle Gewinne",

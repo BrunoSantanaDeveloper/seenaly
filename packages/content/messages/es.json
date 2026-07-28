@@ -2323,6 +2323,7 @@
     "stage-patience": "Todavía procesando. Los análisis con mucho contexto pueden tardar hasta un minuto.",
     "plan-title": "Plan de corrección",
     "plan-body": "En orden de apalancamiento. Abre un elemento para ver el detalle y el paso a paso.",
+    "plan-jump-hint": "Pendientes — toca uno para ir directo al elemento:",
     "plan-blockers": "Resuelve primero",
     "plan-blockers-hint": "Mientras esto siga así, gastar en anuncios es un desperdicio previsible.",
     "plan-quick": "Ganancias rápidas",

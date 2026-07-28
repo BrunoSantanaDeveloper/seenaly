@@ -6,6 +6,9 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -14,7 +17,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Collapse,
   Divider,
   FormControlLabel,
   Typography,
@@ -22,8 +24,9 @@ import {
 
 import NiArrowRight from "@/icons/nexture/ni-arrow-right";
 import NiBook from "@/icons/nexture/ni-book";
+import NiCamera from "@/icons/nexture/ni-camera";
 import NiCheck from "@/icons/nexture/ni-check";
-import NiChevronDown from "@/icons/nexture/ni-chevron-down";
+import NiChevronRightSmall from "@/icons/nexture/ni-chevron-right-small";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiSearch from "@/icons/nexture/ni-search";
@@ -105,6 +108,7 @@ export default function ReadinessVerdict({
   howToCost = 0,
   registeredByIndex = {},
   experimentHref,
+  creativePlanHref,
 }: {
   output: ReadinessOutput;
   productName: string;
@@ -124,6 +128,12 @@ export default function ReadinessVerdict({
   howToCost?: number;
   registeredByIndex?: Record<number, string>;
   experimentHref?: (experimentId: string) => string;
+  /**
+   * Where the Creative Test Plan lives (the creatives surface). A `midia`
+   * finding has no checklist items to tick — without this link it is a dead
+   * end; with it, the fix has a concrete door (docs/PRODUCT.md phase 8).
+   */
+  creativePlanHref?: string;
 }) {
   const t = useTranslations("readiness");
   const tone = VERDICT_TONE[output.verdict];
@@ -153,16 +163,20 @@ export default function ReadinessVerdict({
     };
   }, [output.findings]);
 
-  const focusPrimaryBlocker = () => {
-    const finding = groups.blockers[0];
-    if (!finding) return;
-    setExpanded((previous) => new Set(previous).add(finding.index));
+  /** Open one finding and bring it on screen — the "hook" every pending-item
+   *  chip (and the blocker CTA) resolves to. */
+  const focusFinding = (index: number) => {
+    setExpanded((previous) => new Set(previous).add(index));
     window.setTimeout(() => {
-      document.getElementById(`finding-${finding.index}`)?.scrollIntoView({
+      document.getElementById(`finding-${index}`)?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
-    }, 50);
+    }, 60);
+  };
+
+  const focusPrimaryBlocker = () => {
+    if (groups.blockers[0]) focusFinding(groups.blockers[0].index);
   };
 
   const levelChip = (label: string, value: ReadinessLevel) => (
@@ -217,224 +231,263 @@ export default function ReadinessVerdict({
       finding.effort === "alto" || (typeof howTo === "object" && howTo.howTo.needs_specialist === true);
 
     return (
-      <Box
-        key={index}
-        id={`finding-${index}`}
-        className={cn(
-          "flex flex-col gap-3 rounded-2xl border p-4 transition-colors",
-          resolved ? "border-success/30 bg-success/5" : "border-grey-100",
-        )}
-      >
-        <Box className="flex flex-row flex-wrap items-start gap-2">
-          <Box className="grow">
-            <Typography variant="subtitle2" className="text-text-secondary mb-0">
-              {t(`dimension-${finding.dimension}`)}
-            </Typography>
-          </Box>
-          <Box className="flex flex-none flex-row flex-wrap gap-1">
-            {finding.status === "sem_dados" && (
-              <Chip label={t("status-sem_dados")} size="small" variant="outlined" color="grey" className="flex-none" />
-            )}
-            {levelChip(t("impact"), finding.impact)}
-            {levelChip(t("effort"), finding.effort)}
-          </Box>
-        </Box>
-
-        {section(
-          <NiFlag size="small" />,
-          t("section-problem"),
-          <Typography variant="body2" className="leading-6">
-            {finding.finding}
-          </Typography>,
-        )}
-
-        {finding.evidence.length > 0 &&
-          section(
-            <NiSearch size="small" />,
-            t("section-evidence"),
-            <Box className="flex flex-col gap-1.5">
-              {finding.evidence.map((evidence, evidenceIndex) => (
-                <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
-                  <Chip
-                    label={t(`source-${evidence.source}`)}
-                    size="small"
-                    variant="outlined"
-                    color={SOURCE_COLOR[evidence.source] ?? "default"}
-                    className="mt-0.5 flex-none"
-                  />
-                  <Typography variant="body2" className="leading-6">
-                    {evidence.statement}
+      // The template's card-accordion (FAQ pattern): each finding is one
+      // elevated card whose collapsed face carries dimension + verdict chips +
+      // the ACTION preview — the plan scans as a to-do list instead of four
+      // walls of analysis bleeding into each other.
+      <Box key={index} className="mb-2.5 rounded-xl shadow-sm">
+        <Accordion id={`finding-${index}`} expanded={open} onChange={() => toggle(index)}>
+          <AccordionSummary className="group">
+            <Card className="w-full shadow-none! group-aria-expanded:rounded-b-none">
+              <CardContent className="flex flex-col gap-1.5">
+                <Box className="flex flex-row flex-wrap items-center gap-2">
+                  <Typography variant="h6" component="h4" className="mb-0 grow">
+                    {t(`dimension-${finding.dimension}`)}
                   </Typography>
+                  <Box className="flex flex-none flex-row flex-wrap items-center gap-1">
+                    {resolved ? (
+                      <Chip
+                        icon={<NiCheck size="small" />}
+                        label={t("resolved-done")}
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        className="flex-none"
+                      />
+                    ) : (
+                      <>
+                        {finding.status === "sem_dados" && (
+                          <Chip
+                            label={t("status-sem_dados")}
+                            size="small"
+                            variant="outlined"
+                            color="grey"
+                            className="flex-none"
+                          />
+                        )}
+                        {levelChip(t("impact"), finding.impact)}
+                        {levelChip(t("effort"), finding.effort)}
+                      </>
+                    )}
+                    <NiChevronRightSmall size={20} className="accordion-rotate" />
+                  </Box>
                 </Box>
-              ))}
-            </Box>,
-          )}
+                {/* Collapsed, the card leads with its payoff — what to DO.
+                    Open, the full tinted AÇÃO section below takes over. */}
+                {!open && (
+                  <Typography
+                    variant="body2"
+                    className={cn("text-text-secondary line-clamp-2 leading-6", resolved && "line-through")}
+                  >
+                    {finding.recommended_action}
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </AccordionSummary>
+          <AccordionDetails className="bg-background-paper rounded-b-xl px-7 py-6 pt-0">
+            <Box className="flex flex-col gap-3">
+              {section(
+                <NiFlag size="small" />,
+                t("section-problem"),
+                <Typography variant="body2" className="leading-6">
+                  {finding.finding}
+                </Typography>,
+              )}
 
-        {/* The one line the whole card exists to deliver — boxed and tinted
+              {finding.evidence.length > 0 &&
+                section(
+                  <NiSearch size="small" />,
+                  t("section-evidence"),
+                  <Box className="flex flex-col gap-1.5">
+                    {finding.evidence.map((evidence, evidenceIndex) => (
+                      <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
+                        <Chip
+                          label={t(`source-${evidence.source}`)}
+                          size="small"
+                          variant="outlined"
+                          color={SOURCE_COLOR[evidence.source] ?? "default"}
+                          className="mt-0.5 flex-none"
+                        />
+                        <Typography variant="body2" className="leading-6">
+                          {evidence.statement}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>,
+                )}
+
+              {/* The one line the whole card exists to deliver — boxed and tinted
             so it visually wins against the descriptive sections around it. */}
-        {section(
-          <NiArrowRight size="small" />,
-          t("section-action"),
-          <Typography
-            variant="body1"
-            className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
-          >
-            {finding.recommended_action}
-          </Typography>,
-          true,
-        )}
+              {section(
+                <NiArrowRight size="small" />,
+                t("section-action"),
+                <Typography
+                  variant="body1"
+                  className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
+                >
+                  {finding.recommended_action}
+                </Typography>,
+                true,
+              )}
 
-        {section(
-          <NiCheck size="small" />,
-          t("section-success"),
-          <Typography variant="body2" className="leading-6">
-            {finding.success_criterion}
-          </Typography>,
-        )}
+              {section(
+                <NiCheck size="small" />,
+                t("section-success"),
+                <Typography variant="body2" className="leading-6">
+                  {finding.success_criterion}
+                </Typography>,
+              )}
 
-        <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
-          {items.length > 0 && onResolve ? (
-            <FormControlLabel
-              className="m-0"
-              control={
-                <Checkbox
-                  size="small"
-                  checked={resolved}
-                  onChange={(event) => onResolve(items, event.target.checked)}
-                />
-              }
-              label={
-                <Typography variant="body2" className={resolved ? "text-success" : "text-text-secondary"}>
-                  {resolved ? t("resolved-done") : t("mark-resolved")}
-                </Typography>
-              }
-            />
-          ) : (
-            <span />
-          )}
-          <Button
-            variant="text"
-            color="grey"
-            size="small"
-            onClick={() => toggle(index)}
-            endIcon={<NiChevronDown size="small" className={cn("transition-transform", open && "rotate-180")} />}
-            aria-expanded={open}
-          >
-            {open ? t("hide-details") : t("show-details")}
-          </Button>
-        </Box>
-        {resolved && (
-          <Typography variant="body2" className="text-warning">
-            {t("reverification-pending")}
-          </Typography>
-        )}
-
-        <Collapse in={open} unmountOnExit>
-          <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
-            {/* HOW to do it — the gap between knowing and doing, on demand. */}
-            <Box className="bg-grey-25/60 flex flex-col gap-2 rounded-2xl p-4">
-              <Typography variant="subtitle2" className="text-text-secondary uppercase">
-                {t("howto-title")}
-              </Typography>
-
-              {howTo === undefined && onHowTo && (
+              {/* `midia` has no checklist items to tick — its concrete door is
+                  the Creative Test Plan on the creatives surface. */}
+              {finding.dimension === "midia" && creativePlanHref && (
                 <Box className="flex flex-col items-start gap-1">
-                  <Typography variant="body2" className="text-text-secondary">
-                    {t("howto-teaser")}
-                  </Typography>
-                  <Button size="small" variant="outlined" color="grey" onClick={() => onHowTo(index)}>
-                    {howToCost > 0 ? t("howto-cta-cost", { cost: howToCost }) : t("howto-cta")}
+                  <Button
+                    component={Link}
+                    href={creativePlanHref}
+                    size="small"
+                    variant="contained"
+                    startIcon={<NiCamera size="small" />}
+                  >
+                    {t("creative-plan-cta")}
                   </Button>
-                </Box>
-              )}
-
-              {howTo === "loading" && (
-                <Box className="flex flex-row items-center gap-2">
-                  <CircularProgress size={16} />
                   <Typography variant="body2" className="text-text-secondary">
-                    {t("howto-loading")}
+                    {t("creative-plan-hint")}
                   </Typography>
                 </Box>
               )}
 
-              {typeof howTo === "object" && (
-                <>
-                  {howTo.howTo.steps.length > 0 ? (
-                    <Box component="ol" className="m-0 list-decimal space-y-1.5 pl-5">
-                      {howTo.howTo.steps.map((step, stepIndex) => (
-                        <Typography key={stepIndex} component="li" variant="body2" className="leading-6">
-                          {step}
+              {items.length > 0 && onResolve && (
+                <FormControlLabel
+                  className="m-0"
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={resolved}
+                      onChange={(event) => onResolve(items, event.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" className={resolved ? "text-success" : "text-text-secondary"}>
+                      {resolved ? t("resolved-done") : t("mark-resolved")}
+                    </Typography>
+                  }
+                />
+              )}
+              {resolved && (
+                <Typography variant="body2" className="text-warning">
+                  {t("reverification-pending")}
+                </Typography>
+              )}
+
+              <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
+                {/* HOW to do it — the gap between knowing and doing, on demand. */}
+                <Box className="bg-grey-25/60 flex flex-col gap-2 rounded-2xl p-4">
+                  <Typography variant="subtitle2" className="text-text-secondary uppercase">
+                    {t("howto-title")}
+                  </Typography>
+
+                  {howTo === undefined && onHowTo && (
+                    <Box className="flex flex-col items-start gap-1">
+                      <Typography variant="body2" className="text-text-secondary">
+                        {t("howto-teaser")}
+                      </Typography>
+                      <Button size="small" variant="outlined" color="grey" onClick={() => onHowTo(index)}>
+                        {howToCost > 0 ? t("howto-cta-cost", { cost: howToCost }) : t("howto-cta")}
+                      </Button>
+                    </Box>
+                  )}
+
+                  {howTo === "loading" && (
+                    <Box className="flex flex-row items-center gap-2">
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" className="text-text-secondary">
+                        {t("howto-loading")}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {typeof howTo === "object" && (
+                    <>
+                      {howTo.howTo.steps.length > 0 ? (
+                        <Box component="ol" className="m-0 list-decimal space-y-1.5 pl-5">
+                          {howTo.howTo.steps.map((step, stepIndex) => (
+                            <Typography key={stepIndex} component="li" variant="body2" className="leading-6">
+                              {step}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        // An honest empty answer: the knowledge base did not cover
+                        // it, so no tutorial was invented (and nothing was charged).
+                        <Alert severity="info" className="neutral bg-background-paper/60!">
+                          <Typography variant="body2">{howTo.howTo.note || t("howto-unsupported")}</Typography>
+                        </Alert>
+                      )}
+                      {howTo.howTo.steps.length > 0 && howTo.howTo.note && (
+                        <Typography variant="body2" className="text-text-secondary">
+                          {howTo.howTo.note}
+                        </Typography>
+                      )}
+                      {howTo.sources.length > 0 && (
+                        <Box className="flex flex-row flex-wrap gap-1">
+                          {howTo.sources.slice(0, 4).map((source, sourceIndex) => (
+                            <Chip key={sourceIndex} label={source.title} size="small" variant="outlined" color="grey" />
+                          ))}
+                        </Box>
+                      )}
+                    </>
+                  )}
+
+                  {needsSpecialist && (
+                    <Typography variant="body2" className="text-text-secondary">
+                      {t("howto-specialist")}
+                    </Typography>
+                  )}
+                </Box>
+
+                {finding.technical_basis.length > 0 &&
+                  section(
+                    <NiBook size="small" />,
+                    t("section-technical-basis"),
+                    <Box className="flex flex-col gap-0.5">
+                      {finding.technical_basis.map((basis, basisIndex) => (
+                        <Typography key={basisIndex} variant="body2" className="leading-6">
+                          {basis.rule} <span className="text-text-secondary">{basis.citation}</span>
                         </Typography>
                       ))}
-                    </Box>
-                  ) : (
-                    // An honest empty answer: the knowledge base did not cover
-                    // it, so no tutorial was invented (and nothing was charged).
-                    <Alert severity="info" className="neutral bg-background-paper/60!">
-                      <Typography variant="body2">{howTo.howTo.note || t("howto-unsupported")}</Typography>
-                    </Alert>
+                    </Box>,
                   )}
-                  {howTo.howTo.steps.length > 0 && howTo.howTo.note && (
+
+                {registeredByIndex[index] && experimentHref ? (
+                  <Alert severity="success" className="neutral bg-background-paper/60!">
+                    <Typography variant="body2">
+                      {t("experiment-planned")}{" "}
+                      <Link href={experimentHref(registeredByIndex[index])}>{t("open-experiment")}</Link>
+                    </Typography>
+                  </Alert>
+                ) : onRegisterFinding ? (
+                  <Box className="flex flex-col items-start gap-1">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="grey"
+                      startIcon={<NiFlask size="small" />}
+                      disabled={registeringIndex != null}
+                      onClick={() => onRegisterFinding(index)}
+                    >
+                      {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
+                    </Button>
                     <Typography variant="body2" className="text-text-secondary">
-                      {howTo.howTo.note}
+                      {t("register-experiment-hint")}
                     </Typography>
-                  )}
-                  {howTo.sources.length > 0 && (
-                    <Box className="flex flex-row flex-wrap gap-1">
-                      {howTo.sources.slice(0, 4).map((source, sourceIndex) => (
-                        <Chip key={sourceIndex} label={source.title} size="small" variant="outlined" color="grey" />
-                      ))}
-                    </Box>
-                  )}
-                </>
-              )}
-
-              {needsSpecialist && (
-                <Typography variant="body2" className="text-text-secondary">
-                  {t("howto-specialist")}
-                </Typography>
-              )}
-            </Box>
-
-            {finding.technical_basis.length > 0 &&
-              section(
-                <NiBook size="small" />,
-                t("section-technical-basis"),
-                <Box className="flex flex-col gap-0.5">
-                  {finding.technical_basis.map((basis, basisIndex) => (
-                    <Typography key={basisIndex} variant="body2" className="leading-6">
-                      {basis.rule} <span className="text-text-secondary">{basis.citation}</span>
-                    </Typography>
-                  ))}
-                </Box>,
-              )}
-
-            {registeredByIndex[index] && experimentHref ? (
-              <Alert severity="success" className="neutral bg-background-paper/60!">
-                <Typography variant="body2">
-                  {t("experiment-planned")}{" "}
-                  <Link href={experimentHref(registeredByIndex[index])}>{t("open-experiment")}</Link>
-                </Typography>
-              </Alert>
-            ) : onRegisterFinding ? (
-              <Box className="flex flex-col items-start gap-1">
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="grey"
-                  startIcon={<NiFlask size="small" />}
-                  disabled={registeringIndex != null}
-                  onClick={() => onRegisterFinding(index)}
-                >
-                  {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
-                </Button>
-                <Typography variant="body2" className="text-text-secondary">
-                  {t("register-experiment-hint")}
-                </Typography>
+                  </Box>
+                ) : null}
               </Box>
-            ) : null}
-          </Box>
-        </Collapse>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
     );
   };
@@ -450,7 +503,8 @@ export default function ReadinessVerdict({
             {hint}
           </Typography>
         </Box>
-        <Box className="flex flex-col gap-2">{entries.map(findingCard)}</Box>
+        {/* Each card-accordion wrapper carries its own mb — no extra gap here. */}
+        <Box className="flex flex-col">{entries.map(findingCard)}</Box>
       </Box>
     );
 
@@ -518,6 +572,35 @@ export default function ReadinessVerdict({
               {t("plan-body")}
             </Typography>
           </Box>
+
+          {/* The pending map: one hook per open finding, colored by urgency
+              (blocker / quick win / later). Same language as the completeness
+              card on the context screen — click → the exact card opens and
+              scrolls into view. */}
+          {groups.blockers.length + groups.quick.length + groups.later.length > 0 && (
+            <Box className="flex flex-col gap-1.5">
+              <Typography variant="body2" className="text-text-secondary">
+                {t("plan-jump-hint")}
+              </Typography>
+              <Box className="flex flex-row flex-wrap gap-1.5">
+                {[
+                  ...groups.blockers.map((entry) => ({ ...entry, color: "error" as const })),
+                  ...groups.quick.map((entry) => ({ ...entry, color: "primary" as const })),
+                  ...groups.later.map((entry) => ({ ...entry, color: "grey" as const })),
+                ].map(({ finding, index, color }) => (
+                  <Chip
+                    key={index}
+                    label={t(`dimension-${finding.dimension}`)}
+                    size="small"
+                    variant="outlined"
+                    color={color}
+                    className="cursor-pointer"
+                    onClick={() => focusFinding(index)}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
 
           {group(t("plan-blockers"), t("plan-blockers-hint"), groups.blockers)}
           {group(t("plan-quick"), t("plan-quick-hint"), groups.quick)}

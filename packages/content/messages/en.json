@@ -2323,6 +2323,7 @@
     "stage-patience": "Still working. Analyses with a lot of context can take up to a minute.",
     "plan-title": "Fix plan",
     "plan-body": "In order of leverage. Open an item for the detail and the step-by-step.",
+    "plan-jump-hint": "Open items — tap one to jump straight to it:",
     "plan-blockers": "Fix first",
     "plan-blockers-hint": "While this stands, spending on ads is predictably wasted.",
     "plan-quick": "Quick wins",
