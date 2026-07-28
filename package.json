@@ -28,7 +28,8 @@
     "prepare": "husky || true",
     "pre-commit": "lint-staged",
     "typecheck": "npm run typecheck -w @flyee/web",
-    "test:diagnosis-steps": "tsx scripts/test-diagnosis-steps.mts"
+    "test:diagnosis-steps": "tsx scripts/test-diagnosis-steps.mts",
+    "test:product-draft": "tsx scripts/test-product-draft.mts"
   },
   "devDependencies": {
     "husky": "9.1.7",

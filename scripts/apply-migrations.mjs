@@ -48,7 +48,18 @@ async function loadEnv(file) {
   }
 }
 
-/** Derives the object whose existence marks this migration as applied. */
+/**
+ * Derives the object whose existence marks this migration as applied.
+ *
+ * Order matters and is least-to-most specific: a migration that creates a table
+ * is identified by that table even if it also alters others.
+ *
+ * The `column` kind exists because an ALTER-ONLY migration (adding columns to
+ * tables that already exist) derived NO marker at all and was silently skipped
+ * with "verify manually" — which reads like a note and behaves like a bug: the
+ * app ships code expecting the column, the column never lands, and the user
+ * meets "could not find the 'x' column ... in the schema cache" at runtime.
+ */
 function deriveMarker(sqlText) {
   const table = /create table (?:if not exists )?public\.([a-z0-9_]+)/i.exec(sqlText);
   if (table) return { kind: "table", name: table[1] };
@@ -56,6 +67,14 @@ function deriveMarker(sqlText) {
   if (fn) return { kind: "function", name: fn[1] };
   const bucket = /insert into storage\.buckets[^;]*?'([a-z0-9-]+)'/is.exec(sqlText);
   if (bucket) return { kind: "bucket", name: bucket[1] };
+  // First `alter table public.X ... add column [if not exists] Y` in the file.
+  // Comments are stripped first so a column named in prose never wins.
+  const bare = sqlText.replace(/--[^\n]*/g, "");
+  const alter = /alter table (?:if exists )?public\.([a-z0-9_]+)([\s\S]*?);/i.exec(bare);
+  if (alter) {
+    const column = /add column (?:if not exists )?([a-z0-9_]+)/i.exec(alter[2]);
+    if (column) return { kind: "column", table: alter[1], name: column[1] };
+  }
   return null;
 }
 
@@ -74,6 +93,12 @@ async function markerExists(sql, marker) {
   }
   if (marker.kind === "bucket") {
     const r = await sql`select 1 from storage.buckets where id = ${marker.name} limit 1`;
+    return r.length > 0;
+  }
+  if (marker.kind === "column") {
+    const r = await sql`
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = ${marker.table} and column_name = ${marker.name} limit 1`;
     return r.length > 0;
   }
   return false;
@@ -101,7 +126,8 @@ async function main() {
         continue;
       }
       const applied = await markerExists(sql, marker);
-      console.log(`${applied ? "applied" : "MISSING"}  ${file}  (marker: ${marker.kind} ${marker.name})`);
+      const markerLabel = marker.kind === "column" ? `column ${marker.table}.${marker.name}` : `${marker.kind} ${marker.name}`;
+      console.log(`${applied ? "applied" : "MISSING"}  ${file}  (marker: ${markerLabel})`);
       if (!applied) pending.push({ file, text });
     }
 

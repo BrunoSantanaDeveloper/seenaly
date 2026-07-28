@@ -8,11 +8,12 @@ import {
   SECTION_BY_FIELD,
   sectionCompleteness,
 } from "../lib/completeness";
+import { clearDraft, isWorthSaving, loadDraft, saveDraft } from "../lib/draft";
 import type { ProductInput, ProductStatus, ProductWithChildren } from "../types";
 import { FormikProvider, useFormik } from "formik";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as yup from "yup";
 
 import {
@@ -90,6 +91,23 @@ interface FormValues {
   pricingInputs: Record<string, string>;
   plans: PlanFormRow[];
 }
+
+/**
+ * Fields whose presence means "this form is worth keeping". Deliberately the
+ * ones a human types, not the defaults the form ships with (status, currency),
+ * which would make every untouched visit look like real work in progress.
+ */
+const DRAFT_MEANINGFUL_FIELDS = [
+  "name",
+  "mainPromise",
+  "audience",
+  "description",
+  "price",
+  "landingPageUrl",
+  "objections",
+  "proofs",
+  "plans",
+];
 
 /** A pricing row while being edited (tier / pack / ladder item). */
 interface PlanFormRow {
@@ -268,6 +286,11 @@ export default function ProductForm({
   const t = useTranslations("products");
   // Funnel labels are shared with the Organic module (one funnel language).
   const tf = useTranslations("organicGrowth");
+  // A draft only exists for a NEW product: when editing, the saved row is the
+  // truth and a competing local copy would just raise "which one is real?".
+  const draftsEnabled = variant === "wizard" && !product?.id;
+  const [restoredAt, setRestoredAt] = useState<number | null>(null);
+  const [draftDismissed, setDraftDismissed] = useState(false);
   const separators = useCurrencySeparators();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -309,26 +332,41 @@ export default function ProductForm({
     validateOnMount: false,
     onSubmit: async (values) => {
       setError(null);
-      const result = await saveProduct(toInput(values, orgId, product?.id));
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      if (!product?.id) {
-        track("product_created");
-        if (onSaveSuccess) {
-          await onSaveSuccess(result.id);
-        } else {
-          router.push(`/readiness?product=${result.id}&new=1`);
+      // The server action can fail as a REJECTION, not just an { ok: false }:
+      // a dropped connection, or a stale client bundle whose action id no
+      // longer exists in the current deployment (that one answers 404). Without
+      // this catch the promise rejected, Formik swallowed it, and the user got
+      // a dead button with no message at all — the worst possible outcome for
+      // someone who just typed a long form.
+      try {
+        const result = await saveProduct(toInput(values, orgId, product?.id));
+        if (!result.ok) {
+          setError(result.error);
+          return;
         }
-      } else {
-        if (onSaveSuccess) {
-          await onSaveSuccess(result.id);
+        // Saved for real — the crash pad has served its purpose. Clearing here
+        // (not on navigation) means a failed save always keeps the draft.
+        if (draftsEnabled) clearDraft(window.localStorage, orgId);
+        if (!product?.id) {
+          track("product_created");
+          if (onSaveSuccess) {
+            await onSaveSuccess(result.id);
+          } else {
+            router.push(`/readiness?product=${result.id}&new=1`);
+          }
         } else {
-          router.push(`/products/${result.id}`);
+          if (onSaveSuccess) {
+            await onSaveSuccess(result.id);
+          } else {
+            router.push(`/products/${result.id}`);
+          }
         }
+        router.refresh();
+      } catch {
+        // Deliberately does NOT clear the form: everything they typed is still
+        // on screen, so "try again" costs one click rather than a refill.
+        setError(t("error-save-unreachable"));
       }
-      router.refresh();
     },
   });
 
@@ -341,6 +379,31 @@ export default function ProductForm({
       .eq("provider", "meta-ads")
       .then(({ data }) => setConnections(data ?? []));
   }, [orgId]);
+
+  // Restore once, on mount. Restoring is announced (never silent) and undoable
+  // via "começar do zero" — a user who deliberately abandoned a form must not
+  // be quietly handed it back with no way out.
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    const draft = loadDraft<FormValues>(window.localStorage, orgId);
+    if (!draft) return;
+    formik.setValues(draft.values);
+    setRestoredAt(draft.savedAt);
+    // Mount-only by design: re-running would fight the user's own typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftsEnabled, orgId]);
+
+  // Persist while they type. Debounced so a long form is not a write storm,
+  // and gated on `isWorthSaving` so an untouched visit leaves no crumb.
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    const timeout = window.setTimeout(() => {
+      if (isWorthSaving(formik.values as unknown as Record<string, unknown>, DRAFT_MEANINGFUL_FIELDS)) {
+        saveDraft(window.localStorage, orgId, formik.values);
+      }
+    }, 600);
+    return () => window.clearTimeout(timeout);
+  }, [draftsEnabled, orgId, formik.values]);
 
   const CURRENCY_SYMBOLS: Record<string, string> = { BRL: "R$", USD: "$", EUR: "€" };
   const currencySymbol = CURRENCY_SYMBOLS[formik.values.currency?.toUpperCase()] ?? formik.values.currency;
@@ -956,9 +1019,45 @@ export default function ProductForm({
     { key: "meta", title: t("section-meta"), content: metaField },
   ];
 
+  // An error the reader never sees is the same as no error at all: in the
+  // wizard this alert sits above a tall form, and the submit button is at the
+  // bottom — so bring it into view when it appears.
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
+
   const errorAlert = error && (
-    <Alert severity="error" className="neutral bg-background-paper/60! mb-4">
+    <Alert ref={errorRef} severity="error" className="neutral bg-background-paper/60! mb-4">
       {error}
+    </Alert>
+  );
+
+  /**
+   * Restoring is ANNOUNCED and UNDOABLE. Silently repopulating a form the user
+   * had abandoned is a small betrayal — they asked for a blank page and got
+   * someone else's leftovers — so say what happened and offer the way back.
+   */
+  const draftAlert = restoredAt != null && !draftDismissed && (
+    <Alert
+      severity="info"
+      className="neutral bg-background-paper/60! mb-4"
+      action={
+        <Button
+          color="grey"
+          size="small"
+          onClick={() => {
+            clearDraft(window.localStorage, orgId);
+            formik.resetForm({ values: initialValues() });
+            setDraftDismissed(true);
+            setRestoredAt(null);
+          }}
+        >
+          {t("draft-discard")}
+        </Button>
+      }
+    >
+      {t("draft-restored", { when: new Date(restoredAt).toLocaleString() })}
     </Alert>
   );
 
@@ -988,6 +1087,7 @@ export default function ProductForm({
 
     return (
       <FormikProvider value={formik}>
+        {draftAlert}
         {errorAlert}
         <SetupWizard
           steps={steps}
