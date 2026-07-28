@@ -18,6 +18,7 @@ interface FormValues {
   periodEnd: string;
   source: string;
   visits: string;
+  signups: string;
   checkoutInitiated: string;
   purchases: string;
   refunds: string;
@@ -46,6 +47,7 @@ function initialValues(snapshot?: FunnelWithId): FormValues {
     periodEnd: s(snapshot?.periodEnd),
     source: s(snapshot?.source),
     visits: fromNum(snapshot?.visits),
+    signups: fromNum(snapshot?.signups),
     checkoutInitiated: fromNum(snapshot?.checkoutInitiated),
     purchases: fromNum(snapshot?.purchases),
     refunds: fromNum(snapshot?.refunds),
@@ -84,6 +86,7 @@ export default function FunnelForm({
     () =>
       yup.object({
         visits: nonNeg,
+        signups: nonNeg,
         checkoutInitiated: nonNeg,
         purchases: nonNeg,
         refunds: nonNeg,
@@ -110,6 +113,7 @@ export default function FunnelForm({
         periodEnd: values.periodEnd,
         source: values.source,
         visits: toNum(values.visits),
+        signups: toNum(values.signups),
         checkoutInitiated: toNum(values.checkoutInitiated),
         purchases: toNum(values.purchases),
         refunds: toNum(values.refunds),
@@ -131,7 +135,13 @@ export default function FunnelForm({
   const text = (
     name: keyof FormValues,
     label: string,
-    opts: { multiline?: boolean; type?: string; mask?: "money" | "integer" | "percent"; adornment?: string } = {},
+    opts: {
+      multiline?: boolean;
+      type?: string;
+      mask?: "money" | "integer" | "percent";
+      adornment?: string;
+      hint?: string;
+    } = {},
   ) => {
     const err = formik.touched[name] && (formik.errors[name] as string | undefined);
     return (
@@ -159,10 +169,16 @@ export default function FunnelForm({
           startAdornment={opts.mask === "money" && opts.adornment ? opts.adornment : undefined}
           endAdornment={opts.mask === "percent" ? "%" : undefined}
         />
-        {err && (
+        {err ? (
           <Typography variant="body2" className="text-error mt-0.5">
             {err}
           </Typography>
+        ) : (
+          opts.hint && (
+            <Typography variant="body2" className="text-text-secondary mt-0.5">
+              {opts.hint}
+            </Typography>
+          )
         )}
       </FormControl>
     );
@@ -200,6 +216,9 @@ export default function FunnelForm({
         t("hint-stages"),
         <>
           {text("visits", t("field-visits"), { mask: "integer" })}
+          {/* Trial-first funnels convert through here; direct-response ones
+              leave it empty and the stage simply does not render. */}
+          {text("signups", t("field-signups"), { mask: "integer", hint: t("hint-signups") })}
           {text("checkoutInitiated", t("field-checkoutInitiated"), { mask: "integer" })}
           {text("purchases", t("field-purchases"), { mask: "integer" })}
           {text("refunds", t("field-refunds"), { mask: "integer" })}

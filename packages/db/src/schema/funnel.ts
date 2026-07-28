@@ -27,6 +27,8 @@ export const funnelSnapshots = pgTable(
     source: text("source"),
 
     visits: bigint("visits", { mode: "number" }),
+    /** Trial/free signups — the stage a trial-first funnel converts through. */
+    signups: bigint("signups", { mode: "number" }),
     checkoutInitiated: bigint("checkout_initiated", { mode: "number" }),
     purchases: bigint("purchases", { mode: "number" }),
     refunds: bigint("refunds", { mode: "number" }),

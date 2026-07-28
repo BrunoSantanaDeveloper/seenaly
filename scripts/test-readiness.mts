@@ -24,10 +24,13 @@ import { fileURLToPath } from "node:url";
 import {
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
+  findingResolution,
+  isFindingPending,
   itemsForDimension,
   notApplicableReason,
   READINESS_ITEM_BY_KEY,
   READINESS_ITEM_KEYS,
+  type ReadinessItemKey,
   type ReadinessProfile,
   resolvableItems,
   sanitizeRelatedItems,
@@ -36,6 +39,7 @@ import {
   verifyAgainstScan,
   verifyItem,
 } from "../apps/web/src/lib/readiness/checklist";
+import { readinessFunnelModelBlock, readinessScanBlock } from "../apps/web/src/lib/readiness/brief";
 import { type AssistSignals, assistReason } from "../apps/web/src/lib/readiness/assist";
 import { analyzeScan } from "../apps/web/src/lib/readiness/scan-analyze";
 import { isBlockedAddress } from "../apps/web/src/lib/readiness/scan";
@@ -61,7 +65,8 @@ section("Deterministic blocker evaluator");
 
 const p = (over: Partial<ReadinessProfile> = {}): ReadinessProfile => ({ ...EMPTY_READINESS_PROFILE, ...over });
 
-check("21 checklist items", READINESS_ITEM_KEYS.length, 21);
+// 21 structural items + the 4 trial-first activation items (migration 0034).
+check("25 checklist items", READINESS_ITEM_KEYS.length, 25);
 
 const blank = evaluateReadiness(p(), { hasLandingPage: false, hasPrice: false });
 check("blank: untouched", blank.untouched, true);
@@ -110,9 +115,9 @@ check(
   ev.confirmed,
 );
 check(
-  "group totals equal 21",
+  "group totals equal 25",
   ev.byGroup.reduce((s, g) => s + g.total, 0),
-  21,
+  25,
 );
 
 const rich = p({
@@ -260,7 +265,7 @@ check(
 
 // Every item must declare its tier and difficulty, or the UI lies by omission.
 check(
-  "all 21 items declare verification + difficulty",
+  "all 25 items declare verification + difficulty",
   READINESS_ITEM_KEYS.every(
     (key) => Boolean(READINESS_ITEM_BY_KEY[key]?.verification) && Boolean(READINESS_ITEM_BY_KEY[key]?.difficulty),
   ),
@@ -370,16 +375,114 @@ check(
   notApplicableReason("sitemapRobots", p({ checkoutType: "own" }), { hasLandingPage: false }),
   null,
 );
+// Activation items belong to a trial that a direct-response seller does not
+// have, so they are the ONLY thing inapplicable to an own-checkout profile.
+const ACTIVATION = ["signupFrictionLow", "activationDefined", "trialToPaidTracked", "upgradePathClear"];
+const structural = READINESS_ITEM_KEYS.filter((key) => !ACTIVATION.includes(key));
 check(
-  "own checkout: nothing is inapplicable",
-  READINESS_ITEM_KEYS.every((key) => notApplicableReason(key, p({ checkoutType: "own" }), ctx) === null),
+  "own checkout: nothing structural is inapplicable",
+  structural.every((key) => notApplicableReason(key, p({ checkoutType: "own" }), ctx) === null),
   true,
 );
 check(
-  "undeclared checkout: nothing is inapplicable",
-  READINESS_ITEM_KEYS.every((key) => notApplicableReason(key, p(), ctx) === null),
+  "undeclared checkout: nothing structural is inapplicable",
+  structural.every((key) => notApplicableReason(key, p(), ctx) === null),
   true,
 );
+
+/* --- Funnel model: audit the surface this business actually has (0034) --- */
+
+check(
+  "no trial declared: activation items do not apply",
+  ACTIVATION.every((key) => notApplicableReason(key as never, p({ checkoutType: "own" }), ctx) === "no-trial"),
+  true,
+);
+check(
+  "trial-first: activation items DO apply",
+  ACTIVATION.every((key) => notApplicableReason(key as never, p({ funnelModel: "trial_first" }), ctx) === null),
+  true,
+);
+// The failure that motivated 0034: a trial-first checkout sits behind the login,
+// so the public-page checkout items must not be audited against it as if it
+// were reachable — but they are still the user's to answer, not hidden.
+check(
+  "trial-first keeps checkout items applicable (they describe the post-login flow)",
+  notApplicableReason("checkoutShort", p({ funnelModel: "trial_first" }), ctx),
+  null,
+);
+check(
+  "lead-first: a human closes, so there is no self-service checkout to audit",
+  ["checkoutShort", "abandonedRecovery", "paymentPix", "paymentCard"].every(
+    (key) => notApplicableReason(key as never, p({ funnelModel: "lead_first" }), ctx) === "sales-closes-deal",
+  ),
+  true,
+);
+check(
+  "lead-first: no payment method is NOT a blocker (money is not taken online)",
+  evaluateReadiness(p({ funnelModel: "lead_first" }), { hasLandingPage: true, hasPrice: true }).blockers.includes(
+    "no-payment",
+  ),
+  false,
+);
+check(
+  "trial-first blind to trial→paid is a blocker (the ad optimizes signups)",
+  evaluateReadiness(p({ funnelModel: "trial_first" }), { hasLandingPage: true, hasPrice: true }).blockers.includes(
+    "trial-conversion-unmeasured",
+  ),
+  true,
+);
+check(
+  "trial-first measuring trial→paid clears that blocker",
+  evaluateReadiness(p({ funnelModel: "trial_first", trialToPaidTracked: true }), {
+    hasLandingPage: true,
+    hasPrice: true,
+  }).blockers.includes("trial-conversion-unmeasured"),
+  false,
+);
+check(
+  "direct funnel never carries the trial blocker",
+  evaluateReadiness(p({ funnelModel: "direct" }), { hasLandingPage: true, hasPrice: true }).blockers.includes(
+    "trial-conversion-unmeasured",
+  ),
+  false,
+);
+check(
+  "declaring a model alone is not an untouched intake",
+  evaluateReadiness(p({ funnelModel: "trial_first" }), { hasLandingPage: true, hasPrice: true }).untouched,
+  false,
+);
+
+/* --- The brief must TELL the engine the consequences, not hope it infers --- */
+
+const trialBrief = readinessFunnelModelBlock(p({ funnelModel: "trial_first" }));
+check("trial-first brief states the checkout is behind the login", trialBrief.includes("ATRÁS DO LOGIN"), true);
+check("trial-first brief states the ad optimizes the signup", trialBrief.includes("CADASTRO"), true);
+// The retention dimension is where the engine most easily gives advice that is
+// already done: the trial signup form IS an email capture.
+check(
+  "trial-first brief forbids 'add an email capture form' advice",
+  trialBrief.includes("JÁ É uma captura de contato"),
+  true,
+);
+check("trial-first brief redirects email to the trial sequence", trialBrief.includes("régua do TRIAL"), true);
+check("trial-first brief segments remarketing by trial state", trialBrief.includes("ESTADO DO TRIAL"), true);
+check(
+  "trial-first brief exposes the new item keys for related_items",
+  trialBrief.includes("trialToPaidTracked"),
+  true,
+);
+check(
+  "undeclared model refuses to assume direct sale",
+  readinessFunnelModelBlock(p()).includes("NÃO INFORMOU"),
+  true,
+);
+// Silence about the checkout must be framed as expected, even with no scan.
+check(
+  "no scan + trial-first still states the auth-wall limit",
+  readinessScanBlock(null, "trial_first").includes("INALCANÇÁVEL"),
+  true,
+);
+check("no scan + direct funnel adds no auth-wall note", readinessScanBlock(null, "direct").includes("INALCANÇÁVEL"), false);
 check(
   "platform seller WITH own page keeps the site items",
   notApplicableReason("sitemapRobots", p({ checkoutType: "platform" }), { hasLandingPage: true }),
@@ -394,9 +497,99 @@ check(
   ["no-page", "no-measurement", "no-payment", "no-price"],
 );
 const evalPlatform = evaluateReadiness(platformSeller, { hasLandingPage: false, hasPrice: false });
-check("total stays 21 regardless of applicability", evalPlatform.total, 21);
-check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 21 - evalPlatform.notApplicable.length);
+check("total stays 25 regardless of applicability", evalPlatform.total, 25);
+check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 25 - evalPlatform.notApplicable.length);
 check("applicableTotal never exceeds total", evalPlatform.applicableTotal <= evalPlatform.total, true);
+
+/* ========================================================================== */
+section("Finding resolution — a tick is not proof");
+
+const noEvidence = { verified: [] as ReadinessItemKey[], contradicted: [] as ReadinessItemKey[] };
+
+// Nothing ticked, or nothing tickable (oferta/midia) → still open.
+check("unticked finding is open", findingResolution(["pixelInstalled"], p(), noEvidence), "open");
+check("finding with no checklist items is open", findingResolution([], p(), noEvidence), "open");
+check(
+  "partially ticked finding is open",
+  findingResolution(["pixelInstalled", "analyticsInstalled"], p({ pixelInstalled: true }), noEvidence),
+  "open",
+);
+
+// THE bug: ticked + provable + unproved must NOT read as done.
+check(
+  "ticked but unproved is awaiting-proof, never verified",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), noEvidence),
+  "awaiting-proof",
+);
+check("awaiting-proof stays pending", isFindingPending("awaiting-proof"), true);
+
+// Ticked + the scan proved it → genuinely done.
+check(
+  "ticked and proved is verified",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), { verified: ["pixelInstalled"], contradicted: [] }),
+  "verified",
+);
+check("verified is not pending", isFindingPending("verified"), false);
+
+// Nothing here is machine-provable (CAPI/PIX) → the user's word is final.
+check(
+  "declared-only items count as done",
+  findingResolution(["capiInstalled", "paymentPix"], p({ capiInstalled: true, paymentPix: true }), noEvidence),
+  "declared",
+);
+check("declared is not pending", isFindingPending("declared"), false);
+
+// A mixed finding is only verified once its provable half is proved.
+check(
+  "mixed finding needs its provable half proved",
+  findingResolution(["pixelInstalled", "capiInstalled"], p({ pixelInstalled: true, capiInstalled: true }), noEvidence),
+  "awaiting-proof",
+);
+check(
+  "mixed finding verified when the provable half is proved",
+  findingResolution(["pixelInstalled", "capiInstalled"], p({ pixelInstalled: true, capiInstalled: true }), {
+    verified: ["pixelInstalled"],
+    contradicted: [],
+  }),
+  "verified",
+);
+
+// No page to read = no way to ever prove it. "Falta verificar" there would be a
+// life sentence, so we take the user's word instead — same rule as `observeItem`
+// returning null. (Found by walking a product with no landing page: the state
+// showed as unconfirmed with no button and no path out.)
+check(
+  "unverifiable-by-circumstance falls back to declared, not a dead end",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), { ...noEvidence, canVerify: false }),
+  "declared",
+);
+check(
+  "with a page to read it stays awaiting-proof",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), { ...noEvidence, canVerify: true }),
+  "awaiting-proof",
+);
+// A contradiction still wins even when we "cannot verify" — it is already proof.
+check(
+  "canVerify:false never buries an existing contradiction",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    verified: [],
+    contradicted: ["pixelInstalled"],
+    canVerify: false,
+  }),
+  "contradicted",
+);
+
+// Contradiction outranks everything — even a fully ticked finding.
+check(
+  "contradicted beats ticked",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    verified: [],
+    contradicted: ["pixelInstalled"],
+  }),
+  "contradicted",
+);
+check("contradicted stays pending", isFindingPending("contradicted"), true);
+check("open stays pending", isFindingPending("open"), true);
 
 /* ========================================================================== */
 section("Concierge offer — earned by resistance, never always-on");

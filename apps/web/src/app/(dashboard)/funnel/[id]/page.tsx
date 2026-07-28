@@ -40,6 +40,7 @@ export default function EditFunnelSnapshotPage() {
       periodEnd: s(row.period_end),
       source: s(row.source),
       visits: n(row.visits),
+      signups: n(row.signups),
       checkoutInitiated: n(row.checkout_initiated),
       purchases: n(row.purchases),
       refunds: n(row.refunds),

@@ -12,8 +12,10 @@
 
 import {
   type CheckoutType,
+  type FunnelModel,
+  groupsForModel,
+  isTrialFirst,
   type NotApplicableReason,
-  READINESS_GROUPS,
   type ReadinessEvaluation,
   type ReadinessGroupKey,
   type ReadinessItemKey,
@@ -25,6 +27,7 @@ const GROUP_LABEL: Record<ReadinessGroupKey, string> = {
   mensuracao: "Mensuração",
   pagina: "Página",
   checkout: "Checkout",
+  ativacao: "Ativação e conversão do trial (pós-login)",
   descoberta: "Descoberta (SEO e orgânico)",
   funil: "Funil e retenção",
 };
@@ -42,6 +45,10 @@ const ITEM_LABEL: Record<ReadinessItemKey, string> = {
   paymentCard: "Aceita cartão de crédito",
   checkoutShort: "Checkout curto (poucos campos/etapas)",
   abandonedRecovery: "Recuperação de checkout abandonado",
+  signupFrictionLow: "Cadastro do trial curto (poucos campos)",
+  activationDefined: "Momento de ativação (o “aha”) definido e medido",
+  trialToPaidTracked: "Conversão trial → pagante é medida",
+  upgradePathClear: "Caminho de upgrade claro dentro do produto",
   seoBasics: "Títulos e descrições (title/meta) configurados",
   indexable: "Site indexável no Google (não bloqueado)",
   sitemapRobots: "sitemap.xml e robots.txt publicados",
@@ -67,12 +74,77 @@ const BLOCKER_LABEL: Record<string, string> = {
   "no-checkout": "não há como receber pagamento",
   "no-payment": "nenhum meio de pagamento confirmado (nem PIX nem cartão)",
   "no-price": "o produto não tem preço definido — sem ele não existe teto de CAC",
+  "trial-conversion-unmeasured":
+    "a conversão trial → pagante NÃO é medida; como o anúncio otimiza por cadastro, sem isso o algoritmo escala o cadastro mais barato, não o cliente que paga",
 };
+
+const FUNNEL_MODEL_LABEL: Record<FunnelModel, string> = {
+  direct: "venda direta (anúncio → página → checkout → compra)",
+  trial_first: "trial primeiro (anúncio → página → cadastro grátis → uso → contratação DEPOIS do login)",
+  lead_first: "captura de lead (anúncio → página → lead → uma pessoa fecha a venda)",
+};
+
+/**
+ * WHICH FUNNEL THIS BUSINESS RUNS — and therefore which surface each dimension
+ * is actually about (migration 0034).
+ *
+ * This block exists because the readiness layer used to assume one shape (ad →
+ * page → checkout → purchase) and silently mis-audited everyone else. The worst
+ * case was trial-first: its checkout sits behind authentication, so the page
+ * scan can never reach it — and the engine, seeing nothing, produced findings
+ * about a public checkout that does not exist, while the real levers (signup
+ * friction, activation, trial→paid) had no place in the audit at all.
+ *
+ * The instructions live here, in generated code, rather than in the assistant's
+ * system prompt: they can never drift from the schema, and they never overwrite
+ * a prompt an operator tuned in /admin/ai.
+ */
+export function readinessFunnelModelBlock(profile: ReadinessProfile): string {
+  if (!profile.funnelModel) {
+    return [
+      "O usuário AINDA NÃO INFORMOU o modelo de aquisição.",
+      "Não presuma que é venda direta. Se alguma finding depender de onde o pagamento acontece (checkout, meios de pagamento, recuperação de abandono), diga que depende dessa informação e peça-a em missing_data.",
+    ].join("\n");
+  }
+
+  const lines = [`Modelo de aquisição declarado: ${FUNNEL_MODEL_LABEL[profile.funnelModel]}.`];
+
+  if (isTrialFirst(profile.funnelModel)) {
+    lines.push(
+      "",
+      "CONSEQUÊNCIAS OBRIGATÓRIAS deste modelo (violar qualquer uma produz achado falso):",
+      "1. O CHECKOUT FICA ATRÁS DO LOGIN. Nenhum scan alcança essa tela — o scan lê apenas a página pública. O silêncio do scan sobre checkout é ESPERADO e NÃO é achado. NUNCA conclua que o checkout é ruim, longo ou inexistente porque não foi observado.",
+      "2. A dimensão `checkout` deste negócio é o fluxo de UPGRADE pós-login (e a ativação que leva até ele), não uma página de compra pública. Audite isso, e diga explicitamente que está falando do pós-login.",
+      "3. O que o anúncio otimiza é o CADASTRO (início de trial), não a compra. Logo, cadastro barato não é sucesso: o que fecha a conta é a taxa trial → pagante. Se ela não for medida, esse é o achado mais importante da auditoria, acima de qualquer ajuste de página.",
+      "4. O equivalente pré-login do 'checkout curto' aqui é o FORMULÁRIO DE CADASTRO do trial. Fricção nele custa topo de funil inteiro.",
+      "5. O CAC real = investimento ÷ clientes PAGANTES, e não ÷ cadastros. Se você só tiver cadastros, diga que o CAC aparente subestima o real e peça a taxa trial → pagante em missing_data.",
+      "6. DIMENSÃO FUNIL/RETENÇÃO — leia com atenção, é onde o erro é mais fácil: o FORMULÁRIO DE CADASTRO DO TRIAL JÁ É uma captura de contato. NÃO recomende “implemente um formulário de captura de e-mail na página” como se não existisse nenhum: isso já existe e é a conversão principal. Aqui, captura de contato só faz sentido para quem NÃO se cadastra (ex.: material/lista para quem ainda não quer testar) — e é uma alavanca secundária, não a principal.",
+      "7. A sequência de e-mail que decide dinheiro neste modelo NÃO é “boas-vindas e nutrição” genérica: é a régua do TRIAL — ativação nos primeiros dias (levar ao “aha”), lembrete de expiração e convite ao upgrade. Se for recomendar e-mail, recomende ISSO, com o gatilho e o momento.",
+      "8. Remarketing aqui é SEGMENTADO POR ESTADO DO TRIAL (cadastrou e não ativou; ativou e não contratou; trial expirando) e precisa EXCLUIR quem já é cliente pagante e quem está em trial ativo das campanhas de aquisição. Não trate como “público de remarketing de visitantes da página”.",
+      "",
+      "Ao gerar related_items para findings deste modelo, além das chaves usuais você PODE usar exatamente estas: signupFrictionLow, activationDefined, trialToPaidTracked, upgradePathClear.",
+    );
+  }
+
+  if (profile.funnelModel === "lead_first") {
+    lines.push(
+      "",
+      "CONSEQUÊNCIAS OBRIGATÓRIAS deste modelo:",
+      "1. NÃO existe checkout self-service. Não recomende encurtar checkout, adicionar PIX/cartão ou recuperar carrinho — nada disso existe aqui.",
+      "2. A conversão que o anúncio otimiza é o LEAD. O que decide o resultado é a qualidade do lead e a velocidade/consistência do follow-up humano.",
+      "3. Peça em missing_data a taxa lead → venda e o tempo até o primeiro contato, que é onde esse modelo ganha ou perde dinheiro.",
+    );
+  }
+
+  return lines.join("\n");
+}
 
 const NA_REASON_LABEL: Record<NotApplicableReason, string> = {
   "platform-owns-checkout": "quem controla o checkout é a plataforma de venda, não o usuário",
   "platform-owns-site": "o site é da plataforma, o usuário não tem página própria",
   "no-own-server": "exige servidor próprio, que o usuário não tem nesse formato de venda",
+  "sales-closes-deal": "a venda é fechada por uma pessoa; não existe checkout self-service para auditar",
+  "no-trial": "este negócio não trabalha com trial, então não há ativação de trial a auditar",
 };
 
 /**
@@ -88,7 +160,9 @@ export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: 
   const contradicted = new Set(evaluation?.contradicted ?? []);
   const reasons = evaluation?.notApplicableReasons ?? {};
 
-  const sections = READINESS_GROUPS.map((group) => {
+  // Only the groups this funnel model actually has — listing trial activation
+  // to a direct-response seller invites findings about a trial that does not exist.
+  const sections = groupsForModel(profile.funnelModel).map((group) => {
     const lines = group.items.map((item) => {
       const claimed = profile[item.key];
       const marks: string[] = [];
@@ -175,15 +249,30 @@ const yesNo = (value: boolean) => (value ? "sim" : "NÃO");
  *  - CAPI is server-side and is INVISIBLE to any scan, ever;
  *  - the robots.txt reading is an approximation, not a full grammar.
  */
-export function readinessScanBlock(scan: ScanRecord | null): string {
+export function readinessScanBlock(scan: ScanRecord | null, funnelModel: FunnelModel | null = null): string {
+  // Stated whether or not a scan ran: on a trial-first funnel the checkout is
+  // behind authentication, so its absence from the scan is a property of the
+  // model, never evidence about the checkout.
+  const authWallLimit = isTrialFirst(funnelModel)
+    ? "- O checkout deste negócio fica ATRÁS DO LOGIN e é INALCANÇÁVEL por qualquer scan. Não afirme nada sobre ele a partir deste bloco: a ausência de sinais de checkout aqui é esperada e não é achado."
+    : null;
+
   if (!scan) {
-    return "Nenhum scan técnico foi executado. Não conclua nada sobre SEO técnico, indexabilidade ou pixels a partir da ausência de scan — se for relevante, peça o scan em missing_data.";
+    return [
+      "Nenhum scan técnico foi executado. Não conclua nada sobre SEO técnico, indexabilidade ou pixels a partir da ausência de scan — se for relevante, peça o scan em missing_data.",
+      authWallLimit,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
   if (!scan.ok || !scan.signals) {
     return [
       `O scan técnico FALHOU em ${scan.requestedUrl} (motivo: ${scan.error ?? "desconhecido"}${scan.statusCode ? `, HTTP ${scan.statusCode}` : ""}).`,
       "Uma página que não responde ao nosso rastreador provavelmente também não responde bem a rastreadores de busca e a quem clica no anúncio — trate isso como um achado real da dimensão pagina/descoberta, mas NÃO conclua nada sobre as tags da página, que não puderam ser lidas.",
-    ].join("\n");
+      authWallLimit,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   const s = scan.signals;
@@ -221,6 +310,7 @@ export function readinessScanBlock(scan: ScanRecord | null): string {
     "- A leitura do robots.txt é aproximada (não implementa a gramática completa). Use-a para levantar a questão, não como veredito absoluto.",
     "- O tempo de requisição acima é medido do nosso servidor e NÃO é Core Web Vitals nem experiência real de usuário. Não o apresente como métrica de performance oficial.",
   );
+  if (authWallLimit) lines.push(authWallLimit);
 
   return lines.join("\n");
 }

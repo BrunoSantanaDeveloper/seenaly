@@ -56,6 +56,7 @@ import { track } from "@/lib/analytics";
 import {
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
+  observeItem,
   type ReadinessItemKey,
   type ReadinessProfile,
   toReadinessProfile,
@@ -129,6 +130,8 @@ export function ReadinessExperience({
   // The user ticked a fix as done AFTER this verdict was produced, so the
   // verdict on screen is now behind reality.
   const [staleVerdict, setStaleVerdict] = useState(false);
+  // Names of items a "mark as fixed" tried to tick but the page scan disproves.
+  const [resolveRefused, setResolveRefused] = useState<string | null>(null);
   // The instant the scan PROVES a new item, celebrate it by name — machine
   // verified, so it cannot be faked (see verified-celebration.tsx).
   const [justVerified, setJustVerified] = useState<ReadinessItemKey[]>([]);
@@ -486,11 +489,25 @@ export function ReadinessExperience({
    */
   const resolveItems = async (items: ReadinessItemKey[], resolved: boolean) => {
     setError(null);
+    setResolveRefused(null);
+    const signals = scan?.ok ? scan.signals : null;
+    // The checklist refuses a claim the page disproves; this checkbox used to
+    // write straight to the profile, so the verdict card was a way AROUND the
+    // whole verification layer — tick here and a real blocker silently cleared.
+    // Same rule, same choke point: only what the evidence does not contradict.
+    const disproved = resolved ? items.filter((key) => observeItem(key, signals) === false) : [];
+    const allowed = items.filter((key) => !disproved.includes(key));
+
+    if (disproved.length > 0) {
+      setResolveRefused(disproved.map((key) => t(`item-${key}`)).join(", "));
+    }
+    if (allowed.length === 0) return;
+
     const next = { ...profile };
-    for (const key of items) next[key] = resolved;
+    for (const key of allowed) next[key] = resolved;
     setProfile(next);
     setStaleVerdict(true);
-    track("readiness_finding_resolved", { resolved, items: items.length });
+    track("readiness_finding_resolved", { resolved, items: allowed.length, refused: disproved.length });
     await persist(next);
   };
 
@@ -861,6 +878,9 @@ export function ReadinessExperience({
                 onRegisterFinding={registerFinding}
                 registeringIndex={registeringIndex}
                 profile={profile}
+                evaluation={evaluation}
+                onVerifyNow={product.landing_page_url ? runScan : undefined}
+                verifying={scanning}
                 onResolve={resolveItems}
                 howToByIndex={howToByIndex}
                 onHowTo={requestHowTo}
@@ -869,6 +889,21 @@ export function ReadinessExperience({
                 experimentHref={(id) => `/products/${product.id}/experiments/${id}`}
                 creativePlanHref={`/products/${product.id}/creatives`}
               />
+
+              {/* A "mark as fixed" the page disproves is refused here exactly
+                  as it is in the checklist — and says which item and why, so
+                  the refusal never reads as a broken checkbox. */}
+              {resolveRefused && (
+                <Alert severity="warning" className="neutral bg-background-paper/60! mt-3">
+                  <Typography variant="subtitle2">{t("resolve-refused-title")}</Typography>
+                  <Typography variant="body2">
+                    {t("resolve-refused-body", {
+                      items: resolveRefused,
+                      url: scan?.finalUrl ?? scan?.requestedUrl ?? "",
+                    })}
+                  </Typography>
+                </Alert>
+              )}
 
               {/* Marking a fix done makes the on-screen verdict older than
                   reality — surface the cheap re-check right there. */}

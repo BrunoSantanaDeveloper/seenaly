@@ -22,6 +22,7 @@ export async function saveFunnelSnapshot(input: FunnelInput): Promise<SaveResult
     period_end: input.periodEnd || null,
     source: input.source || null,
     visits: input.visits,
+    signups: input.signups,
     checkout_initiated: input.checkoutInitiated,
     purchases: input.purchases,
     refunds: input.refunds,

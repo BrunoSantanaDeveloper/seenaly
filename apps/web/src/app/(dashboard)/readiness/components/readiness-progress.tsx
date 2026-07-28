@@ -6,6 +6,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 
 import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
+import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiSearch from "@/icons/nexture/ni-search";
@@ -15,6 +16,7 @@ const GROUP_ICON: Record<ReadinessGroupKey, React.ReactNode> = {
   mensuracao: <NiPulse size="small" />,
   pagina: <NiScreen size="small" />,
   checkout: <NiCreditCard size="small" />,
+  ativacao: <NiFlask size="small" />,
   descoberta: <NiSearch size="small" />,
   funil: <NiChartFunnel size="small" />,
 };
@@ -110,9 +112,14 @@ export default function DimensionRings({ evaluation }: { evaluation: ReadinessEv
         </Typography>
       </Box>
       <Box className="flex flex-row flex-wrap items-start justify-center gap-4 sm:justify-between">
-        {evaluation.byGroup.map((progress) => (
-          <DimensionRing key={progress.key} progress={progress} label={t(`wizard-short-${progress.key}`)} />
-        ))}
+        {/* A dimension with nothing applicable to this funnel model (trial
+            activation for a direct-response seller) would render as a
+            permanently empty ring — the exact shaming this rail avoids. */}
+        {evaluation.byGroup
+          .filter((progress) => progress.applicable > 0)
+          .map((progress) => (
+            <DimensionRing key={progress.key} progress={progress} label={t(`wizard-short-${progress.key}`)} />
+          ))}
       </Box>
     </Box>
   );

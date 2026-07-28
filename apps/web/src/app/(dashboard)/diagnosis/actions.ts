@@ -156,9 +156,20 @@ function funnelBlock(snapshot: FunnelSnapshotRow | null): string {
   const rates = computeFunnelRates(snapshot);
   const pct = (r: number | null) => (r == null ? "n/d" : `${r.toFixed(1)}%`);
   const num = (v: number | null) => (v == null ? "n/d" : String(v));
+  // Only present in a trial-first funnel; a direct-response product leaves it
+  // empty and the line disappears rather than reporting a meaningless "n/d".
+  const trialLines =
+    snapshot.signups == null
+      ? []
+      : [
+          `- Cadastros/trials iniciados: ${num(snapshot.signups)} (visita → cadastro: ${pct(rates.visitToSignup)})`,
+          `- Conversão trial → pagante: ${pct(rates.signupToPurchase)}`,
+          "ATENÇÃO: este é um funil com cadastro antes da compra. O anúncio otimiza o CADASTRO, então cadastro barato NÃO é sucesso — o que fecha a conta é a taxa trial → pagante. O CAC real usa PAGANTES no denominador, nunca cadastros.",
+        ];
   return [
     `Período: ${snapshot.label ?? snapshot.period_end ?? "mais recente"}`,
     `- Visitas na página: ${num(snapshot.visits)}`,
+    ...trialLines,
     `- Checkout iniciado: ${num(snapshot.checkout_initiated)} (página → checkout: ${pct(rates.pageToCheckout)})`,
     `- Compras: ${num(snapshot.purchases)} (checkout → compra: ${pct(rates.checkoutToPurchase)})`,
     `- Conversão total (visita → compra): ${pct(rates.overall)}`,
@@ -232,7 +243,9 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     // Latest funnel snapshot — the page/checkout/purchase numbers Meta can't see.
     supabase
       .from("funnel_snapshots")
-      .select("label, period_end, visits, checkout_initiated, purchases, refunds, pending, upsells, net_revenue")
+      .select(
+        "label, period_end, visits, signups, checkout_initiated, purchases, refunds, pending, upsells, net_revenue",
+      )
       .eq("product_id", productId)
       .order("period_end", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })

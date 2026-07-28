@@ -28,6 +28,7 @@ import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiClipboard from "@/icons/nexture/ni-clipboard";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiExternal from "@/icons/nexture/ni-external";
+import NiFlask from "@/icons/nexture/ni-flask";
 import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiQuestionHexagon from "@/icons/nexture/ni-question-hexagon";
@@ -39,9 +40,9 @@ import { type AssistReason, assistReason } from "@/lib/readiness/assist";
 import {
   CHECKOUT_TYPES,
   type CheckoutType,
+  groupsForModel,
   notApplicableReason,
   observeItem,
-  READINESS_GROUPS,
   READINESS_ITEM_BY_KEY,
   type ReadinessEvaluation,
   type ReadinessGroup,
@@ -56,6 +57,7 @@ const GROUP_ICON: Record<ReadinessGroupKey, React.ReactNode> = {
   mensuracao: <NiPulse size="medium" />,
   pagina: <NiScreen size="medium" />,
   checkout: <NiCreditCard size="medium" />,
+  ativacao: <NiFlask size="medium" />,
   descoberta: <NiSearch size="medium" />,
   funil: <NiChartFunnel size="medium" />,
 };
@@ -172,7 +174,10 @@ export default function ReadinessChecklist({
     }
   };
 
-  const groups = groupKeys ? READINESS_GROUPS.filter((group) => groupKeys.includes(group.key)) : READINESS_GROUPS;
+  // Never offer a group this funnel model does not have — activation items only
+  // mean something when there is a trial to activate.
+  const modelGroups = groupsForModel(profile.funnelModel);
+  const groups = groupKeys ? modelGroups.filter((group) => groupKeys.includes(group.key)) : modelGroups;
 
   const itemRow = (key: ReadinessItemKey) => {
     const meta = READINESS_ITEM_BY_KEY[key];

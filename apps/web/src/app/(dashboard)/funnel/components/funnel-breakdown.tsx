@@ -17,6 +17,7 @@ export default function FunnelBreakdown({
   counts: FunnelCounts;
   labels: {
     visits: string;
+    signups: string;
     checkout: string;
     purchases: string;
     ofPrevious: string;
@@ -25,13 +26,32 @@ export default function FunnelBreakdown({
   };
 }) {
   const rates = computeFunnelRates(counts);
-  const top = Math.max(counts.visits ?? 0, counts.checkout_initiated ?? 0, counts.purchases ?? 0, 1);
+  const top = Math.max(
+    counts.visits ?? 0,
+    counts.signups ?? 0,
+    counts.checkout_initiated ?? 0,
+    counts.purchases ?? 0,
+    1,
+  );
 
-  const stages = [
-    { label: labels.visits, value: counts.visits, rate: null as number | null },
-    { label: labels.checkout, value: counts.checkout_initiated, rate: rates.pageToCheckout },
-    { label: labels.purchases, value: counts.purchases, rate: rates.checkoutToPurchase },
+  // The signup stage only exists in a trial-first funnel, so it appears only
+  // when there is a number for it — a direct-response product keeps the exact
+  // three stages it had before.
+  const present = [
+    { label: labels.visits, value: counts.visits },
+    ...(counts.signups != null ? [{ label: labels.signups, value: counts.signups }] : []),
+    { label: labels.checkout, value: counts.checkout_initiated },
+    { label: labels.purchases, value: counts.purchases },
   ];
+
+  // Each rate is computed against the PREVIOUS RENDERED stage, so the
+  // "↓ x% do anterior" caption stays literally true whichever stages exist.
+  const stages = present.map((stage, index) => {
+    const previous = index > 0 ? present[index - 1].value : null;
+    const rate =
+      index > 0 && stage.value != null && previous != null && previous > 0 ? (stage.value / previous) * 100 : null;
+    return { ...stage, rate };
+  });
 
   const fmt = (n: number | null | undefined) => (n == null ? labels.noData : n.toLocaleString());
   const rate = (r: number | null) => (r == null ? "—" : `${r.toFixed(1)}%`);

@@ -8,6 +8,7 @@ import { notifyPlatformTeam } from "@/lib/notifications";
 import {
   type OrganicPresence,
   readinessChecklistBlock,
+  readinessFunnelModelBlock,
   readinessOrganicBlock,
   readinessRetrievalQuery,
   readinessScanBlock,
@@ -19,6 +20,8 @@ import {
   type CheckoutType,
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
+  FUNNEL_MODELS,
+  type FunnelModel,
   READINESS_ITEM_KEYS,
   type ReadinessProfile,
   toReadinessProfile,
@@ -99,6 +102,8 @@ function sanitizeProfile(input: unknown): ReadinessProfile {
   profile.checkoutType = CHECKOUT_TYPES.includes(checkoutType as CheckoutType) ? (checkoutType as CheckoutType) : null;
   const days = Number(raw.guaranteeDays);
   profile.guaranteeDays = Number.isFinite(days) && days > 0 ? Math.round(days) : null;
+  const funnelModel = raw.funnelModel;
+  profile.funnelModel = FUNNEL_MODELS.includes(funnelModel as FunnelModel) ? (funnelModel as FunnelModel) : null;
   return profile;
 }
 
@@ -690,6 +695,11 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     "## Contexto do produto",
     productContextBlock(product),
     "",
+    // Comes BEFORE the checklist on purpose: it decides which surface each
+    // dimension is about, so the engine must read it first.
+    "## Modelo de aquisição (define QUAL superfície cada dimensão audita)",
+    readinessFunnelModelBlock(profile),
+    "",
     "## Checklist de prontidão declarado pelo usuário",
     readinessChecklistBlock(profile, evaluation),
     "",
@@ -697,7 +707,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     readinessSignalsBlock(evaluation),
     "",
     "## Scan técnico da página (observado, não declarado)",
-    readinessScanBlock(scanRecord),
+    readinessScanBlock(scanRecord, profile.funnelModel),
     "",
     "## Presença orgânica deste produto",
     readinessOrganicBlock(organic),

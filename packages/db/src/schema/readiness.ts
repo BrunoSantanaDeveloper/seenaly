@@ -46,6 +46,17 @@ export const productReadiness = pgTable(
     checkoutShort: boolean("checkout_short").notNull().default(false),
     abandonedRecovery: boolean("abandoned_recovery").notNull().default(false),
 
+    // Which funnel this business runs — direct | trial_first | lead_first
+    // (null = not declared). Decides WHICH SURFACE each dimension audits.
+    funnelModel: text("funnel_model"),
+
+    // Ativação (trial-first only): the post-login structure that turns a free
+    // signup into revenue. All declared — it lives behind the login wall.
+    signupFrictionLow: boolean("signup_friction_low").notNull().default(false),
+    activationDefined: boolean("activation_defined").notNull().default(false),
+    trialToPaidTracked: boolean("trial_to_paid_tracked").notNull().default(false),
+    upgradePathClear: boolean("upgrade_path_clear").notNull().default(false),
+
     // Descoberta — SEO + organic presence, the pre-condition of paid acquisition.
     seoBasics: boolean("seo_basics").notNull().default(false),
     indexable: boolean("indexable").notNull().default(false),

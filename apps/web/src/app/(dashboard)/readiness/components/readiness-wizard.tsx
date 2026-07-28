@@ -1,6 +1,7 @@
 "use client";
 
 import type { AssistOffering } from "../actions";
+import FunnelModelStep from "./funnel-model-step";
 import ReadinessChecklist from "./readiness-checklist";
 import ReadinessScan, { type ScanView } from "./readiness-scan";
 import ReadinessSignals from "./readiness-signals";
@@ -11,7 +12,7 @@ import { Box, Button, Typography } from "@mui/material";
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
 import type { AssistReason } from "@/lib/readiness/assist";
 import {
-  READINESS_GROUPS,
+  groupsForModel,
   READINESS_ITEM_KEYS,
   type ReadinessEvaluation,
   type ReadinessItemKey,
@@ -76,15 +77,37 @@ export default function ReadinessWizard({
   onRequestAssist?: (key: ReadinessItemKey, reason: AssistReason, note: string) => Promise<boolean>;
 }) {
   const t = useTranslations("readiness");
-  const confirmed = READINESS_ITEM_KEYS.filter((key) => profile[key]).length;
-  const missing = READINESS_ITEM_KEYS.length - confirmed;
+  // Counted over what APPLIES to this funnel model — telling a direct-response
+  // seller they are missing four trial-activation items they can never have
+  // would be a permanent, false deficit.
+  const applicable = new Set(READINESS_ITEM_KEYS.filter((key) => !evaluation.notApplicable.includes(key)));
+  const confirmed = [...applicable].filter((key) => profile[key]).length;
+  const missing = applicable.size - confirmed;
   /** Known-insufficient balance: explain it here AND block the doomed click. */
   const short = credit != null && credit.verdictCost > 0 && credit.balance < credit.verdictCost;
 
   const steps: WizardStep[] = [
+    // Leads the wizard because it reframes every step after it: a trial-first
+    // funnel keeps its checkout behind the login (unreachable by any scan, and
+    // the ad optimizes the SIGNUP), and a lead-first one has no self-service
+    // checkout at all. Auditing before knowing this audits the wrong surface.
+    {
+      title: t("funnel-model-title"),
+      shortLabel: t("wizard-short-funnel-model"),
+      hint: t("funnel-model-hint"),
+      content: (
+        <FunnelModelStep
+          value={profile.funnelModel}
+          onChange={(next) => onChange({ ...profile, funnelModel: next })}
+          disabled={busy}
+        />
+      ),
+      canAdvance: !busy,
+    },
     // One step per dimension — the "why" becomes the step hint, so the checklist
     // renders bare (no repeated header), exactly like product-form's fields.
-    ...READINESS_GROUPS.map(
+    // Only the groups this model actually has (activation is trial-first only).
+    ...groupsForModel(profile.funnelModel).map(
       (group): WizardStep => ({
         title: t(`group-${group.key}`),
         shortLabel: t(`wizard-short-${group.key}`),

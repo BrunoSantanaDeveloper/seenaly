@@ -42,6 +42,7 @@ type SnapshotRow = {
   label: string | null;
   period_end: string | null;
   visits: number | null;
+  signups: number | null;
   checkout_initiated: number | null;
   purchases: number | null;
   refunds: number | null;
@@ -95,7 +96,7 @@ export function FunnelExperience({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("funnel_snapshots")
-      .select("id, label, period_end, visits, checkout_initiated, purchases, refunds, net_revenue")
+      .select("id, label, period_end, visits, signups, checkout_initiated, purchases, refunds, net_revenue")
       .eq("product_id", productId)
       .order("period_end", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
@@ -244,6 +245,7 @@ export function FunnelExperience({
             <FunnelBreakdown
               counts={{
                 visits: latest.visits,
+                signups: latest.signups,
                 checkout_initiated: latest.checkout_initiated,
                 purchases: latest.purchases,
                 refunds: latest.refunds,
@@ -251,6 +253,7 @@ export function FunnelExperience({
               }}
               labels={{
                 visits: t("field-visits"),
+                signups: t("field-signups"),
                 checkout: t("field-checkoutInitiated"),
                 purchases: t("field-purchases"),
                 ofPrevious: t("of-previous"),

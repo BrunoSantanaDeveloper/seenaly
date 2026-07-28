@@ -33,7 +33,16 @@ import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
 import type { Confidence, EvidenceSource } from "@/lib/diagnosis/schema";
-import { type ReadinessItemKey, type ReadinessProfile, resolvableItems } from "@/lib/readiness/checklist";
+import {
+  EMPTY_READINESS_PROFILE,
+  type FindingResolution,
+  findingResolution,
+  isFindingPending,
+  type ReadinessEvaluation,
+  type ReadinessItemKey,
+  type ReadinessProfile,
+  resolvableItems,
+} from "@/lib/readiness/checklist";
 import type { HowToOutput } from "@/lib/readiness/howto";
 import type {
   ReadinessFinding,
@@ -54,6 +63,15 @@ const VERDICT_TONE: Record<Verdict, string> = {
   pronto: "bg-success/10 text-success",
   quase: "bg-warning/10 text-warning",
   nao_pronto: "bg-error/10 text-error",
+};
+
+/** Colour carries the trust level: only machine-proved earns green. */
+const RESOLUTION_COLOR: Record<FindingResolution, "success" | "warning" | "error" | "grey"> = {
+  open: "grey",
+  declared: "grey",
+  "awaiting-proof": "warning",
+  verified: "success",
+  contradicted: "error",
 };
 
 const CONFIDENCE_COLOR: Record<Confidence, "warning" | "primary" | "success"> = {
@@ -102,6 +120,9 @@ export default function ReadinessVerdict({
   onRegisterFinding,
   registeringIndex,
   profile,
+  evaluation,
+  onVerifyNow,
+  verifying = false,
   onResolve,
   howToByIndex,
   onHowTo,
@@ -121,6 +142,14 @@ export default function ReadinessVerdict({
   registeringIndex?: number | null;
   /** Current declared checklist — decides which findings read as resolved. */
   profile?: ReadinessProfile;
+  /**
+   * The evidence half. Without it a tick is only ever a declaration, so the
+   * plan can never claim something was verified it did not actually prove.
+   */
+  evaluation?: ReadinessEvaluation;
+  /** Re-read the page so an "awaiting proof" finding can settle in seconds. */
+  onVerifyNow?: () => void;
+  verifying?: boolean;
   /** Tick/untick the checklist items a finding is about. */
   onResolve?: (items: ReadinessItemKey[], resolved: boolean) => void;
   howToByIndex?: Record<number, HowToState | undefined>;
@@ -162,6 +191,51 @@ export default function ReadinessVerdict({
       ok: all.filter((x) => x.finding.status === "ok"),
     };
   }, [output.findings]);
+
+  /**
+   * How much we can vouch for each finding. Pure domain (`findingResolution`),
+   * so the plan, the pending map and the checklist all tell the same story.
+   * Without an `evaluation` there is no evidence at all, so a tick can only
+   * ever be a declaration — never "verified".
+   */
+  const resolutionOf = (items: ReadinessItemKey[]) =>
+    findingResolution(items, profile ?? EMPTY_READINESS_PROFILE, {
+      verified: evaluation?.verified ?? [],
+      contradicted: evaluation?.contradicted ?? [],
+      // `onVerifyNow` exists only when there is a page we can read. No page,
+      // no possible proof — so never park the user in "unconfirmed" forever.
+      canVerify: Boolean(onVerifyNow),
+    });
+
+  /**
+   * The pending map. A finding drops out ONLY when we can actually stand
+   * behind it (proved, or unprovable-by-nature and declared) — the earlier
+   * version listed every non-ok finding regardless, so an item wearing a green
+   * "corrigido" badge still showed as pending and the two flatly contradicted
+   * each other on screen.
+   */
+  const pending = useMemo(() => {
+    const urgency = [
+      ...groups.blockers.map((entry) => ({ ...entry, color: "error" as const })),
+      ...groups.quick.map((entry) => ({ ...entry, color: "primary" as const })),
+      ...groups.later.map((entry) => ({ ...entry, color: "grey" as const })),
+    ];
+    return (
+      urgency
+        .map((entry) => ({
+          ...entry,
+          resolution: resolutionOf(resolvableItems(entry.finding.dimension, entry.finding.related_items)),
+        }))
+        .filter((entry) => isFindingPending(entry.resolution))
+        // Verification state outranks urgency in the chip's colour: "you ticked
+        // this but we could not confirm it" is the more useful warning.
+        .map((entry) => ({
+          ...entry,
+          color: entry.resolution === "open" ? entry.color : RESOLUTION_COLOR[entry.resolution],
+        }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, profile, evaluation]);
 
   /** Open one finding and bring it on screen — the "hook" every pending-item
    *  chip (and the blocker CTA) resolves to. */
@@ -222,9 +296,11 @@ export default function ReadinessVerdict({
 
   const findingCard = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
     const items = resolvableItems(finding.dimension, finding.related_items);
-    // "Resolved" is read from the checklist, the single source of structural
-    // truth — so ticking it here and ticking it there mean the same thing.
-    const resolved = items.length > 0 && profile != null && items.every((key) => profile[key]);
+    // NOT "did they tick it" but "how much can we vouch for it" — a tick alone
+    // used to paint this card green, which read as system confirmation when it
+    // only ever meant "I said so".
+    const resolution = resolutionOf(items);
+    const resolved = resolution === "verified" || resolution === "declared";
     const howTo = howToByIndex?.[index];
     const open = expanded.has(index);
     const needsSpecialist =
@@ -245,13 +321,15 @@ export default function ReadinessVerdict({
                     {t(`dimension-${finding.dimension}`)}
                   </Typography>
                   <Box className="flex flex-none flex-row flex-wrap items-center gap-1">
-                    {resolved ? (
+                    {/* One chip, one truth: proved / your word / not checked yet
+                        / the page disagrees. Never a green tick for a claim. */}
+                    {resolution !== "open" ? (
                       <Chip
-                        icon={<NiCheck size="small" />}
-                        label={t("resolved-done")}
+                        icon={resolution === "verified" ? <NiCheck size="small" /> : undefined}
+                        label={t(`resolution-${resolution}`)}
                         size="small"
                         variant="outlined"
-                        color="success"
+                        color={RESOLUTION_COLOR[resolution]}
                         className="flex-none"
                       />
                     ) : (
@@ -370,15 +448,46 @@ export default function ReadinessVerdict({
                   }
                   label={
                     <Typography variant="body2" className={resolved ? "text-success" : "text-text-secondary"}>
-                      {resolved ? t("resolved-done") : t("mark-resolved")}
+                      {resolution === "open" ? t("mark-resolved") : t(`resolution-${resolution}`)}
                     </Typography>
                   }
                 />
               )}
-              {resolved && (
-                <Typography variant="body2" className="text-warning">
-                  {t("reverification-pending")}
+
+              {/* The honest middle state, spelled out: they said it is done and
+                  we CAN check — so say we haven't yet, and hand them the
+                  one-click way to settle it instead of a vague warning. */}
+              {resolution === "awaiting-proof" && (
+                <Alert severity="warning" className="neutral bg-background-paper/60!">
+                  <Typography variant="body2">{t("resolution-awaiting-proof-body")}</Typography>
+                  {onVerifyNow && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="grey"
+                      className="mt-2"
+                      startIcon={<NiShieldCheck size="small" />}
+                      disabled={verifying}
+                      onClick={onVerifyNow}
+                    >
+                      {verifying ? t("verifying-now") : t("verify-now")}
+                    </Button>
+                  )}
+                </Alert>
+              )}
+
+              {/* The user's word is all there is here — never pretend otherwise. */}
+              {resolution === "declared" && (
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("resolution-declared-body")}
                 </Typography>
+              )}
+
+              {/* Ticked, but the page says no. Loudest state on the card. */}
+              {resolution === "contradicted" && (
+                <Alert severity="error" className="neutral bg-background-paper/60!">
+                  <Typography variant="body2">{t("resolution-contradicted-body")}</Typography>
+                </Alert>
               )}
 
               <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
@@ -577,17 +686,13 @@ export default function ReadinessVerdict({
               (blocker / quick win / later). Same language as the completeness
               card on the context screen — click → the exact card opens and
               scrolls into view. */}
-          {groups.blockers.length + groups.quick.length + groups.later.length > 0 && (
+          {pending.length > 0 && (
             <Box className="flex flex-col gap-1.5">
               <Typography variant="body2" className="text-text-secondary">
                 {t("plan-jump-hint")}
               </Typography>
               <Box className="flex flex-row flex-wrap gap-1.5">
-                {[
-                  ...groups.blockers.map((entry) => ({ ...entry, color: "error" as const })),
-                  ...groups.quick.map((entry) => ({ ...entry, color: "primary" as const })),
-                  ...groups.later.map((entry) => ({ ...entry, color: "grey" as const })),
-                ].map(({ finding, index, color }) => (
+                {pending.map(({ finding, index, color }) => (
                   <Chip
                     key={index}
                     label={t(`dimension-${finding.dimension}`)}
