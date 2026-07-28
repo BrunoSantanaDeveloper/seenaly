@@ -2468,6 +2468,8 @@
     "load-error-title": "Diese Daten konnten nicht geladen werden",
     "load-error-body": "Ihre bisherigen Daten bleiben erhalten. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
+    "crash-title": "Auf diesem Bildschirm ist etwas schiefgelaufen",
+    "crash-body": "Beim Laden dieser Seite ist ein unerwarteter Fehler aufgetreten. Versuchen Sie es erneut — der Rest der App funktioniert weiter.",
     "delete-confirm-title": "Löschen bestätigen",
     "delete-confirm-body": "„{name}“ löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
     "delete-confirm": "Endgültig löschen",

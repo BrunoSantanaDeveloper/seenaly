@@ -2468,6 +2468,8 @@
     "load-error-title": "Impossible de charger ces données",
     "load-error-body": "Vos données précédentes sont conservées. Vérifiez la connexion et réessayez.",
     "retry": "Réessayer",
+    "crash-title": "Un problème est survenu sur cet écran",
+    "crash-body": "Une erreur inattendue s'est produite lors de l'affichage de cette page. Réessayez — le reste de l'application continue de fonctionner.",
     "delete-confirm-title": "Confirmer la suppression",
     "delete-confirm-body": "Supprimer « {name} » ? Cette action est irréversible.",
     "delete-confirm": "Supprimer définitivement",

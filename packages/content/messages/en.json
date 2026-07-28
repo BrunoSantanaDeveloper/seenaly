@@ -2468,6 +2468,8 @@
     "load-error-title": "We couldn't load this data",
     "load-error-body": "Your previous data was preserved. Check the connection and try again.",
     "retry": "Try again",
+    "crash-title": "Something broke on this screen",
+    "crash-body": "We hit an unexpected error rendering this page. Try again — the rest of the app keeps working.",
     "delete-confirm-title": "Confirm deletion",
     "delete-confirm-body": "Delete “{name}”? This action cannot be undone.",
     "delete-confirm": "Delete permanently",

@@ -2468,6 +2468,8 @@
     "load-error-title": "Não foi possível carregar estes dados",
     "load-error-body": "Seus dados anteriores foram preservados. Verifique a conexão e tente novamente.",
     "retry": "Tentar novamente",
+    "crash-title": "Algo travou nesta tela",
+    "crash-body": "Encontramos um erro inesperado ao montar esta página. Tente de novo — o resto do app segue funcionando.",
     "delete-confirm-title": "Confirmar exclusão",
     "delete-confirm-body": "Excluir “{name}”? Esta ação não pode ser desfeita.",
     "delete-confirm": "Excluir definitivamente",

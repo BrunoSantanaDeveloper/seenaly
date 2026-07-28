@@ -20,7 +20,7 @@ import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import { track } from "@/lib/analytics";
-import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
+import { type DiagnosisOutput, isDiagnosisOutput } from "@/lib/diagnosis/schema";
 import { createClient } from "@flyee/auth/client";
 
 /**
@@ -113,10 +113,14 @@ export function DiagnosisExperience({
     }
     setLoaded(false);
     const supabase = createClient();
+    // Campaign diagnoses only — the readiness verdict (scope 'readiness') is a
+    // DIFFERENT output shape and lives on /readiness. Loading it here would feed
+    // DiagnosisCard an object with no `evidence`, crashing the whole screen.
     const { data, error: diagnosesError } = await supabase
       .from("diagnoses")
       .select("id, output, created_at, had_campaign_data, knowledge_refs")
       .eq("product_id", selectedProductId)
+      .neq("scope", "readiness")
       .order("created_at", { ascending: false })
       .limit(10);
     if (diagnosesError) {
@@ -124,7 +128,9 @@ export function DiagnosisExperience({
       setLoaded(true);
       return;
     }
-    const list = (data as DiagnosisRow[]) ?? [];
+    // Defence in depth: never hand a malformed payload to the card (the app has
+    // no granular error boundary, so one bad row would white-screen everything).
+    const list = ((data as DiagnosisRow[]) ?? []).filter((r) => isDiagnosisOutput(r.output));
     setDataLoadError(false);
     setRows(list);
 
