@@ -43,6 +43,7 @@ import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard"
 import NiBinEmpty from "@/icons/nexture/ni-bin-empty";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
+import NiChevronRightSmall from "@/icons/nexture/ni-chevron-right-small";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiPlus from "@/icons/nexture/ni-plus";
 import { track } from "@/lib/analytics";
@@ -1051,7 +1052,9 @@ export default function ProductForm({
 
         {/* Collapsed by default: the summary row carries each section's own
             fill state, so the gap map stays visible with zero scrolling — and
-            nothing here is hidden knowledge, just folded. */}
+            nothing here is hidden knowledge, just folded. Card-in-summary is
+            the template's own accordion language (see the FAQ pages): each
+            section reads as an elevated white card, not a bare divider row. */}
         <Box className="mb-5 flex flex-col">
           {sectionCards.map((card) => {
             const fill = (["identity", "offer", "economics", "funnel"] as ContextSection[]).includes(
@@ -1060,41 +1063,38 @@ export default function ProductForm({
               ? sectionCompleteness(toInput(formik.values, orgId, product?.id), card.key as ContextSection)
               : null;
             return (
-              <Accordion
-                key={card.key}
-                id={`context-section-${card.key}`}
-                className="basic bordered mb-2"
-                expanded={expandedSections.has(card.key)}
-                onChange={() => toggleSection(card.key)}
-              >
-                <AccordionSummary expandIcon={<NiChevronDownSmall className="text-text-primary" />}>
-                  <Box className="flex w-full flex-row flex-wrap items-center justify-between gap-2 pr-3">
-                    <Typography variant="subtitle1" component="h2" className="mb-0">
-                      {card.title}
-                    </Typography>
-                    {fill &&
-                      (fill.filled === fill.total ? (
-                        <Chip
-                          icon={<NiCheck size="small" />}
-                          label={`${fill.filled}/${fill.total}`}
-                          size="small"
-                          variant="outlined"
-                          color="success"
-                          className="flex-none"
-                        />
-                      ) : (
-                        <Chip
-                          label={`${fill.filled}/${fill.total}`}
-                          size="small"
-                          variant="outlined"
-                          color="grey"
-                          className="flex-none"
-                        />
-                      ))}
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails>{card.content}</AccordionDetails>
-              </Accordion>
+              <Box key={card.key} className="mb-2.5 rounded-xl shadow-sm">
+                <Accordion
+                  id={`context-section-${card.key}`}
+                  expanded={expandedSections.has(card.key)}
+                  onChange={() => toggleSection(card.key)}
+                >
+                  <AccordionSummary className="group">
+                    <Card className="w-full shadow-none! group-aria-expanded:rounded-b-none">
+                      <CardContent className="flex flex-row items-center justify-between gap-2">
+                        <Typography variant="h6" component="h2" className="mb-0">
+                          {card.title}
+                        </Typography>
+                        <Box className="flex flex-none flex-row items-center gap-2">
+                          {fill && (
+                            <Chip
+                              icon={fill.filled === fill.total ? <NiCheck size="small" /> : undefined}
+                              label={`${fill.filled}/${fill.total}`}
+                              size="small"
+                              variant="outlined"
+                              color={fill.filled === fill.total ? "success" : "grey"}
+                            />
+                          )}
+                          <NiChevronRightSmall size={20} className="accordion-rotate" />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </AccordionSummary>
+                  <AccordionDetails className="bg-background-paper rounded-b-xl px-7 py-6 pt-0">
+                    {card.content}
+                  </AccordionDetails>
+                </Accordion>
+              </Box>
             );
           })}
         </Box>

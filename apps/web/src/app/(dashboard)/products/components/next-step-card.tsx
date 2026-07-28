@@ -73,45 +73,63 @@ export default function ProductNextStepCard({
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-3">
-        <Box className="flex flex-row items-center gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 flex-none items-center justify-center rounded-2xl",
-              TONE[headTone].softBg,
-              TONE[headTone].text,
-            )}
-          >
-            {hasReadiness ? <NiPulse size="medium" aria-hidden /> : <NiShieldCheck size="medium" aria-hidden />}
-          </span>
-          <Box className="grow">
-            <Typography variant="h5" component="h2" className="card-title mb-0">
-              {!hasReadiness
-                ? t("next-step-title-readiness")
-                : ready
-                  ? t("next-step-title-ready")
-                  : t("next-step-title-incomplete")}
-            </Typography>
-            <Typography variant="body2" className="text-text-secondary">
-              {!hasReadiness
-                ? t("next-step-body-readiness")
-                : ready
-                  ? t("next-step-body-ready")
-                  : t("next-step-body-incomplete")}
-            </Typography>
+        {/* Two columns on one row: identity (icon + title + subtitle) on the
+            left, the actions on the right — the CTAs use the dead space beside
+            the text instead of adding a second row, so the card stays compact.
+            Below md they stack back into a column. */}
+        <Box className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Box className="flex min-w-0 flex-row items-center gap-3">
+            <span
+              className={cn(
+                "flex h-10 w-10 flex-none items-center justify-center rounded-2xl",
+                TONE[headTone].softBg,
+                TONE[headTone].text,
+              )}
+            >
+              {hasReadiness ? <NiPulse size="medium" aria-hidden /> : <NiShieldCheck size="medium" aria-hidden />}
+            </span>
+            <Box className="min-w-0">
+              <Typography variant="h5" component="h2" className="card-title mb-0">
+                {!hasReadiness
+                  ? t("next-step-title-readiness")
+                  : ready
+                    ? t("next-step-title-ready")
+                    : t("next-step-title-incomplete")}
+              </Typography>
+              <Typography variant="body2" className="text-text-secondary">
+                {!hasReadiness
+                  ? t("next-step-body-readiness")
+                  : ready
+                    ? t("next-step-body-ready")
+                    : t("next-step-body-incomplete")}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        <Box className="flex flex-row flex-wrap items-center gap-2">
-          <Button variant="contained" color="primary" href={primary.href} LinkComponent={Link} startIcon={primary.icon}>
-            {primary.label}
-          </Button>
-          {/* Quiet alternative — subordinate to the primary but still shaped
-              like a button: bare gray text kept reading as a caption, not a
-              clickable route (the same affordance failure fixed on the
-              readiness disclosure). */}
-          <Button variant="outlined" color="grey" href={secondary.href} LinkComponent={Link} startIcon={secondary.icon}>
-            {secondary.label}
-          </Button>
+          <Box className="flex flex-none flex-row flex-wrap items-center gap-2">
+            <Button
+              variant="contained"
+              color="primary"
+              href={primary.href}
+              LinkComponent={Link}
+              startIcon={primary.icon}
+            >
+              {primary.label}
+            </Button>
+            {/* Quiet alternative — subordinate to the primary but still shaped
+                like a button: bare gray text kept reading as a caption, not a
+                clickable route (the same affordance failure fixed on the
+                readiness disclosure). */}
+            <Button
+              variant="outlined"
+              color="grey"
+              href={secondary.href}
+              LinkComponent={Link}
+              startIcon={secondary.icon}
+            >
+              {secondary.label}
+            </Button>
+          </Box>
         </Box>
 
         {suggestions.length > 0 && (
