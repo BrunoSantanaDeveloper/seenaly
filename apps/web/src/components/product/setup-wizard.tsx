@@ -39,6 +39,7 @@ export default function SetupWizard({
   nextStepLabel = "Next",
   stepLabel = (current, total) => `Step ${current} of ${total}`,
   className,
+  bare = false,
 }: {
   steps: WizardStep[];
   onComplete: () => void;
@@ -64,6 +65,12 @@ export default function SetupWizard({
   nextStepLabel?: string;
   stepLabel?: (current: number, total: number) => string;
   className?: string;
+  /**
+   * Drop the Card shell. Inside a surface that is already a card (a Dialog's
+   * content, a panel), the default shell renders as a card-inside-a-card —
+   * doubled padding and a floating edge that reads as a broken layout.
+   */
+  bare?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [advancing, setAdvancing] = useState(false);
@@ -81,105 +88,108 @@ export default function SetupWizard({
     }
   };
 
-  return (
-    <Card className={cn("mx-auto w-full", className)}>
-      <CardContent className="flex flex-col gap-6">
-        {/* Progress rail — the whole path is visible; the reader sees the end. */}
-        <Box
-          component="ol"
-          aria-label={stepLabel(index + 1, steps.length)}
-          className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:flex sm:flex-row"
-        >
-          {steps.map((item, i) => (
-            <Box
-              component="li"
-              key={item.shortLabel ?? item.title}
-              aria-current={i === index ? "step" : undefined}
+  const body = (
+    <>
+      {/* Progress rail — the whole path is visible; the reader sees the end.
+            It WRAPS rather than dividing the row evenly: with nine steps in a
+            dialog, equal flex columns squeezed every label into "Mensura...". */}
+      <Box
+        component="ol"
+        aria-label={stepLabel(index + 1, steps.length)}
+        className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:flex sm:flex-row sm:flex-wrap"
+      >
+        {steps.map((item, i) => (
+          <Box
+            component="li"
+            key={item.shortLabel ?? item.title}
+            aria-current={i === index ? "step" : undefined}
+            className={cn(
+              "border-grey-100 flex min-w-0 items-center gap-2 border-t-2 pt-2 sm:flex-1",
+              i < index && "border-primary text-text-primary",
+              i === index && "border-primary text-primary-dark dark:text-primary-light",
+              i > index && "text-text-secondary",
+            )}
+          >
+            <span
+              aria-hidden
               className={cn(
-                "border-grey-100 flex min-w-0 items-center gap-2 border-t-2 pt-2 sm:flex-1",
-                i < index && "border-primary text-text-primary",
-                i === index && "border-primary text-primary-dark dark:text-primary-light",
-                i > index && "text-text-secondary",
+                "border-grey-100 flex h-5 w-5 flex-none items-center justify-center rounded-full border text-xs",
+                i <= index && "border-primary bg-primary text-on-primary",
               )}
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "border-grey-100 flex h-5 w-5 flex-none items-center justify-center rounded-full border text-xs",
-                  i <= index && "border-primary bg-primary text-on-primary",
-                )}
-              >
-                {i < index ? <NiCheck size="tiny" /> : i + 1}
-              </span>
-              <Typography component="span" variant="body2" className="truncate">
-                {item.shortLabel ?? item.title}
-              </Typography>
-              {i === index + 1 && <span className="sr-only">{nextStepLabel}</span>}
-            </Box>
-          ))}
-        </Box>
-
-        <Box className="flex flex-col gap-1">
-          <Typography variant="body2" className="text-text-secondary">
-            {stepLabel(index + 1, steps.length)}
-          </Typography>
-          <Typography variant="h4" component="h2" className="text-text-primary">
-            {step.title}
-          </Typography>
-          {step.hint && (
-            <Typography variant="body1" className="text-text-secondary leading-6">
-              {step.hint}
+              {i < index ? <NiCheck size="tiny" /> : i + 1}
+            </span>
+            <Typography component="span" variant="body2" className="truncate">
+              {item.shortLabel ?? item.title}
             </Typography>
+            {i === index + 1 && <span className="sr-only">{nextStepLabel}</span>}
+          </Box>
+        ))}
+      </Box>
+
+      <Box className="flex flex-col gap-1">
+        <Typography variant="body2" className="text-text-secondary">
+          {stepLabel(index + 1, steps.length)}
+        </Typography>
+        <Typography variant="h4" component="h2" className="text-text-primary">
+          {step.title}
+        </Typography>
+        {step.hint && (
+          <Typography variant="body1" className="text-text-secondary leading-6">
+            {step.hint}
+          </Typography>
+        )}
+      </Box>
+
+      <Box>{step.content}</Box>
+
+      <Box className="flex flex-row items-center justify-between gap-2">
+        <Button variant="text" color="grey" disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+          {backLabel}
+        </Button>
+        <Box className="flex flex-row items-center gap-2">
+          {/* Remaining steps are opt-in: let the user finish now instead of
+                being forced through them. */}
+          {!isLast && onFinishEarly && canFinishEarly && (
+            <Button variant="text" color="grey" disabled={!canAdvance} onClick={onFinishEarly}>
+              {finishEarlyLabel ?? completeLabel}
+            </Button>
+          )}
+          {isLast ? (
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={!canAdvance}
+              endIcon={<NiCheck size="medium" />}
+              onClick={onComplete}
+            >
+              {completeLabel}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={!canAdvance}
+              // `onBeforeAdvance` usually saves before moving on, and a button
+              // that only greys out for a second reads as "nothing happened" —
+              // the wait has to be visible, not merely inert.
+              loading={advancing}
+              endIcon={<NiArrowRight size="medium" />}
+              onClick={() => void advance()}
+            >
+              {continueLabel}
+            </Button>
           )}
         </Box>
+      </Box>
+    </>
+  );
 
-        <Box>{step.content}</Box>
+  if (bare) return <Box className={cn("flex flex-col gap-6", className)}>{body}</Box>;
 
-        <Box className="flex flex-row items-center justify-between gap-2">
-          <Button
-            variant="text"
-            color="grey"
-            disabled={index === 0}
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          >
-            {backLabel}
-          </Button>
-          <Box className="flex flex-row items-center gap-2">
-            {/* Remaining steps are opt-in: let the user finish now instead of
-                being forced through them. */}
-            {!isLast && onFinishEarly && canFinishEarly && (
-              <Button variant="text" color="grey" disabled={!canAdvance} onClick={onFinishEarly}>
-                {finishEarlyLabel ?? completeLabel}
-              </Button>
-            )}
-            {isLast ? (
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={!canAdvance}
-                endIcon={<NiCheck size="medium" />}
-                onClick={onComplete}
-              >
-                {completeLabel}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={!canAdvance}
-                // `onBeforeAdvance` usually saves before moving on, and a button
-                // that only greys out for a second reads as "nothing happened" —
-                // the wait has to be visible, not merely inert.
-                loading={advancing}
-                endIcon={<NiArrowRight size="medium" />}
-                onClick={() => void advance()}
-              >
-                {continueLabel}
-              </Button>
-            )}
-          </Box>
-        </Box>
-      </CardContent>
+  return (
+    <Card className={cn("mx-auto w-full", className)}>
+      <CardContent className="flex flex-col gap-6">{body}</CardContent>
     </Card>
   );
 }

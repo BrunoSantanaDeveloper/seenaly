@@ -53,6 +53,7 @@ export default function ReadinessWizard({
   scanAttempts = 0,
   creditBalance = null,
   onRequestAssist,
+  bare = false,
 }: {
   profile: ReadinessProfile;
   evaluation: ReadinessEvaluation;
@@ -75,6 +76,8 @@ export default function ReadinessWizard({
   scanAttempts?: number;
   creditBalance?: number | null;
   onRequestAssist?: (key: ReadinessItemKey, reason: AssistReason, note: string) => Promise<boolean>;
+  /** Inside the review Dialog the surface is already a card — drop the shell. */
+  bare?: boolean;
 }) {
   const t = useTranslations("readiness");
   // Counted over what APPLIES to this funnel model — telling a direct-response
@@ -218,6 +221,7 @@ export default function ReadinessWizard({
         continueLabel={t("wizard-continue")}
         nextStepLabel={t("wizard-next")}
         stepLabel={(current, total) => t("wizard-step", { current, total })}
+        bare={bare}
       />
     </Box>
   );

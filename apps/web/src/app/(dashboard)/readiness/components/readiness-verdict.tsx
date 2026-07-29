@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
+  LinearProgress,
   Typography,
 } from "@mui/material";
 
@@ -166,14 +167,13 @@ export default function ReadinessVerdict({
 }) {
   const t = useTranslations("readiness");
   const tone = VERDICT_TONE[output.verdict];
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const toggle = (index: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+  /**
+   * ONE open at a time. With several findings expanded the plan went back to
+   * being a wall — and a fix list is read one item at a time anyway, so opening
+   * the next naturally closes the last.
+   */
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const toggle = (index: number) => setExpanded((prev) => (prev === index ? null : index));
 
   // Group by what the reader should DO, not by the order the model emitted.
   // The engine already sorts by leverage; this adds the reading criteria.
@@ -237,10 +237,22 @@ export default function ReadinessVerdict({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups, profile, evaluation]);
 
+  /**
+   * The plan in reading order (blockers → quick wins → later), which is what
+   * the numbered badges count. Also gives the honest "X de N concluídos":
+   * N is what the plan actually lists, and X only counts findings we can
+   * stand behind — never a box someone merely ticked.
+   */
+  const planOrder = useMemo(
+    () => [...groups.blockers, ...groups.quick, ...groups.later].map((entry) => entry.index),
+    [groups],
+  );
+  const planDone = planOrder.length - pending.length;
+
   /** Open one finding and bring it on screen — the "hook" every pending-item
    *  chip (and the blocker CTA) resolves to. */
   const focusFinding = (index: number) => {
-    setExpanded((previous) => new Set(previous).add(index));
+    setExpanded(index);
     window.setTimeout(() => {
       document.getElementById(`finding-${index}`)?.scrollIntoView({
         behavior: "smooth",
@@ -302,7 +314,9 @@ export default function ReadinessVerdict({
     const resolution = resolutionOf(items);
     const resolved = resolution === "verified" || resolution === "declared";
     const howTo = howToByIndex?.[index];
-    const open = expanded.has(index);
+    const open = expanded === index;
+    // Position in the plan as the reader sees it, not the model's array index.
+    const position = planOrder.indexOf(index) + 1;
     const needsSpecialist =
       finding.effort === "alto" || (typeof howTo === "object" && howTo.howTo.needs_specialist === true);
 
@@ -317,6 +331,22 @@ export default function ReadinessVerdict({
             <Card className="w-full shadow-none! group-aria-expanded:rounded-b-none">
               <CardContent className="flex flex-col gap-1.5">
                 <Box className="flex flex-row flex-wrap items-center gap-2">
+                  {/* Position badge: the plan is an ordered queue, so say which
+                      one this is — and mark the done ones without needing the
+                      reader to open anything. */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "flex h-7 w-7 flex-none items-center justify-center rounded-full border text-sm font-medium",
+                      resolved
+                        ? "border-success/40 bg-success/10 text-success"
+                        : open
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-grey-100 text-text-secondary",
+                    )}
+                  >
+                    {resolved ? <NiCheck size="small" /> : position}
+                  </span>
                   <Typography variant="h6" component="h4" className="mb-0 grow">
                     {t(`dimension-${finding.dimension}`)}
                   </Typography>
@@ -365,57 +395,107 @@ export default function ReadinessVerdict({
           </AccordionSummary>
           <AccordionDetails className="bg-background-paper rounded-b-xl px-7 py-6 pt-0">
             <Box className="flex flex-col gap-3">
-              {section(
-                <NiFlag size="small" />,
-                t("section-problem"),
-                <Typography variant="body2" className="leading-6">
-                  {finding.finding}
-                </Typography>,
-              )}
+              {/* Three columns on wide screens: what blocks / what to do /
+                  how you'll know it's done. Stacked below md. The middle one
+                  is tinted because it is the only ACTIONABLE column — the
+                  other two are context and proof. */}
+              <Box className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+                <Box className="flex flex-col gap-3">
+                  {section(
+                    <NiFlag size="small" />,
+                    t("section-problem"),
+                    <Typography variant="body2" className="leading-6">
+                      {finding.finding}
+                    </Typography>,
+                  )}
 
-              {finding.evidence.length > 0 &&
-                section(
-                  <NiSearch size="small" />,
-                  t("section-evidence"),
-                  <Box className="flex flex-col gap-1.5">
-                    {finding.evidence.map((evidence, evidenceIndex) => (
-                      <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
-                        <Chip
-                          label={t(`source-${evidence.source}`)}
-                          size="small"
-                          variant="outlined"
-                          color={SOURCE_COLOR[evidence.source] ?? "default"}
-                          className="mt-0.5 flex-none"
-                        />
-                        <Typography variant="body2" className="leading-6">
-                          {evidence.statement}
-                        </Typography>
+                  {finding.evidence.length > 0 &&
+                    section(
+                      <NiSearch size="small" />,
+                      t("section-evidence"),
+                      <Box className="flex flex-col gap-1.5">
+                        {finding.evidence.map((evidence, evidenceIndex) => (
+                          <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
+                            <Chip
+                              label={t(`source-${evidence.source}`)}
+                              size="small"
+                              variant="outlined"
+                              color={SOURCE_COLOR[evidence.source] ?? "default"}
+                              className="mt-0.5 flex-none"
+                            />
+                            <Typography variant="body2" className="leading-6">
+                              {evidence.statement}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>,
+                    )}
+                </Box>
+
+                {/* The one line the whole card exists to deliver — boxed and tinted
+            so it visually wins against the descriptive sections around it. */}
+                {section(
+                  <NiArrowRight size="small" />,
+                  t("section-action"),
+                  <Box className="flex flex-col gap-2">
+                    <Typography
+                      variant="body1"
+                      className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
+                    >
+                      {finding.recommended_action}
+                    </Typography>
+                    {/* Once the step-by-step has been paid for, it belongs HERE —
+                      numbered, in the action column — not in a separate block
+                      further down that repeats the same job. */}
+                    {typeof howTo === "object" && howTo.howTo.steps.length > 0 && (
+                      <Box component="ol" className="m-0 flex list-decimal flex-col gap-1 pl-5">
+                        {howTo.howTo.steps.map((step, stepIndex) => (
+                          <Typography key={stepIndex} component="li" variant="body2" className="leading-6">
+                            {step}
+                          </Typography>
+                        ))}
                       </Box>
-                    ))}
+                    )}
                   </Box>,
+                  true,
                 )}
 
-              {/* The one line the whole card exists to deliver — boxed and tinted
-            so it visually wins against the descriptive sections around it. */}
-              {section(
-                <NiArrowRight size="small" />,
-                t("section-action"),
-                <Typography
-                  variant="body1"
-                  className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
-                >
-                  {finding.recommended_action}
-                </Typography>,
-                true,
-              )}
-
-              {section(
-                <NiCheck size="small" />,
-                t("section-success"),
-                <Typography variant="body2" className="leading-6">
-                  {finding.success_criterion}
-                </Typography>,
-              )}
+                {/* Completion criteria — the checklist items this finding is
+                  actually about, each its own box. One "marcar como resolvido"
+                  used to tick them all at once, which is a lie whenever a
+                  finding spans several (you fixed the Pixel, not the CAPI).
+                  `success_criterion` stays as the sentence that says what
+                  "done" looks like. */}
+                {section(
+                  <NiCheck size="small" />,
+                  t("section-success"),
+                  <Box className="flex flex-col gap-1">
+                    {items.length > 0 && onResolve && profile
+                      ? items.map((key) => (
+                          <FormControlLabel
+                            key={key}
+                            className="m-0"
+                            control={
+                              <Checkbox
+                                size="small"
+                                checked={profile[key] === true}
+                                onChange={(event) => onResolve([key], event.target.checked)}
+                              />
+                            }
+                            label={
+                              <Typography variant="body2" className={profile[key] ? "text-text-secondary" : undefined}>
+                                {t(`item-${key}`)}
+                              </Typography>
+                            }
+                          />
+                        ))
+                      : null}
+                    <Typography variant="body2" className="text-text-secondary leading-6">
+                      {finding.success_criterion}
+                    </Typography>
+                  </Box>,
+                )}
+              </Box>
 
               {/* `midia` has no checklist items to tick — its concrete door is
                   the Creative Test Plan on the creatives surface. */}
@@ -434,24 +514,6 @@ export default function ReadinessVerdict({
                     {t("creative-plan-hint")}
                   </Typography>
                 </Box>
-              )}
-
-              {items.length > 0 && onResolve && (
-                <FormControlLabel
-                  className="m-0"
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={resolved}
-                      onChange={(event) => onResolve(items, event.target.checked)}
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" className={resolved ? "text-success" : "text-text-secondary"}>
-                      {resolution === "open" ? t("mark-resolved") : t(`resolution-${resolution}`)}
-                    </Typography>
-                  }
-                />
               )}
 
               {/* The honest middle state, spelled out: they said it is done and
@@ -519,15 +581,12 @@ export default function ReadinessVerdict({
 
                   {typeof howTo === "object" && (
                     <>
-                      {howTo.howTo.steps.length > 0 ? (
-                        <Box component="ol" className="m-0 list-decimal space-y-1.5 pl-5">
-                          {howTo.howTo.steps.map((step, stepIndex) => (
-                            <Typography key={stepIndex} component="li" variant="body2" className="leading-6">
-                              {step}
-                            </Typography>
-                          ))}
-                        </Box>
-                      ) : (
+                      {/* The steps themselves now render inside the ACTION
+                          column — repeating them here was the same content
+                          twice on one card. What stays is what belongs to the
+                          generation: the honest empty answer, the caveat and
+                          the sources it was grounded in. */}
+                      {howTo.howTo.steps.length === 0 && (
                         // An honest empty answer: the knowledge base did not cover
                         // it, so no tutorial was invented (and nothing was charged).
                         <Alert severity="info" className="neutral bg-background-paper/60!">
@@ -673,13 +732,31 @@ export default function ReadinessVerdict({
         <Divider />
 
         <Box className="flex flex-col gap-5">
-          <Box className="flex flex-col gap-0.5">
-            <Typography variant="h5" component="h2" className="card-title mb-0">
-              {t("plan-title")}
-            </Typography>
-            <Typography variant="body2" className="text-text-secondary">
-              {t("plan-body")}
-            </Typography>
+          <Box className="flex flex-row flex-wrap items-end justify-between gap-3">
+            <Box className="flex flex-col gap-0.5">
+              <Typography variant="h5" component="h2" className="card-title mb-0">
+                {t("plan-title")}
+              </Typography>
+              <Typography variant="body2" className="text-text-secondary">
+                {t("plan-body")}
+              </Typography>
+            </Box>
+            {/* Completion drive over the plan itself. It counts only findings
+                we can vouch for (see `pending`), so it can never be inflated by
+                ticking — same rule the readiness rings follow. */}
+            {planOrder.length > 0 && (
+              <Box className="flex min-w-48 flex-col gap-1">
+                <Typography variant="body2" className="text-text-secondary text-right">
+                  {t("plan-progress", { done: planDone, total: planOrder.length })}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.round((planDone / planOrder.length) * 100)}
+                  color={planDone === planOrder.length ? "success" : "primary"}
+                  className="rounded-full"
+                />
+              </Box>
+            )}
           </Box>
 
           {/* The pending map: one hook per open finding, colored by urgency

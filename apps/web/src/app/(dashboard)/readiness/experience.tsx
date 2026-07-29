@@ -35,6 +35,7 @@ import {
   MenuItem,
   Skeleton,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -697,16 +698,50 @@ export function ReadinessExperience({
     [t],
   );
 
+  /**
+   * A disabled button must say WHY at the button. The shortfall notice lives at
+   * the top of the page, so someone who scrolled down to the action bar met a
+   * dead control with no reason given — and the credit wall is exactly where
+   * the free grant is supposed to convert into a plan, so a silent block is
+   * both a UX failure and a lost upgrade.
+   */
   const reVerifyButton = (
-    <Button
-      variant={reVerifyIsPrimary ? "contained" : "outlined"}
-      color={reVerifyIsPrimary ? "primary" : "grey"}
-      startIcon={<NiShieldCheck size="small" />}
-      onClick={verify}
-      disabled={busy || scanning || !product || outOfBalance}
-    >
-      {busy ? t("verifying") : t("verify-again")}
-    </Button>
+    <>
+      {outOfBalance ? (
+        <Tooltip title={t("credits-out-body", { balance: credit?.balance ?? 0, cost: credit?.verdictCost ?? 0 })}>
+          {/* A disabled MUI button fires no pointer events — the span is what
+              the tooltip can actually listen on. */}
+          <span className="inline-flex">
+            <Button variant="outlined" color="grey" startIcon={<NiShieldCheck size="small" />} disabled>
+              {t("verify-again")}
+            </Button>
+          </span>
+        </Tooltip>
+      ) : (
+        <Button
+          variant={reVerifyIsPrimary ? "contained" : "outlined"}
+          color={reVerifyIsPrimary ? "primary" : "grey"}
+          startIcon={<NiShieldCheck size="small" />}
+          onClick={verify}
+          disabled={busy || scanning || !product}
+        >
+          {busy ? t("verifying") : t("verify-again")}
+        </Button>
+      )}
+      {/* The way out, right beside the block — never only at the top of a page
+          the user has already scrolled past. */}
+      {outOfBalance && (
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<NiSparkle size="small" />}
+          href="/settings/billing"
+          LinkComponent={Link}
+        >
+          {t("credits-manage")}
+        </Button>
+      )}
+    </>
   );
 
   return (
@@ -1019,6 +1054,7 @@ export function ReadinessExperience({
                   the moment they needed it most. The verdict is a RESULT, not
                   a replacement for the intake. */}
               <ReadinessWizard
+                bare
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}

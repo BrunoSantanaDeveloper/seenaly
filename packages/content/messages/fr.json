@@ -2381,6 +2381,7 @@
     "plan-title": "Plan de correction",
     "plan-body": "Par ordre de levier. Ouvrez un élément pour le détail et le pas-à-pas.",
     "plan-jump-hint": "À traiter — touchez un élément pour y aller directement :",
+    "plan-progress": "{done} sur {total} terminés",
     "plan-blockers": "À corriger d'abord",
     "plan-blockers-hint": "Tant que c'est ainsi, dépenser en publicité est un gaspillage prévisible.",
     "plan-quick": "Gains rapides",

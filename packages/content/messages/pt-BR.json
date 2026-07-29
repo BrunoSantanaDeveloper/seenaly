@@ -2381,6 +2381,7 @@
     "plan-title": "Plano de correção",
     "plan-body": "Em ordem de alavancagem. Abra um item para ver o detalhe e o passo a passo.",
     "plan-jump-hint": "Pendências — toque numa para ir direto ao item:",
+    "plan-progress": "{done} de {total} concluídos",
     "plan-blockers": "Resolva primeiro",
     "plan-blockers-hint": "Enquanto isso estiver assim, gastar em anúncio é desperdício previsível.",
     "plan-quick": "Ganhos rápidos",
