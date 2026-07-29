@@ -981,6 +981,23 @@ export default function ProductForm({
     </FormControl>
   );
 
+  /**
+   * Free-text extras the creation wizard never asks for. They used to render
+   * as permanently blank inputs here, so someone who had just finished the
+   * wizard met fields nobody had ever mentioned — reading as work left undone.
+   * Behind the same opt-in chips as every other optional field: shown when
+   * they hold something, a chip when they don't.
+   */
+  const extraTextFields: OptionalField[] = [
+    {
+      key: "description",
+      chipLabel: t("field-description"),
+      filled: formik.values.description !== "",
+      node: descriptionField,
+    },
+    { key: "notes", chipLabel: t("field-notes"), filled: formik.values.notes !== "", node: notesField },
+  ];
+
   // Edit view shows everything at once (grouped), decluttered by the same opt-in
   // chips: filled fields render, empty optional ones stay behind "add" chips.
   const sectionCards = [
@@ -990,8 +1007,13 @@ export default function ProductForm({
       content: (
         <>
           {nameField}
-          {descriptionField}
           {statusField}
+          <OptionalFieldGroup
+            fields={extraTextFields}
+            onRemove={(key) => formik.setFieldValue(key, "")}
+            removeLabel={t("remove-field")}
+            addHint={t("extras-add-hint")}
+          />
         </>
       ),
     },
@@ -1006,17 +1028,15 @@ export default function ProductForm({
       ),
     },
     { key: "economics", title: t("section-economics"), content: numbersBlock },
-    {
-      key: "funnel",
-      title: t("section-funnel"),
-      content: (
-        <>
-          {sellingBlock}
-          {notesField}
-        </>
-      ),
-    },
-    { key: "meta", title: t("section-meta"), content: metaField },
+    { key: "funnel", title: t("section-funnel"), content: sellingBlock },
+    // Only when there is something to actually pick (or something already
+    // picked). With no Meta connection on the org this section was a dead
+    // control plus a hint pointing elsewhere — and the maturity-spectrum
+    // invariant (docs/PRODUCT.md #6) says the Meta connection must never be
+    // staged as a prerequisite. Connecting lives in Settings › Connections.
+    ...(connections.length > 0 || formik.values.connectionId
+      ? [{ key: "meta", title: t("section-meta"), content: metaField }]
+      : []),
   ];
 
   // An error the reader never sees is the same as no error at all: in the

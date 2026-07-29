@@ -36,6 +36,7 @@ export default function ProcessingOverlay({
   patienceLabel,
   patienceAfterMs = 25000,
   intervalMs = 3800,
+  delayMs = 400,
 }: {
   open: boolean;
   title: string;
@@ -44,30 +45,41 @@ export default function ProcessingOverlay({
   patienceLabel?: string;
   patienceAfterMs?: number;
   intervalMs?: number;
+  /**
+   * Grace period before blacking out the screen. The same job can be slow on a
+   * heavy page and near-instant on a light one; without this, the fast case
+   * flashes a full-screen backdrop for a few hundred ms, which reads as a
+   * glitch. Work that finishes inside the grace window shows nothing at all.
+   */
+  delayMs?: number;
 }) {
   const [index, setIndex] = useState(0);
   const [patient, setPatient] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setIndex(0);
       setPatient(false);
+      setVisible(false);
       return;
     }
     // Clamp at the final stage: never loop back and imply work restarted.
     const rotate = setInterval(() => setIndex((i) => Math.min(i + 1, stages.length - 1)), intervalMs);
     const patience = setTimeout(() => setPatient(true), patienceAfterMs);
+    const reveal = setTimeout(() => setVisible(true), delayMs);
     return () => {
       clearInterval(rotate);
       clearTimeout(patience);
+      clearTimeout(reveal);
     };
-  }, [open, stages.length, intervalMs, patienceAfterMs]);
+  }, [open, stages.length, intervalMs, patienceAfterMs, delayMs]);
 
   const stage = stages[Math.min(index, stages.length - 1)];
   if (!stage) return null;
 
   return (
-    <Backdrop open={open} className="bg-background/80 z-[1400] backdrop-blur-sm" aria-busy={open}>
+    <Backdrop open={open && visible} className="bg-background/80 z-[1400] backdrop-blur-sm" aria-busy={open && visible}>
       <Box
         role="status"
         aria-live="polite"

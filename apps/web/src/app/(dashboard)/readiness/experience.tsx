@@ -46,6 +46,7 @@ import NiBook from "@/icons/nexture/ni-book";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiScreen from "@/icons/nexture/ni-screen";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
@@ -680,6 +681,22 @@ export function ReadinessExperience({
     return list.filter((s): s is ProcessingStage => s !== null);
   }, [scan?.ok, t]);
 
+  // The REAL steps scanProductSite() performs, in execution order (see
+  // lib/readiness/scan.ts): validate + DNS-resolve the host, fetch the page
+  // following redirects, probe robots.txt/sitemap.xml, parse the HTML, then
+  // settle what the read proved. A page fetch across the open internet is a
+  // 5–15s wait — long enough that a button label alone reads as "broken".
+  const scanStages: ProcessingStage[] = useMemo(
+    () => [
+      { icon: <NiSearch />, label: t("scan-stage-address") },
+      { icon: <NiScreen />, label: t("scan-stage-fetch") },
+      { icon: <NiListCheck />, label: t("scan-stage-discovery") },
+      { icon: <NiPulse />, label: t("scan-stage-parse") },
+      { icon: <NiShieldCheck />, label: t("scan-stage-settle") },
+    ],
+    [t],
+  );
+
   const reVerifyButton = (
     <Button
       variant={reVerifyIsPrimary ? "contained" : "outlined"}
@@ -697,6 +714,17 @@ export function ReadinessExperience({
       {/* Covers both entry points into generation: finishing the guided wizard
           and re-verifying from the result view. */}
       <ProcessingOverlay open={busy} title={t("verifying")} stages={stages} patienceLabel={t("stage-patience")} />
+      {/* Same treatment for the scan: it is foreground work the user asked for,
+          it takes tens of seconds, and its result rewrites the screen — the
+          three conditions that earn a blocking overlay (.claude/rules/app-ux.md).
+          `scanning` is owned here, so all three entry points (wizard step, the
+          checklist's "Verificar agora", the review modal) get it at once. */}
+      <ProcessingOverlay
+        open={scanning}
+        title={t("verifying-now")}
+        stages={scanStages}
+        patienceLabel={t("scan-stage-patience")}
+      />
       <VerifiedCelebration open={celebrateOpen} items={justVerified} onClose={() => setCelebrateOpen(false)} />
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12} spacing={2.5} container className="items-center">
