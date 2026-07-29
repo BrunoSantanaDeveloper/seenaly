@@ -27,12 +27,19 @@ backups e Organic Growth inteiros não existem no Supabase).
    npm run db:seed-plans -- --org=613988dd-7aec-42dc-ae94-bb62210e39a8 --to=pro --credits=500
    ```
 
-4. Tornar-se superadmin (uma vez, no SQL editor do Supabase):
+4. Tornar-se superadmin — **o PRIMEIRO** sai no SQL editor do Supabase (a
+   migration 0035 tira essa coluna das mãos do cliente: nenhuma sessão do
+   navegador consegue mais gravá-la, nem na própria linha):
 
    ```sql
    update public.profiles set is_superadmin = true
    where id = '754aca45-65cc-486f-92cb-13e1ead60670';
    ```
+
+   Do segundo em diante, use o botão **Make superadmin** em
+   `/admin/organizations` → aba Users (server action com service role,
+   auditada; não dá para mexer na própria conta, para ninguém se trancar
+   fora). Precisa de `SUPABASE_SERVICE_ROLE_KEY` no ambiente.
 
 ## 2. Billing (mock por enquanto — decisão de 2026-07-16)
 
@@ -59,6 +66,12 @@ jornada morre no "primeiro diagnóstico". Duas alavancas, ambas em `plans.limits
   sem chaves Inngest, o operador roda `npm run db:grant-credits` (idempotente por
   org+mês). Planos `recurring` NÃO recebem crédito por webhook (isso só vale para
   planos `kind=credits`) — é este cron/atalho que os abastece.
+- **Caso a caso (suporte):** `/admin/organizations` → **Manage** na org mostra o
+  saldo e permite ajuste manual (positivo repõe, negativo estorna) e troca de
+  plano — RPCs `admin_grant_credits` / `admin_set_org_plan` da migration 0035,
+  só superadmin, gravadas no ledger como `adjustment` com o operador em
+  `created_by` e auditadas em `audit_events`. Trocar de plano NÃO concede
+  crédito nem tira suspensão: as duas decisões continuam explícitas.
 
 ## 3. E-mail — Resend
 

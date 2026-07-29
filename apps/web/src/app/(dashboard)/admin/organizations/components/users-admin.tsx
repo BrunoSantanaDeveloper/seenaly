@@ -1,9 +1,22 @@
 "use client";
 
-import { listUserAdminInfo, resetUserMfa, setUserBanned, UserAdminInfo } from "../actions";
+import { listUserAdminInfo, resetUserMfa, setUserBanned, setUserSuperadmin, UserAdminInfo } from "../actions";
 import { useCallback, useEffect, useState } from "react";
 
-import { Alert, Box, Button, Chip, FormControl, Input, Tooltip, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Input,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 
 import { RowLine, RowText } from "@/app/(dashboard)/admin/billing/components/catalog-shared";
 import EmptyState from "@/components/product/empty-state";
@@ -34,6 +47,10 @@ export default function UsersAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [selfId, setSelfId] = useState<string | null>(null);
+  // Granting the platform role opens every console and every superadmin RLS
+  // branch — it gets a real dialog that names the consequence, not a switch.
+  const [roleConfirm, setRoleConfirm] = useState<{ row: UserRow; next: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     const supabase = createClient();
@@ -83,6 +100,21 @@ export default function UsersAdmin() {
       setError(result.error);
       return;
     }
+    refresh();
+  };
+
+  const applyRoleChange = async () => {
+    if (!roleConfirm) return;
+    setError(null);
+    setBusy(true);
+    const result = await setUserSuperadmin(roleConfirm.row.id, roleConfirm.next);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      setRoleConfirm(null);
+      return;
+    }
+    setRoleConfirm(null);
     refresh();
   };
 
@@ -159,6 +191,24 @@ export default function UsersAdmin() {
               </Tooltip>
             )}
             {serviceAvailable && row.id !== selfId && (
+              <Tooltip
+                title={
+                  row.isSuperadmin
+                    ? "Remove platform superadmin — the user keeps their organizations, loses every admin console"
+                    : "Grant platform superadmin — full access to every tenant, billing, credits and the audit trail"
+                }
+              >
+                <Button
+                  size="small"
+                  variant="text"
+                  color={row.isSuperadmin ? "error" : "grey"}
+                  onClick={() => setRoleConfirm({ row, next: !row.isSuperadmin })}
+                >
+                  {row.isSuperadmin ? "Revoke superadmin" : "Make superadmin"}
+                </Button>
+              </Tooltip>
+            )}
+            {serviceAvailable && row.id !== selfId && (
               <Tooltip title={banned ? "Lift the platform-wide ban" : "Ban from the whole platform"}>
                 <Button size="small" variant="text" color={banned ? "success" : "error"} onClick={() => toggleBan(row)}>
                   {banned ? "Unban" : "Ban"}
@@ -173,6 +223,30 @@ export default function UsersAdmin() {
           No users match the filter.
         </Typography>
       )}
+
+      <Dialog open={Boolean(roleConfirm)} onClose={() => !busy && setRoleConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{roleConfirm?.next ? "Grant superadmin?" : "Revoke superadmin?"}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" className="text-text-secondary">
+            {roleConfirm?.next
+              ? `${roleConfirm?.row.displayName} will read and write EVERY organization's data — billing, credits, knowledge, the audit trail and the SQL insights console — and can grant the role to others. Only give it to the operations team.`
+              : `${roleConfirm?.row.displayName} loses every admin console. Their own organizations and data are untouched.`}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" color="grey" onClick={() => setRoleConfirm(null)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color={roleConfirm?.next ? "primary" : "error"}
+            onClick={applyRoleChange}
+            disabled={busy}
+          >
+            {roleConfirm?.next ? "Grant superadmin" : "Revoke superadmin"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

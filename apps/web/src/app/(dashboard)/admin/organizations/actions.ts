@@ -88,6 +88,32 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<Ad
 }
 
 /**
+ * Grant or revoke the platform superadmin role.
+ *
+ * Migration 0035 locks `profiles.is_superadmin` away from the `authenticated`
+ * role (column privileges + trigger), so this service-role path is the only
+ * in-app way to assign it — that is the point: the role can no longer be
+ * self-assigned from a browser session.
+ */
+export async function setUserSuperadmin(userId: string, value: boolean): Promise<AdminActionResult<null>> {
+  const { userId: callerId, allowed } = await isCallerSuperadmin();
+  if (!allowed) return { ok: false, error: "forbidden" };
+  if (!isServiceConfigured()) return { ok: false, error: "not-configured" };
+  // Self-demotion is how an operator locks themselves out of every console;
+  // another superadmin (or SQL) has to do it.
+  if (userId === callerId) return { ok: false, error: "You cannot change your own superadmin status." };
+
+  const service = createServiceClient();
+  const { error } = await service.from("profiles").update({ is_superadmin: value }).eq("id", userId);
+  if (error) return { ok: false, error: error.message };
+  await recordAudit(await createClient(), value ? "admin.user.superadmin_granted" : "admin.user.superadmin_revoked", {
+    entityType: "user",
+    entityId: userId,
+  });
+  return { ok: true, data: null };
+}
+
+/**
  * Remove every MFA factor from a user's account — the recovery path when
  * someone loses their authenticator and is locked out at the 2FA step-up.
  * The user can sign in with password alone afterwards and re-enroll.
