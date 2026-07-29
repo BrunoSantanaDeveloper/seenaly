@@ -68,10 +68,17 @@ jornada morre no "primeiro diagnóstico". Duas alavancas, ambas em `plans.limits
   planos `kind=credits`) — é este cron/atalho que os abastece.
 - **Caso a caso (suporte):** `/admin/organizations` → **Manage** na org mostra o
   saldo e permite ajuste manual (positivo repõe, negativo estorna) e troca de
-  plano — RPCs `admin_grant_credits` / `admin_set_org_plan` da migration 0035,
-  só superadmin, gravadas no ledger como `adjustment` com o operador em
-  `created_by` e auditadas em `audit_events`. Trocar de plano NÃO concede
-  crédito nem tira suspensão: as duas decisões continuam explícitas.
+  plano — RPCs `admin_grant_credits` / `admin_set_org_plan`, só superadmin,
+  auditadas em `audit_events`; o ajuste manual entra no ledger como
+  `adjustment` com o operador em `created_by`.
+- **Troca de plano JÁ entrega a franquia do mês** (migration 0036): mover uma
+  org para Pro/Scale concede `limits.credits_monthly` na hora, usando a MESMA
+  chave de idempotência do cron (`'Créditos mensais do plano — YYYY-MM'`,
+  mês em America/Sao_Paulo) — quem chegar primeiro concede, os outros pulam,
+  então nunca há concessão dupla. Se a org trocou de plano depois que o grant
+  do mês já rodou, o botão **Grant this month's plan credits** (bloco Credits)
+  libera a franquia sem mexer no plano. Suspensa ou inativa não recebe, e
+  trocar de plano continua NÃO levantando suspensão.
 
 ## 3. E-mail — Resend
 

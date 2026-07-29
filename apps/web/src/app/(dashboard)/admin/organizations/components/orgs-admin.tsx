@@ -25,6 +25,15 @@ type MemberRow = { userId: string; role: string; displayName: string; joinedAt: 
 
 type PlanOption = { id: string; name: string; isActive: boolean };
 
+/** What admin_grant_monthly_credits / admin_set_org_plan report back (migration 0036). */
+type MonthlyGrant = {
+  granted: boolean;
+  reason: string | null;
+  amount?: number;
+  month: string;
+  balance: number;
+};
+
 const STATUS_COLOR: Record<string, "success" | "warning" | "error" | "default"> = {
   active: "success",
   trialing: "warning",
@@ -211,7 +220,25 @@ export default function OrgsAdmin() {
     refresh();
   };
 
-  /** Move the org onto another plan. Credits are NOT granted here — that stays an explicit decision. */
+  /** Reads the jsonb the credit RPCs return into one line the operator can act on. */
+  const describeGrant = (result: MonthlyGrant | null | undefined) => {
+    if (!result) return "";
+    if (result.granted) return `${result.amount} credits granted for ${result.month} · balance ${result.balance}.`;
+    const why: Record<string, string> = {
+      already_granted: `this month's ${result.amount ?? "plan"} credits were already granted (${result.month})`,
+      no_monthly_credits: "the plan defines no monthly credits",
+      suspended: "the subscription is suspended",
+      inactive: "the subscription is not active",
+      no_subscription: "the org has no live subscription",
+    };
+    return `No credits granted — ${why[result.reason ?? ""] ?? result.reason}. Balance ${result.balance}.`;
+  };
+
+  /**
+   * Move the org onto another plan. The RPC settles the new plan's monthly
+   * allowance in the same call, sharing the cron's one-grant-per-month key, so
+   * a paid tenant never sits on the leftovers of their old plan.
+   */
   const applyPlan = async (org: OrgRow) => {
     const planId = planChoice[org.id];
     if (!planId || planId === org.liveSub?.planId) return;
@@ -228,16 +255,40 @@ export default function OrgsAdmin() {
       setError(rpcError.message);
       return;
     }
+    const result = data as { subscription_id: string; credits: MonthlyGrant } | null;
     const planName = plans.find((plan) => plan.id === planId)?.name ?? "plan";
     recordAudit(supabase, "admin.org.plan_changed", {
       orgId: org.id,
       entityType: "subscription",
-      entityId: (data as string) ?? undefined,
-      metadata: { org: org.name, from: org.liveSub?.planName ?? null, to: planName },
+      entityId: result?.subscription_id,
+      metadata: { org: org.name, from: org.liveSub?.planName ?? null, to: planName, credits: result?.credits },
     });
-    setNotice(
-      `${org.name} moved to ${planName}. Credits were not granted — top the balance up below if the plan owes any.`,
-    );
+    setNotice(`${org.name} moved to ${planName}. ${describeGrant(result?.credits)}`);
+    refresh();
+  };
+
+  /** Settle the current month's plan allowance without touching the plan (repair path). */
+  const grantMonthly = async (org: OrgRow) => {
+    setError(null);
+    setNotice(null);
+    setBusyOrg(org.id);
+    const supabase = createClient();
+    const { data, error: rpcError } = await supabase.rpc("admin_grant_monthly_credits", { target_org: org.id });
+    setBusyOrg(null);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    const result = data as MonthlyGrant | null;
+    if (result?.granted) {
+      recordAudit(supabase, "admin.org.monthly_credits_granted", {
+        orgId: org.id,
+        entityType: "organization",
+        entityId: org.id,
+        metadata: { org: org.name, amount: result.amount, month: result.month },
+      });
+    }
+    setNotice(`${org.name}: ${describeGrant(result)}`);
     refresh();
   };
 
@@ -355,10 +406,22 @@ export default function OrgsAdmin() {
                     >
                       Apply adjustment
                     </Button>
+                    <Tooltip title="Release this month's plan allowance — same one-per-month key the cron uses, so it can never double-grant">
+                      <Button
+                        size="small"
+                        variant="text"
+                        color="grey"
+                        disabled={busyOrg === org.id}
+                        onClick={() => grantMonthly(org)}
+                      >
+                        Grant this month&apos;s plan credits
+                      </Button>
+                    </Tooltip>
                   </Box>
                   <Typography variant="body2" className="text-text-secondary">
                     Balance {balance}. A positive amount tops the org up, a negative one claws credits back; the ledger
-                    records it as an adjustment made by you.
+                    records it as an adjustment made by you. Use the plan allowance button when an org changed plan
+                    after this month&apos;s grant already ran.
                   </Typography>
                 </Box>
 
@@ -387,8 +450,9 @@ export default function OrgsAdmin() {
                     </Button>
                   </Box>
                   <Typography variant="body2" className="text-text-secondary">
-                    Changes the live subscription (or creates one). It grants no credits and never lifts a suspension —
-                    both stay explicit decisions.
+                    Changes the live subscription (or creates one) and settles the new plan&apos;s monthly credits for
+                    the current month — once, sharing the cron&apos;s key. It never lifts a suspension: paying for a
+                    plan and having access restored are separate decisions.
                   </Typography>
                 </Box>
 
