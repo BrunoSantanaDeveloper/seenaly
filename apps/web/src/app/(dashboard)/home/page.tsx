@@ -6,9 +6,24 @@ import type { ProductWithChildren } from "../products/types";
 import { useOrganization } from "../settings/organization/components/use-organization";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Alert, Box, Button, Card, CardContent, Chip, Grid, LinearProgress, Skeleton, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  FormControl,
+  Grid,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Skeleton,
+  Typography,
+} from "@mui/material";
 
 import ActivationChecklist from "@/components/activation/activation-checklist";
 import { TONE, type Tone } from "@/components/marketing/tone";
@@ -29,20 +44,11 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@flyee/auth/client";
 
 /**
- * Seenaly's home — the post-login landing (DEFAULTS.appRoot).
+ * Seenaly's post-login decision surface.
  *
- * Who: an org member, most often a solo operator. Job: "what do I do now?"
- * Success: they leave with ONE clear next action AND a mental map of the path.
- *
- * Deliberately NOT a metrics dashboard: it answers a question with real state
- * (context health, data status, journey progress) instead of decorating fake
- * numbers. Zero-data views are EmptyStates, never blanks.
- *
- * Color carries meaning here (not decoration): every pillar owns one harmonic
- * hue from the shared tone system, so the home reads as a colored map rather
- * than a wall of primary. The activation checklist still owns the single
- * completion-drive ring; the journey tiles only reflect real done-state (a ✓),
- * never a competing score.
+ * Job: answer "what should I do next for THIS product?". With multiple
+ * products, the scope is explicit and persisted; no recommendation is ever
+ * derived from a silently chosen "most recently updated" row.
  */
 
 type ConnectionRow = { id: string; name: string; status: string; last_synced_at: string | null };
@@ -59,20 +65,34 @@ const PRODUCT_STATUS_COLOR: Record<string, "default" | "success" | "warning"> = 
   archived: "default",
 };
 
-type Progress = { hasReadiness: boolean; hasDiagnosis: boolean; hasExperiment: boolean };
-
-/** The single recommended action, derived from the real journey order. */
-type NextKey = "product" | "readiness" | "diagnosis" | "experiments" | "iterate";
-
-const NEXT_CONFIG: Record<NextKey, { tone: Tone; icon: React.ReactNode; href: string }> = {
-  product: { tone: "primary", icon: <NiTag aria-hidden />, href: "/products/new" },
-  readiness: { tone: "accent-4", icon: <NiShieldCheck aria-hidden />, href: "/readiness" },
-  diagnosis: { tone: "accent-1", icon: <NiPulse aria-hidden />, href: "/diagnosis" },
-  experiments: { tone: "accent-3", icon: <NiFlask aria-hidden />, href: "/experiments" },
-  iterate: { tone: "primary", icon: <NiSparkle aria-hidden />, href: "/diagnosis" },
+type Progress = {
+  hasReadiness: boolean;
+  hasCreativePlan: boolean;
+  creativeCount: number;
+  hasDiagnosis: boolean;
+  hasExperiment: boolean;
 };
 
-/** Literal class strings so Tailwind's JIT keeps each gradient variant. */
+const EMPTY_PROGRESS: Progress = {
+  hasReadiness: false,
+  hasCreativePlan: false,
+  creativeCount: 0,
+  hasDiagnosis: false,
+  hasExperiment: false,
+};
+
+type NextKey = "product" | "context" | "readiness" | "creative-plan" | "diagnosis" | "experiments" | "iterate";
+
+const NEXT_CONFIG: Record<NextKey, { tone: Tone; icon: React.ReactNode }> = {
+  product: { tone: "primary", icon: <NiTag aria-hidden /> },
+  context: { tone: "primary", icon: <NiTag aria-hidden /> },
+  readiness: { tone: "accent-4", icon: <NiShieldCheck aria-hidden /> },
+  "creative-plan": { tone: "accent-1", icon: <NiCamera aria-hidden /> },
+  diagnosis: { tone: "accent-1", icon: <NiPulse aria-hidden /> },
+  experiments: { tone: "accent-3", icon: <NiFlask aria-hidden /> },
+  iterate: { tone: "primary", icon: <NiSparkle aria-hidden /> },
+};
+
 const HERO_GRADIENT: Record<Tone, string> = {
   primary: "from-primary/15 to-accent-3/10",
   secondary: "from-secondary/15 to-accent-1/10",
@@ -86,157 +106,325 @@ export default function HomePage() {
   const t = useTranslations("home");
   const tp = useTranslations("products");
   const tc = useTranslations("connections");
-  const tw = useTranslations("workspace");
   const td = useTranslations("dashboard");
   const tcm = useTranslations("productCommon");
   const { configured, loading, loadError, userId, orgs, currentOrg } = useOrganization();
 
-  const [product, setProduct] = useState<ProductWithChildren | null>(null);
+  const [products, setProducts] = useState<ProductWithChildren[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionRow | null>(null);
-  const [progress, setProgress] = useState<Progress>({
-    hasReadiness: false,
-    hasDiagnosis: false,
-    hasExperiment: false,
-  });
-  const [loaded, setLoaded] = useState(false);
+  const [hasCampaignData, setHasCampaignData] = useState(false);
+  const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [selectedProductLoaded, setSelectedProductLoaded] = useState(false);
   const [dataLoadError, setDataLoadError] = useState(false);
+  const selectedLoadRequest = useRef(0);
 
-  const load = useCallback(async () => {
+  const resetSelectedState = useCallback(() => {
+    setConnection(null);
+    setHasCampaignData(false);
+    setProgress(EMPTY_PROGRESS);
+  }, []);
+
+  const loadProducts = useCallback(async () => {
     if (!currentOrg) return;
+    selectedLoadRequest.current += 1;
+    setProductsLoaded(false);
+    setSelectedProductLoaded(false);
     setDataLoadError(false);
-    const supabase = createClient();
-    const [{ data: row, error: prodErr }, { data: conn, error: connErr }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("*, product_objections(content), product_proofs(kind, content)")
-        .eq("org_id", currentOrg.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("connections")
-        .select("id, name, status, last_synced_at")
-        .eq("org_id", currentOrg.id)
-        .eq("provider", "meta-ads")
-        .order("created_at")
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    setProducts([]);
+    setSelectedProductId(null);
+    resetSelectedState();
 
-    // A failed fetch must read as an error with retry — never as "no product".
-    if (prodErr || connErr) {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, product_objections(content), product_proofs(kind, content)")
+      .eq("org_id", currentOrg.id)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
       setDataLoadError(true);
-      setLoaded(true);
+      setProductsLoaded(true);
+      setSelectedProductLoaded(true);
       return;
     }
 
-    const mapped = row
-      ? mapProductRow(row, {
-          objections: (row.product_objections as { content: string }[]) ?? [],
-          proofs: (row.product_proofs as { kind: string | null; content: string }[]) ?? [],
-        })
-      : null;
-    setProduct(mapped);
-    setConnection((conn as ConnectionRow) ?? null);
+    const mapped = ((data ?? []) as Record<string, unknown>[]).map((row) =>
+      mapProductRow(row, {
+        objections: (row.product_objections as { content: string }[]) ?? [],
+        proofs: (row.product_proofs as { kind: string | null; content: string }[]) ?? [],
+      }),
+    );
+    const storedProductId = window.localStorage.getItem(`seenaly:last-product:${currentOrg.id}`);
+    const selected =
+      mapped.length === 1
+        ? mapped[0].id
+        : storedProductId && mapped.some((item) => item.id === storedProductId)
+          ? storedProductId
+          : null;
 
-    if (mapped) {
-      const [readiness, diagnosis, experiments] = await Promise.all([
+    setProducts(mapped);
+    setSelectedProductId(selected);
+    setProductsLoaded(true);
+    if (!selected) setSelectedProductLoaded(true);
+  }, [currentOrg, resetSelectedState]);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  const product = useMemo(
+    () => products.find((item) => item.id === selectedProductId) ?? null,
+    [products, selectedProductId],
+  );
+
+  const loadSelectedProduct = useCallback(
+    async (selected: ProductWithChildren) => {
+      const request = ++selectedLoadRequest.current;
+      setSelectedProductLoaded(false);
+      setDataLoadError(false);
+      resetSelectedState();
+
+      const supabase = createClient();
+      const [readiness, creativePlan, creatives, diagnoses, experiments] = await Promise.all([
         supabase
           .from("diagnoses")
           .select("id", { count: "exact", head: true })
-          .eq("product_id", mapped.id)
+          .eq("product_id", selected.id)
           .eq("scope", "readiness"),
         supabase
           .from("diagnoses")
           .select("id", { count: "exact", head: true })
-          .eq("product_id", mapped.id)
-          .neq("scope", "readiness"),
-        supabase.from("experiments").select("id", { count: "exact", head: true }).eq("product_id", mapped.id),
+          .eq("product_id", selected.id)
+          .eq("scope", "creative_plan"),
+        supabase.from("creatives").select("id", { count: "exact", head: true }).eq("product_id", selected.id),
+        supabase.from("diagnoses").select("id").eq("product_id", selected.id).in("scope", ["product", "campaign"]),
+        supabase
+          .from("experiments")
+          .select("diagnosis_id")
+          .eq("product_id", selected.id)
+          .not("diagnosis_id", "is", null),
       ]);
-      if (readiness.error || diagnosis.error || experiments.error) {
+
+      let linkedConnection: ConnectionRow | null = null;
+      let campaignDataCount = 0;
+      let connectionError = null;
+      let campaignDataError = null;
+      if (selected.connectionId) {
+        const [connectionResult, campaignDataResult] = await Promise.all([
+          supabase
+            .from("connections")
+            .select("id, name, status, last_synced_at")
+            .eq("id", selected.connectionId)
+            .eq("provider", "meta-ads")
+            .maybeSingle(),
+          supabase
+            .from("meta_insights_daily")
+            .select("id", { count: "exact", head: true })
+            .eq("connection_id", selected.connectionId),
+        ]);
+        linkedConnection = (connectionResult.data as ConnectionRow | null) ?? null;
+        campaignDataCount = campaignDataResult.count ?? 0;
+        connectionError = connectionResult.error;
+        campaignDataError = campaignDataResult.error;
+      }
+
+      if (request !== selectedLoadRequest.current) return;
+      if (
+        readiness.error ||
+        creativePlan.error ||
+        creatives.error ||
+        diagnoses.error ||
+        experiments.error ||
+        connectionError ||
+        campaignDataError
+      ) {
         setDataLoadError(true);
-        setLoaded(true);
+        setSelectedProductLoaded(true);
         return;
       }
+
+      const paidDiagnosisIds = new Set((diagnoses.data ?? []).map((row) => row.id));
+      setConnection(linkedConnection);
+      setHasCampaignData(
+        linkedConnection?.status === "connected" && Boolean(linkedConnection.last_synced_at) && campaignDataCount > 0,
+      );
       setProgress({
         hasReadiness: (readiness.count ?? 0) > 0,
-        hasDiagnosis: (diagnosis.count ?? 0) > 0,
-        hasExperiment: (experiments.count ?? 0) > 0,
+        hasCreativePlan: (creativePlan.count ?? 0) > 0,
+        creativeCount: creatives.count ?? 0,
+        hasDiagnosis: paidDiagnosisIds.size > 0,
+        hasExperiment: (experiments.data ?? []).some(
+          (experiment) => experiment.diagnosis_id && paidDiagnosisIds.has(experiment.diagnosis_id),
+        ),
       });
-    } else {
-      setProgress({ hasReadiness: false, hasDiagnosis: false, hasExperiment: false });
-    }
-
-    setLoaded(true);
-  }, [currentOrg]);
+      setSelectedProductLoaded(true);
+    },
+    [resetSelectedState],
+  );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!productsLoaded) return;
+    if (!product) {
+      selectedLoadRequest.current += 1;
+      resetSelectedState();
+      setSelectedProductLoaded(true);
+      return;
+    }
+    void loadSelectedProduct(product);
+  }, [loadSelectedProduct, product, productsLoaded, resetSelectedState]);
+
+  const handleProductChange = (productId: string) => {
+    if (!currentOrg) return;
+    window.localStorage.setItem(`seenaly:last-product:${currentOrg.id}`, productId);
+    setSelectedProductId(productId);
+  };
 
   const completeness = product ? computeCompleteness(product) : null;
-  const hasData = Boolean(connection);
+  const loaded = productsLoaded && selectedProductLoaded;
+  const selectionRequired = productsLoaded && products.length > 1 && !product;
+  const hasCreativeEvidence = progress.hasCreativePlan || progress.creativeCount > 0;
 
-  // Exactly one recommended action, following the journey order in docs/PRODUCT.md.
   const nextKey: NextKey = !product
     ? "product"
-    : !progress.hasReadiness
-      ? "readiness"
-      : !progress.hasDiagnosis
-        ? "diagnosis"
-        : !progress.hasExperiment
-          ? "experiments"
-          : "iterate";
+    : !completeness?.ready
+      ? "context"
+      : !progress.hasReadiness
+        ? "readiness"
+        : !hasCreativeEvidence
+          ? "creative-plan"
+          : !progress.hasDiagnosis
+            ? "diagnosis"
+            : !progress.hasExperiment
+              ? "experiments"
+              : "iterate";
   const next = NEXT_CONFIG[nextKey];
+  const nextHref =
+    nextKey === "product"
+      ? "/products/new"
+      : nextKey === "context"
+        ? `/products/${product!.id}`
+        : nextKey === "creative-plan"
+          ? `/products/${product!.id}/creatives`
+          : nextKey === "iterate"
+            ? `/products/${product!.id}/diagnosis`
+            : `/products/${product!.id}/${nextKey}`;
 
-  // The colored product map — each pillar keeps one hue across the whole app.
-  const journey: { id: string; tone: Tone; icon: React.ReactNode; href: string; done?: boolean; optional?: boolean }[] =
-    [
-      { id: "context", tone: "primary", icon: <NiTag aria-hidden />, href: "/products", done: Boolean(product) },
-      {
-        id: "readiness",
-        tone: "accent-4",
-        icon: <NiShieldCheck aria-hidden />,
-        href: "/readiness",
-        done: progress.hasReadiness,
-      },
-      {
-        id: "data",
-        tone: "accent-2",
-        icon: <NiDatabase aria-hidden />,
-        href: "/settings/connections",
-        done: hasData,
-        optional: true,
-      },
-      {
-        id: "diagnosis",
-        tone: "accent-1",
-        icon: <NiPulse aria-hidden />,
-        href: "/diagnosis",
-        done: progress.hasDiagnosis,
-      },
-      {
-        id: "experiments",
-        tone: "accent-3",
-        icon: <NiFlask aria-hidden />,
-        href: "/experiments",
-        done: progress.hasExperiment,
-      },
-      { id: "creatives", tone: "accent-1", icon: <NiCamera aria-hidden />, href: "/creatives" },
-      { id: "funnel", tone: "accent-4", icon: <NiChartFunnel aria-hidden />, href: "/funnel" },
-      { id: "organic", tone: "secondary", icon: <NiTrendUp aria-hidden />, href: "/library", optional: true },
-    ];
+  const journey = product
+    ? [
+        {
+          id: "context",
+          tone: "primary" as Tone,
+          icon: <NiTag aria-hidden />,
+          href: `/products/${product.id}`,
+          done: Boolean(completeness?.ready),
+        },
+        {
+          id: "readiness",
+          tone: "accent-4" as Tone,
+          icon: <NiShieldCheck aria-hidden />,
+          href: `/products/${product.id}/readiness`,
+          done: progress.hasReadiness,
+        },
+        {
+          id: "creative-plan",
+          tone: "accent-1" as Tone,
+          icon: <NiCamera aria-hidden />,
+          href: `/products/${product.id}/creatives`,
+          done: hasCreativeEvidence,
+        },
+        {
+          id: "diagnosis",
+          tone: "accent-1" as Tone,
+          icon: <NiPulse aria-hidden />,
+          href: `/products/${product.id}/diagnosis`,
+          done: progress.hasDiagnosis,
+        },
+        {
+          id: "experiments",
+          tone: "accent-3" as Tone,
+          icon: <NiFlask aria-hidden />,
+          href: `/products/${product.id}/experiments`,
+          done: progress.hasExperiment,
+        },
+      ]
+    : [];
+
+  const resources = product
+    ? [
+        {
+          id: "data",
+          icon: <NiDatabase size="small" aria-hidden />,
+          href: product.connectionId ? "/settings/connections" : `/products/${product.id}`,
+          ready: hasCampaignData,
+          optional: true,
+        },
+        {
+          id: "creatives",
+          icon: <NiCamera size="small" aria-hidden />,
+          href: `/products/${product.id}/creatives`,
+          ready: progress.creativeCount > 0,
+          optional: false,
+        },
+        {
+          id: "funnel",
+          icon: <NiChartFunnel size="small" aria-hidden />,
+          href: `/products/${product.id}/funnel`,
+          ready: false,
+          optional: false,
+        },
+        {
+          id: "organic",
+          icon: <NiTrendUp size="small" aria-hidden />,
+          href: `/products/${product.id}/organic`,
+          ready: false,
+          optional: true,
+        },
+      ]
+    : [];
+
+  const subtitle = product
+    ? t("subtitle-product", { product: product.name })
+    : productsLoaded && products.length > 1
+      ? t("subtitle-portfolio")
+      : t("subtitle");
 
   return (
     <Grid container spacing={5} className="items-start">
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12}>
-          <Typography variant="h1" component="h1" className="mb-1">
-            {t("title")}
-          </Typography>
-          <Typography variant="body1" className="text-text-secondary max-w-2xl">
-            {t("subtitle")}
-          </Typography>
+          <Box className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <Box>
+              <Typography variant="h1" component="h1" className="mb-1">
+                {t("title")}
+              </Typography>
+              <Typography variant="body1" className="text-text-secondary max-w-2xl">
+                {subtitle}
+              </Typography>
+            </Box>
+
+            {productsLoaded && products.length > 1 && (
+              <FormControl size="small" className="w-full md:w-72">
+                <InputLabel id="home-product-label">{t("product-selector-label")}</InputLabel>
+                <Select
+                  labelId="home-product-label"
+                  value={selectedProductId ?? ""}
+                  label={t("product-selector-label")}
+                  onChange={(event) => handleProductChange(event.target.value)}
+                >
+                  <MenuItem value="" disabled>
+                    {t("product-selector-placeholder")}
+                  </MenuItem>
+                  {products.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+          </Box>
         </Grid>
 
         {!configured && (
@@ -263,25 +451,9 @@ export default function HomePage() {
           </Grid>
         )}
 
-        {/* While memberships resolve, hold the space — never a blank screen. */}
         {configured && loading && (
           <Grid size={12}>
             <Skeleton variant="rounded" height={140} />
-          </Grid>
-        )}
-
-        {/* The path to value. Renders its own slot, or nothing once complete. */}
-        {currentOrg && userId && <ActivationChecklist orgId={currentOrg.id} userId={userId} />}
-
-        {/* A failed data load is an error with retry, not an empty home. */}
-        {currentOrg && dataLoadError && (
-          <Grid size={12}>
-            <LoadErrorState
-              title={tcm("load-error-title")}
-              description={tcm("load-error-body")}
-              retryLabel={tcm("retry")}
-              onRetry={load}
-            />
           </Grid>
         )}
 
@@ -299,8 +471,49 @@ export default function HomePage() {
           </>
         )}
 
-        {/* ---- Spotlight: the ONE next action, dynamic on real progress. ---- */}
-        {currentOrg && loaded && !dataLoadError && (
+        {currentOrg && loaded && selectionRequired && (
+          <Grid size={12}>
+            <Card component="section">
+              <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-14 w-14 items-center justify-center rounded-2xl">
+                  <NiTag size="medium" aria-hidden />
+                </span>
+                <Typography variant="h4" component="h2">
+                  {t("choose-product-title")}
+                </Typography>
+                <Typography variant="body1" className="text-text-secondary max-w-xl">
+                  {t("choose-product-body", { count: products.length })}
+                </Typography>
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("choose-product-hint")}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {currentOrg && product && userId && loaded && !dataLoadError && (
+          <ActivationChecklist
+            key={product.id}
+            orgId={currentOrg.id}
+            userId={userId}
+            productId={product.id}
+            productName={product.name}
+          />
+        )}
+
+        {currentOrg && dataLoadError && (
+          <Grid size={12}>
+            <LoadErrorState
+              title={tcm("load-error-title")}
+              description={tcm("load-error-body")}
+              retryLabel={tcm("retry")}
+              onRetry={() => (product ? void loadSelectedProduct(product) : void loadProducts())}
+            />
+          </Grid>
+        )}
+
+        {currentOrg && loaded && !dataLoadError && !selectionRequired && (
           <Grid size={12}>
             <Card component="section" className="relative isolate overflow-hidden">
               <div
@@ -328,7 +541,7 @@ export default function HomePage() {
                 </span>
                 <Box className="grow">
                   <Typography variant="body2" className="text-text-secondary mb-0.5 tracking-wide uppercase">
-                    {t("next-eyebrow")}
+                    {product ? t("next-eyebrow-product", { product: product.name }) : t("next-eyebrow")}
                   </Typography>
                   <Typography variant="h4" component="h2" className="mb-1">
                     {t(`next-${nextKey}-title`)}
@@ -339,15 +552,22 @@ export default function HomePage() {
                 </Box>
                 <Box className="flex flex-none flex-col gap-2 sm:items-end">
                   <Button
+                    className="min-h-11!"
                     variant="contained"
                     LinkComponent={Link}
-                    href={next.href}
+                    href={nextHref}
                     endIcon={<NiArrowRight size="small" aria-hidden />}
                   >
                     {t(`next-${nextKey}-cta`)}
                   </Button>
                   {product && (
-                    <Button variant="text" color="grey" LinkComponent={Link} href={`/products/${product.id}`}>
+                    <Button
+                      className="min-h-11!"
+                      variant="text"
+                      color="grey"
+                      LinkComponent={Link}
+                      href={`/products/${product.id}`}
+                    >
                       {t("next-open-product")}
                     </Button>
                   )}
@@ -357,9 +577,6 @@ export default function HomePage() {
           </Grid>
         )}
 
-        {/* ---- Health cards: richer status than a tile can carry.
-             Only once a product exists — before that the spotlight owns the
-             single "start here" nudge, and two empty invitations would repeat it. ---- */}
         {currentOrg && loaded && !dataLoadError && product && (
           <>
             <Grid size={{ xs: 12, md: 6 }}>
@@ -369,9 +586,11 @@ export default function HomePage() {
                     <span className="bg-primary/10 text-primary-dark dark:text-primary-light flex h-10 w-10 flex-none items-center justify-center rounded-2xl">
                       <NiTag size="small" aria-hidden />
                     </span>
-                    <Typography variant="h5" component="h2" className="card-title mb-0 grow">
-                      {t("context-title")}
-                    </Typography>
+                    <Box className="grow">
+                      <Typography variant="h5" component="h2" className="card-title mb-0">
+                        {t("context-title-product", { product: product.name })}
+                      </Typography>
+                    </Box>
                     <Chip
                       label={tp(`status-${product.status}`)}
                       size="small"
@@ -380,21 +599,27 @@ export default function HomePage() {
                     />
                   </Box>
 
-                  <Typography variant="subtitle1" className="truncate">
-                    {product.name}
-                  </Typography>
-
                   {completeness && (
                     <Box className="flex flex-col gap-1.5">
-                      <Box className="flex flex-row items-center gap-2">
+                      <Box className="flex flex-row flex-wrap items-center gap-2">
                         <Typography variant="body2" className="text-text-secondary grow">
-                          {t("context-completeness")}
+                          {t("context-depth")}
                         </Typography>
-                        <Typography variant="subtitle2" className="text-primary">
+                        <Typography
+                          variant="subtitle2"
+                          className="text-primary-dark dark:text-primary-light tabular-nums"
+                        >
                           {completeness.score}%
                         </Typography>
                       </Box>
-                      <LinearProgress variant="determinate" value={completeness.score} />
+                      <LinearProgress
+                        variant="determinate"
+                        value={completeness.score}
+                        aria-label={t("context-progress-label", { product: product.name })}
+                      />
+                      <Typography variant="body2" className="text-text-secondary">
+                        {completeness.ready ? t("context-ready") : t("context-needs-essentials")}
+                      </Typography>
                       {completeness.missing.length > 0 && (
                         <Typography variant="body2" className="text-text-secondary">
                           {t("context-next")}: {tp(`field-${completeness.missing[0]}`)}
@@ -404,7 +629,13 @@ export default function HomePage() {
                   )}
 
                   <Box className="mt-auto pt-2">
-                    <Button variant="outlined" color="grey" LinkComponent={Link} href={`/products/${product.id}`}>
+                    <Button
+                      className="min-h-11!"
+                      variant="outlined"
+                      color="grey"
+                      LinkComponent={Link}
+                      href={`/products/${product.id}`}
+                    >
                       {t("context-open")}
                     </Button>
                   </Box>
@@ -416,9 +647,13 @@ export default function HomePage() {
               {!connection ? (
                 <EmptyState
                   icon={<NiDatabase />}
-                  title={t("meta-empty-title")}
-                  description={t("meta-empty-body")}
-                  action={{ label: t("meta-connect"), href: "/settings/connections" }}
+                  title={t("meta-empty-title-product", { product: product.name })}
+                  description={t("meta-empty-body-product")}
+                  action={{
+                    label: t("meta-link"),
+                    href: `/products/${product.id}`,
+                    variant: "outlined",
+                  }}
                   className="h-full"
                 />
               ) : (
@@ -429,7 +664,7 @@ export default function HomePage() {
                         <NiDatabase size="small" aria-hidden />
                       </span>
                       <Typography variant="h5" component="h2" className="card-title mb-0 grow">
-                        {t("meta-title")}
+                        {t("meta-title-product", { product: product.name })}
                       </Typography>
                       <Chip
                         label={tc(`status-${connection.status}`)}
@@ -442,7 +677,13 @@ export default function HomePage() {
                     <Typography variant="subtitle1" className="truncate">
                       {connection.name}
                     </Typography>
-
+                    <Typography variant="body2" className="text-text-secondary">
+                      {hasCampaignData
+                        ? t("meta-data-ready")
+                        : connection.status === "connected"
+                          ? t("meta-linked-no-data")
+                          : t("meta-linked-unavailable")}
+                    </Typography>
                     <Typography variant="body2" className="text-text-secondary">
                       {connection.last_synced_at
                         ? t("meta-synced-at", { when: new Date(connection.last_synced_at).toLocaleString() })
@@ -450,7 +691,13 @@ export default function HomePage() {
                     </Typography>
 
                     <Box className="mt-auto pt-2">
-                      <Button variant="outlined" color="grey" LinkComponent={Link} href="/settings/connections">
+                      <Button
+                        className="min-h-11!"
+                        variant="outlined"
+                        color="grey"
+                        LinkComponent={Link}
+                        href="/settings/connections"
+                      >
                         {t("meta-manage")}
                       </Button>
                     </Box>
@@ -458,56 +705,49 @@ export default function HomePage() {
                 </Card>
               )}
             </Grid>
-          </>
-        )}
 
-        {/* ---- The colored journey map: orientation + navigation across every
-             pillar, with honest done-state. Surfaces the paths the home used
-             to hide (experiments, creatives, funnel, organic). ---- */}
-        {currentOrg && loaded && !dataLoadError && (
-          <>
             <Grid size={12} className="mt-2">
               <Typography variant="h5" component="h2" className="card-title mb-0">
-                {t("journey-title")}
+                {t("journey-title-product", { product: product.name })}
               </Typography>
               <Typography variant="body2" className="text-text-secondary max-w-2xl">
-                {t("journey-subtitle")}
+                {t("journey-subtitle-product")}
               </Typography>
             </Grid>
 
             {journey.map((tile) => (
-              <Grid key={tile.id} size={{ xs: 12, sm: 6, xl: 3 }}>
+              <Grid key={tile.id} size={{ xs: 6, sm: 6, xl: "grow" }}>
                 <Card
                   component={Link}
                   href={tile.href}
-                  className="group hover:shadow-darker-sm block h-full no-underline transition-all hover:-translate-y-0.5"
+                  className="group hover:shadow-darker-sm focus-visible:outline-text-primary block h-full no-underline transition-all hover:-translate-y-0.5 focus-visible:outline-3 focus-visible:outline-offset-3"
                 >
-                  <CardContent className="flex h-full flex-col gap-3">
+                  <CardContent className="flex h-full min-h-32 flex-col gap-2 sm:min-h-40">
                     <Box className="flex flex-row items-start justify-between gap-2">
                       <span
                         className={cn(
-                          "flex h-11 w-11 flex-none items-center justify-center rounded-2xl",
+                          "flex h-10 w-10 flex-none items-center justify-center rounded-2xl",
                           TONE[tile.tone].softBg,
                           TONE[tile.tone].text,
                         )}
                       >
                         {tile.icon}
                       </span>
-                      {tile.done ? (
-                        <span className="bg-success/10 text-success inline-flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5">
+                      {tile.done && (
+                        <span className="bg-success/10 text-success-content inline-flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5">
                           <NiCheck size="small" aria-hidden />
-                          <span className="text-xs font-medium tracking-wide uppercase">{t("journey-done")}</span>
+                          <span className="hidden text-xs font-medium tracking-wide uppercase sm:inline">
+                            {t("journey-done")}
+                          </span>
                         </span>
-                      ) : tile.optional ? (
-                        <Chip label={t("journey-optional")} size="small" variant="outlined" color="grey" />
-                      ) : null}
+                      )}
                     </Box>
 
                     <Box className="grow">
                       <Typography variant="subtitle1" component="h3" className="mb-0.5">
-                        {tw(`stage-${tile.id}`)}
+                        {t(`journey-${tile.id}`)}
                       </Typography>
-                      <Typography variant="body2" className="text-text-secondary leading-6">
+                      <Typography variant="body2" className="text-text-secondary hidden leading-5 sm:block">
                         {t(`journey-desc-${tile.id}`)}
                       </Typography>
                     </Box>
@@ -525,6 +765,38 @@ export default function HomePage() {
                 </Card>
               </Grid>
             ))}
+
+            <Grid size={12}>
+              <Card component="section">
+                <CardContent className="flex flex-col gap-3">
+                  <Box>
+                    <Typography variant="h5" component="h2" className="card-title mb-0">
+                      {t("resources-title")}
+                    </Typography>
+                    <Typography variant="body2" className="text-text-secondary">
+                      {t("resources-subtitle")}
+                    </Typography>
+                  </Box>
+                  <Box className="flex flex-row flex-wrap gap-2">
+                    {resources.map((resource) => (
+                      <Button
+                        key={resource.id}
+                        className="min-h-11!"
+                        variant="outlined"
+                        color="grey"
+                        LinkComponent={Link}
+                        href={resource.href}
+                        startIcon={resource.icon}
+                        endIcon={resource.ready ? <NiCheck size="small" aria-hidden /> : undefined}
+                      >
+                        {t(`resource-${resource.id}`)}
+                        {resource.optional ? ` · ${t("journey-optional")}` : ""}
+                      </Button>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           </>
         )}
       </Grid>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Grid } from "@mui/material";
 
@@ -23,87 +23,129 @@ interface LiveState {
   hasProduct: boolean;
   hasDepth: boolean;
   hasReadiness: boolean;
+  hasCreativeEvidence: boolean;
   hasMetaConnection: boolean;
   hasDiagnosis: boolean;
 }
 
+type ActivationProductRow = {
+  id: string;
+  main_promise: string | null;
+  audience: string | null;
+  connection_id: string | null;
+};
+
 /**
- * Seenaly's activation flow: product context -> (optional) Meta Ads -> first
- * diagnosis. Steps are marked done by LIVE product state, so the checklist
- * reflects reality rather than clicks.
- *
- * Maturity-spectrum invariant (docs/PRODUCT.md #6): connecting Meta Ads is
- * `required: false` — it enriches the diagnosis, it never gates value. The
- * required path is context -> diagnosis, which a zero-data beginner can walk.
- *
- * This intentionally supersedes the template's generic onboarding scaffold
- * (`@/lib/onboarding` + OnboardingChecklistCard): that one is user-scoped and
- * click-based, whereas Seenaly's activation is org-scoped and reflects real
- * state. `ONBOARDING_STEPS` is kept empty so the two never both render — see
- * the note in `@/lib/onboarding`.
+ * Live activation path. On the Home it is scoped to the explicitly active
+ * product; on the portfolio it retains the organization-level overview.
  */
-export default function ActivationChecklist({ orgId, userId }: { orgId: string; userId: string }) {
+export default function ActivationChecklist({
+  orgId,
+  userId,
+  productId,
+  productName,
+}: {
+  orgId: string;
+  userId: string;
+  productId?: string;
+  productName?: string;
+}) {
   const t = useTranslations("activation");
   const [state, setState] = useState<OnboardingStateRow>(EMPTY_STATE);
   const [live, setLive] = useState<LiveState | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const flowKey = { userId, orgId, flow: ACTIVATION_FLOW };
+  const flow = productId ? `${ACTIVATION_FLOW}:${productId}` : ACTIVATION_FLOW;
+  const flowKey = useMemo(() => ({ userId, orgId, flow }), [flow, orgId, userId]);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     const supabase = createClient();
+
+    const productsQuery = supabase
+      .from("products")
+      .select("id, main_promise, audience, connection_id")
+      .eq("org_id", orgId);
+    const paidDiagnosesQuery = supabase
+      .from("diagnoses")
+      .select("id", { count: "exact", head: true })
+      .in("scope", ["product", "campaign"]);
+    const readinessQuery = supabase
+      .from("diagnoses")
+      .select("id", { count: "exact", head: true })
+      .eq("scope", "readiness");
+    const creativePlanQuery = supabase
+      .from("diagnoses")
+      .select("id", { count: "exact", head: true })
+      .eq("scope", "creative_plan");
+    const creativesQuery = supabase.from("creatives").select("id", { count: "exact", head: true });
+
     const [
       persisted,
       { data: products, error: productsError },
-      { data: connections, error: connectionsError },
       { count: diagnoses, error: diagnosesError },
       { count: readinessVerdicts, error: readinessError },
+      { count: creativePlans, error: creativePlansError },
+      { count: creatives, error: creativesError },
     ] = await Promise.all([
-      getOnboardingState(supabase, { userId, orgId, flow: ACTIVATION_FLOW }),
-      supabase.from("products").select("id, main_promise, target_cac").eq("org_id", orgId),
-      supabase
+      getOnboardingState(supabase, flowKey),
+      productId ? productsQuery.eq("id", productId) : productsQuery,
+      productId ? paidDiagnosesQuery.eq("product_id", productId) : paidDiagnosesQuery.eq("org_id", orgId),
+      productId ? readinessQuery.eq("product_id", productId) : readinessQuery.eq("org_id", orgId),
+      productId ? creativePlanQuery.eq("product_id", productId) : creativePlanQuery.eq("org_id", orgId),
+      productId ? creativesQuery.eq("product_id", productId) : creativesQuery.eq("org_id", orgId),
+    ]);
+
+    const productRows = (products ?? []) as ActivationProductRow[];
+    let hasMetaConnection = false;
+    let connectionsError = null;
+    if (productId) {
+      const connectionId = productRows[0]?.connection_id;
+      if (connectionId) {
+        const result = await supabase
+          .from("connections")
+          .select("id", { count: "exact", head: true })
+          .eq("id", connectionId)
+          .eq("provider", "meta-ads")
+          .eq("status", "connected");
+        hasMetaConnection = (result.count ?? 0) > 0;
+        connectionsError = result.error;
+      }
+    } else {
+      const result = await supabase
         .from("connections")
-        .select("id")
+        .select("id", { count: "exact", head: true })
         .eq("org_id", orgId)
         .eq("provider", "meta-ads")
-        .eq("status", "connected"),
-      // Readiness verdicts live in the same table (scope = 'readiness') and
-      // must NOT count as the first campaign diagnosis — they are a different
-      // step of the journey.
-      supabase
-        .from("diagnoses")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .neq("scope", "readiness"),
-      supabase
-        .from("diagnoses")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("scope", "readiness"),
-    ]);
-    if (productsError || connectionsError || diagnosesError || readinessError) {
+        .eq("status", "connected");
+      hasMetaConnection = (result.count ?? 0) > 0;
+      connectionsError = result.error;
+    }
+
+    if (productsError || connectionsError || diagnosesError || readinessError || creativePlansError || creativesError) {
       setLoadError(true);
       setRefreshing(false);
       return;
     }
+
     setLoadError(false);
     setState(persisted);
     setLive({
-      hasProduct: (products ?? []).length > 0,
-      // "Enough context to reason with": a promise and a CAC guardrail.
-      hasDepth: (products ?? []).some((p) => p.main_promise && p.target_cac !== null),
+      hasProduct: productRows.length > 0,
+      // Same essential context used by computeCompleteness: promise + audience
+      // (the product name is guaranteed for a persisted product).
+      hasDepth: productRows.some((product) => Boolean(product.main_promise && product.audience)),
       hasReadiness: (readinessVerdicts ?? 0) > 0,
-      hasMetaConnection: (connections ?? []).length > 0,
-      // The activation moment: the org has received a real diagnosis.
+      hasCreativeEvidence: (creativePlans ?? 0) > 0 || (creatives ?? 0) > 0,
+      hasMetaConnection,
       hasDiagnosis: (diagnoses ?? 0) > 0,
     });
     setRefreshing(false);
-  }, [orgId, userId]);
+  }, [flowKey, orgId, productId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const dismiss = async () => {
@@ -126,25 +168,33 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
   }
   if (!live) return null;
 
+  const href = (stage: "context" | "readiness" | "creatives" | "diagnosis") =>
+    productId ? `/products/${productId}${stage === "context" ? "" : `/${stage}`}` : `/${stage}`;
   const steps: OnboardingStep[] = [
-    { key: "product-context", title: t("step-product"), href: "/products/new", done: live.hasProduct },
-    { key: "context-depth", title: t("step-depth"), href: "/products", done: live.hasDepth },
-    // Before paying for traffic: audit the structure. Costs no media budget,
-    // so it belongs ahead of both the Meta connection and the diagnosis.
-    { key: "readiness", title: t("step-readiness"), href: "/readiness", done: live.hasReadiness },
-    { key: "first-diagnosis", title: t("step-diagnosis"), href: "/diagnosis", done: live.hasDiagnosis },
+    {
+      key: "product-context",
+      title: t("step-product"),
+      href: productId ? href("context") : "/products/new",
+      done: live.hasProduct,
+    },
+    { key: "context-depth", title: t("step-depth"), href: href("context"), done: live.hasDepth },
+    { key: "readiness", title: t("step-readiness"), href: href("readiness"), done: live.hasReadiness },
+    {
+      key: "creative-evidence",
+      title: t("step-creative-evidence"),
+      href: href("creatives"),
+      done: live.hasCreativeEvidence,
+    },
+    { key: "first-diagnosis", title: t("step-diagnosis"), href: href("diagnosis"), done: live.hasDiagnosis },
     {
       key: "connect-meta",
       title: t("step-meta"),
-      href: "/settings/connections",
+      href: productId ? href("context") : "/settings/connections",
       done: live.hasMetaConnection,
-      // Never a prerequisite for value — only an enrichment.
       required: false,
     },
   ];
 
-  // Decide visibility here (same rule as OnboardingChecklist) so callers never
-  // wrap a null child in a layout slot and open an empty gap.
   if (state.dismissed || computeProgress(steps, state).complete) return null;
 
   return (
@@ -162,8 +212,8 @@ export default function ActivationChecklist({ orgId, userId }: { orgId: string; 
       )}
       <Grid size={12}>
         <OnboardingChecklist
-          title={t("title")}
-          description={t("description")}
+          title={productName ? t("title-product", { product: productName }) : t("title")}
+          description={productName ? t("description-product") : t("description")}
           dismissLabel={t("dismiss")}
           optionalLabel={t("optional-label")}
           steps={steps}

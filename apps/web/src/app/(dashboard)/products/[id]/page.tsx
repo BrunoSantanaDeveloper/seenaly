@@ -31,6 +31,7 @@ export default function EditProductPage() {
   const [notFound, setNotFound] = useState(false);
   // Drives which next action leads: readiness precedes the campaign diagnosis.
   const [hasReadiness, setHasReadiness] = useState(false);
+  const [hasCreativeEvidence, setHasCreativeEvidence] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -49,6 +50,8 @@ export default function EditProductPage() {
       { data: proofs, error: proofsError },
       { data: plans, error: plansError },
       { count: readinessCount, error: readinessError },
+      { count: creativePlanCount, error: creativePlanError },
+      { count: creativeCount, error: creativesError },
     ] = await Promise.all([
       supabase.from("products").select("*").eq("id", id).maybeSingle(),
       supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
@@ -63,8 +66,22 @@ export default function EditProductPage() {
         .select("id", { count: "exact", head: true })
         .eq("product_id", id)
         .eq("scope", "readiness"),
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", id)
+        .eq("scope", "creative_plan"),
+      supabase.from("creatives").select("id", { count: "exact", head: true }).eq("product_id", id),
     ]);
-    if (productError || objectionsError || proofsError || plansError || readinessError) {
+    if (
+      productError ||
+      objectionsError ||
+      proofsError ||
+      plansError ||
+      readinessError ||
+      creativePlanError ||
+      creativesError
+    ) {
       setLoadError(true);
       setLoading(false);
       return;
@@ -76,6 +93,7 @@ export default function EditProductPage() {
     }
     setLoadError(false);
     setHasReadiness((readinessCount ?? 0) > 0);
+    setHasCreativeEvidence((creativePlanCount ?? 0) > 0 || (creativeCount ?? 0) > 0);
     setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [], plans: plans ?? [] }));
     setLoading(false);
   }, [id]);
@@ -166,6 +184,7 @@ export default function EditProductPage() {
                 ready={completeness!.ready}
                 missing={completeness!.missing}
                 hasReadiness={hasReadiness}
+                hasCreativeEvidence={hasCreativeEvidence}
                 onFieldClick={(field) => setFocusField((prev) => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))}
               />
             </Grid>

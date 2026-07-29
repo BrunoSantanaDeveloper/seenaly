@@ -6,7 +6,13 @@ import { Box, Button, Typography } from "@mui/material";
 
 import { cn } from "@/lib/utils";
 
-type Action = { label: string; href?: string; onClick?: () => void };
+type Action = {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  /** Keep optional/supporting empty states subordinate to the screen's one primary CTA. */
+  variant?: "contained" | "outlined" | "text";
+};
 
 /**
  * An empty state is NEVER a blank screen. It answers three things at a
@@ -31,16 +37,19 @@ export default function EmptyState({
   secondaryAction?: Action;
   className?: string;
 }) {
-  const renderAction = (a: Action, variant: "contained" | "text") =>
-    a.href ? (
-      <Button variant={variant} color={variant === "text" ? "grey" : "primary"} href={a.href} LinkComponent={Link}>
+  const renderAction = (a: Action, fallbackVariant: "contained" | "text") => {
+    const variant = a.variant ?? fallbackVariant;
+    const color = variant === "contained" ? "primary" : "grey";
+    return a.href ? (
+      <Button className="min-h-11!" variant={variant} color={color} href={a.href} LinkComponent={Link}>
         {a.label}
       </Button>
     ) : (
-      <Button variant={variant} color={variant === "text" ? "grey" : "primary"} onClick={a.onClick}>
+      <Button className="min-h-11!" variant={variant} color={color} onClick={a.onClick}>
         {a.label}
       </Button>
     );
+  };
 
   return (
     <Box

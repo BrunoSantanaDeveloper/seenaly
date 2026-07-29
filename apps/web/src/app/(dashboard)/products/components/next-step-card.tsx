@@ -7,8 +7,10 @@ import { useTranslations } from "next-intl";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 
 import { TONE, type Tone } from "@/components/marketing/tone";
+import NiCamera from "@/icons/nexture/ni-camera";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
+import NiTag from "@/icons/nexture/ni-tag";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,16 +23,16 @@ import { cn } from "@/lib/utils";
  * offered as "what would sharpen it" — each item with the reason it matters,
  * never as a score to chase.
  *
- * Which action is "the one" follows the journey in docs/PRODUCT.md phase 7:
- * readiness comes BEFORE the campaign diagnosis. Auditing the structure costs
- * no media budget, so a user who has not done it is sent there first; once a
- * verdict exists, the diagnosis takes over as the primary action.
+ * Which action is "the one" follows the product journey: essential context,
+ * readiness, creative evidence, then diagnosis. This keeps paid hypotheses
+ * downstream from the product structure and organic creative signal.
  */
 export default function ProductNextStepCard({
   productId,
   ready,
   missing,
   hasReadiness,
+  hasCreativeEvidence,
   onFieldClick,
 }: {
   productId: string;
@@ -40,6 +42,8 @@ export default function ProductNextStepCard({
   missing: CompletenessField[];
   /** A readiness verdict already exists for this product. */
   hasReadiness: boolean;
+  /** A creative plan or at least one tagged creative exists for this product. */
+  hasCreativeEvidence: boolean;
   /** Jump to the form section holding this field (opens + scrolls). */
   onFieldClick?: (field: CompletenessField) => void;
 }) {
@@ -50,25 +54,48 @@ export default function ProductNextStepCard({
   // Exactly ONE primary action per state, plus one quiet alternative — no two
   // filled/outlined buttons competing (the paralysis the user reported). New
   // products no longer land here at all; this is the returning-user surface.
-  const primary = hasReadiness
-    ? { href: `/products/${productId}/diagnosis`, icon: <NiPulse size="small" />, label: t("next-step-cta") }
-    : {
-        href: `/products/${productId}/readiness`,
-        icon: <NiShieldCheck size="small" />,
-        label: t("next-step-cta-readiness"),
-      };
-  const secondary = hasReadiness
-    ? {
-        href: `/products/${productId}/readiness`,
-        icon: <NiShieldCheck size="small" />,
-        label: t("next-step-cta-readiness-again"),
-      }
-    : { href: `/products/${productId}/diagnosis`, icon: <NiPulse size="small" />, label: t("next-step-cta") };
+  const stage = !ready ? "context" : !hasReadiness ? "readiness" : !hasCreativeEvidence ? "creative" : "diagnosis";
+  const primary =
+    stage === "context"
+      ? {
+          icon: <NiTag size="small" />,
+          label: t("next-step-context-cta"),
+          onClick: () => suggestions[0] && onFieldClick?.(suggestions[0]),
+        }
+      : stage === "readiness"
+        ? {
+            href: `/products/${productId}/readiness`,
+            icon: <NiShieldCheck size="small" />,
+            label: t("next-step-cta-readiness"),
+          }
+        : stage === "creative"
+          ? {
+              href: `/products/${productId}/creatives`,
+              icon: <NiCamera size="small" />,
+              label: t("next-step-cta-creative"),
+            }
+          : {
+              href: `/products/${productId}/diagnosis`,
+              icon: <NiPulse size="small" />,
+              label: t("next-step-cta"),
+            };
+  const secondary =
+    stage === "diagnosis"
+      ? {
+          href: `/products/${productId}/readiness`,
+          icon: <NiShieldCheck size="small" />,
+          label: t("next-step-cta-readiness-again"),
+        }
+      : {
+          href: `/products/${productId}/diagnosis`,
+          icon: <NiPulse size="small" />,
+          label: t("next-step-cta"),
+        };
 
   // The card wears the hue of the action it leads with — the same colour that
   // pillar carries on the home journey map and in the workspace rail. The CTA
   // button stays primary: colour marks the category, primary marks the action.
-  const headTone: Tone = hasReadiness ? "accent-1" : "accent-4";
+  const headTone: Tone = stage === "context" ? "primary" : stage === "readiness" ? "accent-4" : "accent-1";
 
   return (
     <Card component="section">
@@ -86,32 +113,46 @@ export default function ProductNextStepCard({
                 TONE[headTone].text,
               )}
             >
-              {hasReadiness ? <NiPulse size="medium" aria-hidden /> : <NiShieldCheck size="medium" aria-hidden />}
+              {stage === "context" ? (
+                <NiTag size="medium" aria-hidden />
+              ) : stage === "readiness" ? (
+                <NiShieldCheck size="medium" aria-hidden />
+              ) : stage === "creative" ? (
+                <NiCamera size="medium" aria-hidden />
+              ) : (
+                <NiPulse size="medium" aria-hidden />
+              )}
             </span>
             <Box className="min-w-0">
               <Typography variant="h5" component="h2" className="card-title mb-0">
-                {!hasReadiness
-                  ? t("next-step-title-readiness")
-                  : ready
-                    ? t("next-step-title-ready")
-                    : t("next-step-title-incomplete")}
+                {stage === "context"
+                  ? t("next-step-title-context")
+                  : stage === "readiness"
+                    ? t("next-step-title-readiness")
+                    : stage === "creative"
+                      ? t("next-step-title-creative")
+                      : t("next-step-title-ready")}
               </Typography>
               <Typography variant="body2" className="text-text-secondary">
-                {!hasReadiness
-                  ? t("next-step-body-readiness")
-                  : ready
-                    ? t("next-step-body-ready")
-                    : t("next-step-body-incomplete")}
+                {stage === "context"
+                  ? t("next-step-body-context")
+                  : stage === "readiness"
+                    ? t("next-step-body-readiness")
+                    : stage === "creative"
+                      ? t("next-step-body-creative")
+                      : t("next-step-body-ready")}
               </Typography>
             </Box>
           </Box>
 
           <Box className="flex flex-none flex-row flex-wrap items-center gap-2">
             <Button
+              className="min-h-11!"
               variant="contained"
               color="primary"
-              href={primary.href}
-              LinkComponent={Link}
+              href={"href" in primary ? primary.href : undefined}
+              LinkComponent={"href" in primary ? Link : undefined}
+              onClick={"onClick" in primary ? primary.onClick : undefined}
               startIcon={primary.icon}
             >
               {primary.label}
@@ -121,6 +162,7 @@ export default function ProductNextStepCard({
                 clickable route (the same affordance failure fixed on the
                 readiness disclosure). */}
             <Button
+              className="min-h-11!"
               variant="outlined"
               color="grey"
               href={secondary.href}

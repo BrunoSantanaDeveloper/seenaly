@@ -5,6 +5,12 @@
   /* Root */
   .MuiButtonBase-root {
     @apply font-body font-medium tracking-normal normal-case transition-all;
+
+    &.Mui-focusVisible {
+      outline: 3px solid hsl(var(--text-primary));
+      outline-offset: 3px;
+    }
+
     &.icon-only > span {
       @apply mx-0;
     }

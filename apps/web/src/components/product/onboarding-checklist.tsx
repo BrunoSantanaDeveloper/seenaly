@@ -61,7 +61,7 @@ export default function OnboardingChecklist({
             <ActivationProgress done={progress.done} total={progress.total} />
             {onDismiss && (
               <Button
-                className="icon-only"
+                className="icon-only size-11! min-w-11!"
                 size="small"
                 color="grey"
                 variant="text"
@@ -111,7 +111,9 @@ export default function OnboardingChecklist({
                   {body}
                 </Link>
               ) : (
-                <Box key={step.key}>{body}</Box>
+                <Box key={step.key} className={cn(done && "hidden sm:block")}>
+                  {body}
+                </Box>
               );
             })}
         </Box>

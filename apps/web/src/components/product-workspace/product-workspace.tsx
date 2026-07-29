@@ -54,7 +54,9 @@ export type ProductWorkspaceProduct = {
 };
 
 export type ProductWorkspaceProgress = {
+  hasContext: boolean;
   hasReadiness: boolean;
+  hasCreativeEvidence: boolean;
   hasDiagnosis: boolean;
   hasExperiment: boolean;
   hasData: boolean;
@@ -179,10 +181,11 @@ export default function ProductWorkspace({
       {
         id: "journey",
         items: [
-          { id: "context", icon: <NiTag size="small" />, step: 1, done: true },
+          { id: "context", icon: <NiTag size="small" />, step: 1, done: progress.hasContext },
           { id: "readiness", icon: <NiShieldCheck size="small" />, step: 2, done: progress.hasReadiness },
-          { id: "diagnosis", icon: <NiPulse size="small" />, step: 3, done: progress.hasDiagnosis },
-          { id: "experiments", icon: <NiFlask size="small" />, step: 4, done: progress.hasExperiment },
+          { id: "creatives", icon: <NiCamera size="small" />, step: 3, done: progress.hasCreativeEvidence },
+          { id: "diagnosis", icon: <NiPulse size="small" />, step: 4, done: progress.hasDiagnosis },
+          { id: "experiments", icon: <NiFlask size="small" />, step: 5, done: progress.hasExperiment },
         ],
       },
       {
@@ -194,10 +197,7 @@ export default function ProductWorkspace({
       },
       {
         id: "library",
-        items: [
-          { id: "creatives", icon: <NiCamera size="small" /> },
-          { id: "funnel", icon: <NiChartFunnel size="small" /> },
-        ],
+        items: [{ id: "funnel", icon: <NiChartFunnel size="small" /> }],
       },
     ],
     [progress],
@@ -205,11 +205,15 @@ export default function ProductWorkspace({
 
   const allItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
   const current = allItems.find((item) => item.id === stage) ?? allItems[0];
-  const next = !progress.hasReadiness
-    ? ("readiness" as const)
-    : !progress.hasDiagnosis
-      ? ("diagnosis" as const)
-      : ("experiments" as const);
+  const next = !progress.hasContext
+    ? ("context" as const)
+    : !progress.hasReadiness
+      ? ("readiness" as const)
+      : !progress.hasCreativeEvidence
+        ? ("creatives" as const)
+        : !progress.hasDiagnosis
+          ? ("diagnosis" as const)
+          : ("experiments" as const);
 
   const contextValue = useMemo<ProductWorkspaceContextValue>(
     () => ({ product, products, progress, stage, href, switchProduct }),

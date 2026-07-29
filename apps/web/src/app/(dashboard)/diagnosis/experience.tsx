@@ -124,7 +124,7 @@ export function DiagnosisExperience({
         .from("diagnoses")
         .select("id, output, created_at, had_campaign_data, knowledge_refs")
         .eq("product_id", selectedProductId)
-        .neq("scope", "readiness")
+        .in("scope", ["product", "campaign"])
         .order("created_at", { ascending: false })
         .limit(10),
       // The same snapshot the engine reasoned from, so the card can SHOW the

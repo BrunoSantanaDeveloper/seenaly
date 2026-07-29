@@ -25,7 +25,7 @@ export default async function ProductLayout({
   const { data: product, error } = await supabase
     .from("products")
     .select(
-      "id, org_id, name, status, connection_id, meta_account_id, currency, avg_ticket, margin_pct, target_cac, monthly_budget",
+      "id, org_id, name, status, main_promise, audience, connection_id, currency, avg_ticket, margin_pct, target_cac, monthly_budget",
     )
     .eq("id", id)
     .maybeSingle();
@@ -34,8 +34,10 @@ export default async function ProductLayout({
   const [
     { data: products, error: productsError },
     { count: readiness, error: readinessError },
-    { count: diagnosis, error: diagnosisError },
-    { count: experiments, error: experimentsError },
+    { count: creativePlans, error: creativePlansError },
+    { count: creatives, error: creativesError },
+    { data: diagnoses, error: diagnosisError },
+    { data: experiments, error: experimentsError },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -51,9 +53,35 @@ export default async function ProductLayout({
       .from("diagnoses")
       .select("id", { count: "exact", head: true })
       .eq("product_id", id)
-      .neq("scope", "readiness"),
-    supabase.from("experiments").select("id", { count: "exact", head: true }).eq("product_id", id),
+      .eq("scope", "creative_plan"),
+    supabase.from("creatives").select("id", { count: "exact", head: true }).eq("product_id", id),
+    supabase.from("diagnoses").select("id").eq("product_id", id).in("scope", ["product", "campaign"]),
+    supabase.from("experiments").select("diagnosis_id").eq("product_id", id).not("diagnosis_id", "is", null),
   ]);
+
+  let hasData = false;
+  let dataError = null;
+  if (product.connection_id) {
+    const [connectionResult, insightsResult] = await Promise.all([
+      supabase
+        .from("connections")
+        .select("status, last_synced_at")
+        .eq("id", product.connection_id)
+        .eq("provider", "meta-ads")
+        .maybeSingle(),
+      supabase
+        .from("meta_insights_daily")
+        .select("id", { count: "exact", head: true })
+        .eq("connection_id", product.connection_id),
+    ]);
+    hasData =
+      connectionResult.data?.status === "connected" &&
+      Boolean(connectionResult.data.last_synced_at) &&
+      (insightsResult.count ?? 0) > 0;
+    dataError = connectionResult.error || insightsResult.error;
+  }
+
+  const paidDiagnosisIds = new Set((diagnoses ?? []).map((diagnosis) => diagnosis.id));
 
   return (
     <ProductWorkspace
@@ -65,10 +93,14 @@ export default async function ProductLayout({
         status: item.status,
       }))}
       progress={{
+        hasContext: Boolean(product.main_promise && product.audience),
         hasReadiness: (readiness ?? 0) > 0,
-        hasDiagnosis: (diagnosis ?? 0) > 0,
-        hasExperiment: (experiments ?? 0) > 0,
-        hasData: Boolean(product.connection_id || product.meta_account_id),
+        hasCreativeEvidence: (creativePlans ?? 0) > 0 || (creatives ?? 0) > 0,
+        hasDiagnosis: paidDiagnosisIds.size > 0,
+        hasExperiment: (experiments ?? []).some(
+          (experiment) => experiment.diagnosis_id && paidDiagnosisIds.has(experiment.diagnosis_id),
+        ),
+        hasData,
       }}
       /* numeric columns arrive as strings from PostgREST — coerce once here. */
       economics={{
@@ -78,7 +110,15 @@ export default async function ProductLayout({
         targetCac: toNumber(product.target_cac),
         monthlyBudget: toNumber(product.monthly_budget),
       }}
-      loadError={Boolean(productsError || readinessError || diagnosisError || experimentsError)}
+      loadError={Boolean(
+        productsError ||
+          readinessError ||
+          creativePlansError ||
+          creativesError ||
+          diagnosisError ||
+          experimentsError ||
+          dataError,
+      )}
     >
       {children}
     </ProductWorkspace>
