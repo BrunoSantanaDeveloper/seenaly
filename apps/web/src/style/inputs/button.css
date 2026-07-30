@@ -947,7 +947,8 @@
     @apply outline-1 -outline-offset-1 outline-transparent;
   }
 
-  .MuiButton-pastelPrimary {
+  .MuiButton-pastelPrimary,
+  .MuiButton-pastel.MuiButton-colorPrimary {
     @apply bg-primary-light/10 text-primary-dark;
     &:hover {
       @apply bg-primary-light/20;
@@ -967,7 +968,8 @@
     }
   }
 
-  .MuiButton-pastelSecondary {
+  .MuiButton-pastelSecondary,
+  .MuiButton-pastel.MuiButton-colorSecondary {
     @apply bg-secondary-light/10 text-secondary-dark;
     &:hover {
       @apply bg-secondary-light/20;
@@ -987,7 +989,8 @@
     }
   }
 
-  .MuiButton-pastelAccent-1 {
+  .MuiButton-pastelAccent-1,
+  .MuiButton-pastel.MuiButton-colorAccent-1 {
     @apply bg-accent-1-light/10 text-accent-1-dark;
     &:hover {
       @apply bg-accent-1-light/20;
@@ -1007,7 +1010,8 @@
     }
   }
 
-  .MuiButton-pastelAccent-2 {
+  .MuiButton-pastelAccent-2,
+  .MuiButton-pastel.MuiButton-colorAccent-2 {
     @apply bg-accent-2-light/10 text-accent-2-dark;
     &:hover {
       @apply bg-accent-2-light/20;
@@ -1027,7 +1031,8 @@
     }
   }
 
-  .MuiButton-pastelAccent-3 {
+  .MuiButton-pastelAccent-3,
+  .MuiButton-pastel.MuiButton-colorAccent-3 {
     @apply bg-accent-3-light/10 text-accent-3-dark;
     &:hover {
       @apply bg-accent-3-light/20;
@@ -1047,7 +1052,8 @@
     }
   }
 
-  .MuiButton-pastelAccent-4 {
+  .MuiButton-pastelAccent-4,
+  .MuiButton-pastel.MuiButton-colorAccent-4 {
     @apply bg-accent-4-light/10 text-accent-4-dark;
     &:hover {
       @apply bg-accent-4-light/20;
@@ -1067,7 +1073,8 @@
     }
   }
 
-  .MuiButton-pastelError {
+  .MuiButton-pastelError,
+  .MuiButton-pastel.MuiButton-colorError {
     @apply bg-error-light/10 text-error-dark;
     &:hover {
       @apply bg-error-light/20;
@@ -1087,7 +1094,8 @@
     }
   }
 
-  .MuiButton-pastelInfo {
+  .MuiButton-pastelInfo,
+  .MuiButton-pastel.MuiButton-colorInfo {
     @apply bg-info-light/10 text-info-dark;
     &:hover {
       @apply bg-info-light/20;
@@ -1107,7 +1115,8 @@
     }
   }
 
-  .MuiButton-pastelWarning {
+  .MuiButton-pastelWarning,
+  .MuiButton-pastel.MuiButton-colorWarning {
     @apply bg-warning-light/10 text-warning-dark;
     &:hover {
       @apply bg-warning-light/20;
@@ -1127,7 +1136,8 @@
     }
   }
 
-  .MuiButton-pastelSuccess {
+  .MuiButton-pastelSuccess,
+  .MuiButton-pastel.MuiButton-colorSuccess {
     @apply bg-success-light/10 text-success-dark;
     &:hover {
       @apply bg-success-light/20;
@@ -1147,7 +1157,8 @@
     }
   }
 
-  .MuiButton-pastelText-primary {
+  .MuiButton-pastelText-primary,
+  .MuiButton-pastel.MuiButton-colorText-primary {
     @apply bg-grey-500/10 text-text-primary;
     &:hover {
       @apply bg-grey-500/20;
@@ -1167,7 +1178,8 @@
     }
   }
 
-  .MuiButton-pastelText-secondary {
+  .MuiButton-pastelText-secondary,
+  .MuiButton-pastel.MuiButton-colorText-secondary {
     @apply bg-grey-500/10 text-text-secondary;
     &:hover {
       @apply bg-grey-500/20;
@@ -1187,7 +1199,8 @@
     }
   }
 
-  .MuiButton-pastelText-disabled {
+  .MuiButton-pastelText-disabled,
+  .MuiButton-pastel.MuiButton-colorText-disabled {
     @apply bg-grey-500/10 text-text-disabled;
     &:hover {
       @apply bg-grey-500/20;
@@ -1207,7 +1220,8 @@
     }
   }
 
-  .MuiButton-pastelGrey {
+  .MuiButton-pastelGrey,
+  .MuiButton-pastel.MuiButton-colorGrey {
     @apply bg-grey-25 text-text-primary;
     &:hover {
       @apply bg-grey-50;
@@ -1625,72 +1639,86 @@
   }
 
   form .MuiButton-pastelPrimary:focus,
-  .MuiButton-pastelPrimary.focusable:focus {
+  .MuiButton-pastelPrimary.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorPrimary.focusable:focus {
     @apply ring-primary/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelSecondary:focus,
-  .MuiButton-pastelSecondary.focusable:focus {
+  .MuiButton-pastelSecondary.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorSecondary.focusable:focus {
     @apply ring-secondary/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelAccent-1:focus,
-  .MuiButton-pastelAccent-1.focusable:focus {
+  .MuiButton-pastelAccent-1.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorAccent-1.focusable:focus {
     @apply ring-accent-1/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelAccent-2:focus,
-  .MuiButton-pastelAccent-2.focusable:focus {
+  .MuiButton-pastelAccent-2.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorAccent-2.focusable:focus {
     @apply ring-accent-2/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelAccent-3:focus,
-  .MuiButton-pastelAccent-3.focusable:focus {
+  .MuiButton-pastelAccent-3.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorAccent-3.focusable:focus {
     @apply ring-accent-3/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelAccent-4:focus,
-  .MuiButton-pastelAccent-4.focusable:focus {
+  .MuiButton-pastelAccent-4.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorAccent-4.focusable:focus {
     @apply ring-accent-4/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelError:focus,
-  .MuiButton-pastelError.focusable:focus {
+  .MuiButton-pastelError.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorError.focusable:focus {
     @apply ring-error/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelInfo:focus,
-  .MuiButton-pastelInfo.focusable:focus {
+  .MuiButton-pastelInfo.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorInfo.focusable:focus {
     @apply ring-info/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelWarning:focus,
-  .MuiButton-pastelWarning.focusable:focus {
+  .MuiButton-pastelWarning.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorWarning.focusable:focus {
     @apply ring-warning/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelSuccess:focus,
-  .MuiButton-pastelSuccess.focusable:focus {
+  .MuiButton-pastelSuccess.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorSuccess.focusable:focus {
     @apply ring-success/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelText-primary:focus,
-  .MuiButton-pastelText-primary.focusable:focus {
+  .MuiButton-pastelText-primary.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorText-primary.focusable:focus {
     @apply ring-text-primary/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelText-secondary:focus,
-  .MuiButton-pastelText-secondary.focusable:focus {
+  .MuiButton-pastelText-secondary.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorText-secondary.focusable:focus {
     @apply ring-text-secondary/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelText-disabled:focus,
-  .MuiButton-pastelText-disabled.focusable:focus {
+  .MuiButton-pastelText-disabled.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorText-disabled.focusable:focus {
     @apply ring-text-disabled/40 ring-2 ring-offset-1;
   }
 
   form .MuiButton-pastelGrey:focus,
-  .MuiButton-pastelGrey.focusable:focus {
+  .MuiButton-pastelGrey.focusable:focus,
+  .MuiButton-pastel.MuiButton-colorGrey.focusable:focus {
     @apply ring-grey-100 ring-2 ring-offset-1;
   }
 

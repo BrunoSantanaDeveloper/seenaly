@@ -32,6 +32,7 @@ import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiInfoSquare from "@/icons/nexture/ni-info-square";
+import NiLock from "@/icons/nexture/ni-lock";
 import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
@@ -65,23 +66,22 @@ const VERDICT_ICON: Record<Verdict, React.ReactNode> = {
 
 /** The verdict drives the whole card's tone — it is the answer they came for. */
 const VERDICT_TONE: Record<Verdict, string> = {
-  pronto: "bg-success/10 text-success",
-  quase: "bg-warning/10 text-warning",
-  nao_pronto: "bg-error/10 text-error",
+  pronto: "bg-success-light/10 text-success",
+  quase: "bg-warning-light/10 text-warning",
+  nao_pronto: "bg-error-light/10 text-error",
 };
 
 /**
- * The same tone as a WASH behind the whole answer block (badge + headline +
- * summary + blockers), so the verdict is read as one panel instead of four
- * stacked rows that happen to share a card. Second stop is primary so the
- * panel warms toward the action side — the hero gradient language already used
- * by the home "next step" card. Literal strings: Tailwind's JIT cannot see
- * classes assembled at runtime.
+ * The flat fill under the answer card. A paper→transparent gradient is laid
+ * OVER it (see the render), which is what makes the tint whisper-light on the
+ * reading edge and strongest on the action edge — the template's hero card
+ * language (applications/ai-content/learn). Literal strings: Tailwind's JIT
+ * cannot see classes assembled at runtime.
  */
 const VERDICT_WASH: Record<Verdict, string> = {
-  pronto: "from-success/10 to-primary/5 border-success/15",
-  quase: "from-warning/10 to-primary/5 border-warning/15",
-  nao_pronto: "from-error/10 to-primary/5 border-error/15",
+  pronto: "bg-success-light/10",
+  quase: "bg-warning-light/10",
+  nao_pronto: "bg-error-light/10",
 };
 
 /** Colour carries the trust level: only machine-proved earns green. */
@@ -790,125 +790,148 @@ export default function ReadinessVerdict({
       </Box>
     );
 
+  /**
+   * The panel's inset boxes (what blocks spend / why the base is thin). The
+   * template's outlined-paper border with NO fill — a filled box would fight
+   * the card's own wash, and an `Alert severity="error"` read as "the app
+   * broke" when the message is "your structure is not ready".
+   */
+  const insetBox = (icon: React.ReactNode, title: string, body: React.ReactNode, action?: React.ReactNode) => (
+    <Box className="MuiPaper-outlined MuiPaper-rounded flex w-full flex-col justify-between gap-4 rounded-lg p-5 sm:flex-row sm:items-center sm:p-7">
+      <Box className="flex flex-row items-start gap-4">
+        <span className="mt-0.5 flex-none">{icon}</span>
+        <Box className="min-w-0">
+          <Typography variant="subtitle2" component="h3" className="mb-0.5">
+            {title}
+          </Typography>
+          {body}
+        </Box>
+      </Box>
+      {action}
+    </Box>
+  );
+
   return (
-    <Card component="section">
-      <CardContent className="flex flex-col gap-5">
-        {/* THE ANSWER PANEL — one tinted block carrying the verdict word, who
-            it is about, how sure we are, the summary and what blocks spend.
-            Before, those were four sibling rows in the card's flow, so the
-            paid-for answer had the same visual weight as the plan headings
-            below it; the wash makes the panel read as the result and
-            everything after it as the work. */}
+    <Box className="flex flex-col gap-4">
+      {/* THE ANSWER — its own card, in the template's hero shape (see
+          applications/ai-content/learn LearnHero): thick paper outline, a flat
+          verdict-toned fill, and a paper→transparent horizontal gradient over
+          it so the tint stays whisper-light on the left and strengthens to the
+          right. Splitting it from the plan is the point: what the credits
+          bought is one object, the work to do is another. */}
+      <Card
+        component="section"
+        className="outline-background-paper relative flex min-h-80 flex-col p-0 outline-4 -outline-offset-4"
+      >
+        <Box aria-hidden className={cn("absolute inset-1 z-0 rounded-xl", VERDICT_WASH[output.verdict])} />
         <Box
-          className={cn(
-            "flex flex-col gap-4 rounded-2xl border bg-gradient-to-br p-4 sm:p-5",
-            VERDICT_WASH[output.verdict],
-          )}
-        >
-          <Box className="flex flex-row flex-wrap items-center gap-4">
-            <span
-              className={cn(
-                "flex h-16 w-16 flex-none items-center justify-center rounded-full",
-                VERDICT_TONE[output.verdict],
-              )}
-            >
-              {VERDICT_ICON[output.verdict]}
-            </span>
-            {/* The verdict word IS what the credits bought — it stands alone on
-                the headline line, at the icon's optical center. */}
-            <Typography variant="h4" component="h2" className="card-title mb-0 min-w-0 grow font-bold">
-              {t(`verdict-${output.verdict}`)}
-            </Typography>
+          aria-hidden
+          className="from-background-paper to-background-paper/0 absolute inset-1 z-1 rounded-xl bg-linear-to-r rtl:bg-linear-to-l"
+        />
+
+        <CardContent className="z-10 flex flex-1 flex-col items-start justify-between p-5! sm:p-7!">
+          <Box className="mb-4 flex w-full flex-row flex-wrap items-center justify-between gap-3">
+            <Box className="flex min-w-0 flex-row items-center gap-4">
+              <Box
+                className={cn(
+                  "flex h-16 w-16 flex-none items-center justify-center rounded-2xl",
+                  VERDICT_TONE[output.verdict],
+                )}
+              >
+                {VERDICT_ICON[output.verdict]}
+              </Box>
+              {/* The verdict word IS what the credits bought — it stands alone
+                  on the headline line, at the icon's optical center. */}
+              <Typography variant="h4" component="h2" className="card-title mb-0 min-w-0">
+                {t(`verdict-${output.verdict}`)}
+              </Typography>
+            </Box>
             {/* Provenance and certainty are the answer's METADATA — which
                 product, read when, how sure — so they travel together on the
                 trailing edge instead of hanging under the headline where they
                 competed with it. Shrinkable and wrapping: pinned `flex-none`,
-                a long product name pushed the confidence chip past the panel's
-                right edge at 390 (clipped, not scrollable). */}
-            <Box className="flex min-w-0 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+                a long product name pushed the badge past the card's right edge
+                at 390 (clipped, not scrollable). */}
+            <Box className="flex min-w-0 flex-row flex-wrap items-center gap-x-4 gap-y-1">
               <Typography variant="body2" className="text-text-secondary">
                 {t("verdict-meta", {
                   product: productName,
                   when: dateOnly.format(new Date(meta.createdAt)),
                 })}
               </Typography>
-              <Chip
-                icon={<NiPulse size="small" />}
-                label={`${t("confidence")}: ${t(`confidence-${output.confidence}`)}`}
-                size="small"
-                variant="outlined"
+              {/* The template's badge: a pastel tiny Button. Rendered as a
+                  `span` and out of the tab order because it is a LABEL — a
+                  real <button> here puts an inert stop in the keyboard walk
+                  and is announced as an action that does nothing. */}
+              <Button
+                component="span"
+                role="note"
+                tabIndex={-1}
+                variant="pastel"
+                size="tiny"
                 color={CONFIDENCE_COLOR[output.confidence]}
-                className="flex-none"
-              />
+                disableElevation
+                disableRipple
+                className="pointer-events-none flex-none self-center"
+                startIcon={<NiPulse size="tiny" aria-hidden />}
+              >
+                {`${t("confidence")}: ${t(`confidence-${output.confidence}`)}`}
+              </Button>
             </Box>
           </Box>
 
-          <Typography variant="body1" className="text-text-secondary leading-6">
-            {output.summary}
-          </Typography>
+          <Box className="flex h-full w-full flex-col items-start justify-between gap-5">
+            <Typography variant="body1" component="p" className="text-text-secondary w-full text-start">
+              {output.summary}
+            </Typography>
 
-          {/* Inset on the panel, not an Alert: this is the panel's ACTION, and
-              an error Alert reads as "something went wrong with the app" when
-              what it means is "your structure is not ready". Paper background
-              lifts it back off the wash. */}
-          {output.blocking.length > 0 && (
-            <Box className="border-grey-100 bg-background-paper/70 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center">
-              {/* Self-start, not centered with the row: with several blockers
-                  the icon drifted to the middle of the list and stopped
-                  reading as the label of the heading it belongs to. */}
-              <span className="text-error mt-0.5 flex-none self-start">
-                <NiExclamationHexagon size="medium" aria-hidden />
-              </span>
-              <Box className="min-w-0 grow">
-                <Typography variant="subtitle1" component="h3" className="mb-0.5">
-                  {t("blocking-title")}
-                </Typography>
-                {/* Every blocker, not just the first: the panel claims to name
-                    what stops the spend, and silently dropping the rest of the
-                    list makes a resolved #1 look like the finish line. */}
+            {output.blocking.length > 0 &&
+              insetBox(
+                <NiExclamationHexagon size="medium" className="text-error" aria-hidden />,
+                t("blocking-title"),
+                // Every blocker, not just the first: the panel claims to name
+                // what stops the spend, and silently dropping the rest of the
+                // list makes a resolved #1 look like the finish line.
                 <Box className="flex flex-col gap-0.5">
                   {output.blocking.map((item, blockingIndex) => (
-                    <Typography key={blockingIndex} variant="body2" className="text-text-secondary leading-6">
+                    <Typography key={blockingIndex} variant="body2" className="text-text-secondary">
                       {output.blocking.length > 1 ? `${blockingIndex + 1}. ${item}` : item}
                     </Typography>
                   ))}
-                </Box>
-              </Box>
-              {groups.blockers.length > 0 && (
-                <Button
-                  variant="contained"
-                  className="min-h-11! flex-none"
-                  endIcon={<NiArrowRight size="small" aria-hidden />}
-                  onClick={focusPrimaryBlocker}
-                >
-                  {t("fix-blocker")}
-                </Button>
+                </Box>,
+                groups.blockers.length > 0 ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="medium"
+                    disableElevation
+                    className="flex-none"
+                    startIcon={<NiLock size="medium" aria-hidden />}
+                    onClick={focusPrimaryBlocker}
+                  >
+                    {t("fix-blocker")}
+                  </Button>
+                ) : undefined,
               )}
-            </Box>
-          )}
 
-          {/* Same inset language — a caveat about the answer belongs INSIDE the
-              answer panel, not floating between it and the plan. */}
-          {output.insufficient_data && (
-            <Box className="border-grey-100 bg-background-paper/70 flex flex-row gap-3 rounded-2xl border p-4">
-              <span className="text-info mt-0.5 flex-none">
-                <NiInfoSquare size="medium" aria-hidden />
-              </span>
-              <Box className="min-w-0">
-                <Typography variant="subtitle1" component="h3" className="mb-0.5">
-                  {t("insufficient-title")}
-                </Typography>
-                <Typography variant="body2" className="text-text-secondary leading-6">
+            {/* Same language — a caveat about the answer belongs INSIDE the
+                answer, not floating between it and the plan. */}
+            {output.insufficient_data &&
+              insetBox(
+                <NiInfoSquare size="medium" className="text-info" aria-hidden />,
+                t("insufficient-title"),
+                <Typography variant="body2" className="text-text-secondary">
                   {output.missing_data || t("insufficient-body")}
-                </Typography>
-              </Box>
-            </Box>
-          )}
-        </Box>
+                </Typography>,
+              )}
+          </Box>
+        </CardContent>
+      </Card>
 
-        <Divider />
-
-        <Box className="flex flex-col gap-5">
+      {/* THE WORK — a second card, so the plan never competes with the answer
+          above it for the same surface. */}
+      <Card component="section">
+        <CardContent className="flex flex-col gap-5">
           <Box className="flex flex-row flex-wrap items-end justify-between gap-3">
             <Box className="flex flex-col gap-0.5">
               <Typography variant="h5" component="h2" className="card-title mb-0">
@@ -983,58 +1006,58 @@ export default function ReadinessVerdict({
               </Typography>
             </Box>
           )}
-        </Box>
 
-        {meta.knowledgeRefs.length > 0 && (
-          <>
-            <Divider />
-            <Box className="flex flex-col gap-1">
+          {meta.knowledgeRefs.length > 0 && (
+            <>
+              <Divider />
+              <Box className="flex flex-col gap-1">
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("grounded-in")}
+                </Typography>
+                <Box className="flex flex-row flex-wrap gap-1">
+                  {meta.knowledgeRefs.slice(0, 6).map((ref, index) => (
+                    <Chip key={index} label={ref.title} size="small" variant="outlined" color="grey" />
+                  ))}
+                </Box>
+              </Box>
+            </>
+          )}
+
+          <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <Box className="flex flex-col">
               <Typography variant="body2" className="text-text-secondary">
-                {t("grounded-in")}
+                {t("generated-at", { when: dateTime.format(new Date(meta.createdAt)) })}
               </Typography>
-              <Box className="flex flex-row flex-wrap gap-1">
-                {meta.knowledgeRefs.slice(0, 6).map((ref, index) => (
-                  <Chip key={index} label={ref.title} size="small" variant="outlined" color="grey" />
+              {/* When to come back (R1). Absent on verdicts stored before the
+                field existed — they render exactly as they always did. */}
+              {output.next_review && (
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("next-review-label", { when: output.next_review })}
+                </Typography>
+              )}
+            </Box>
+            {onFeedback && (
+              <Box className="flex flex-row flex-wrap items-center gap-1">
+                <Typography variant="body2" className="text-text-secondary mr-1">
+                  {t("feedback-question")}
+                </Typography>
+                {(["useful", "not_useful", "incorrect"] as DiagnosisRating[]).map((value) => (
+                  <Button
+                    key={value}
+                    size="small"
+                    color={feedback === value ? "primary" : "grey"}
+                    variant={feedback === value ? "outlined" : "text"}
+                    disabled={feedbackBusy}
+                    onClick={() => onFeedback(value)}
+                  >
+                    {t(`feedback-${value}`)}
+                  </Button>
                 ))}
               </Box>
-            </Box>
-          </>
-        )}
-
-        <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <Box className="flex flex-col">
-            <Typography variant="body2" className="text-text-secondary">
-              {t("generated-at", { when: dateTime.format(new Date(meta.createdAt)) })}
-            </Typography>
-            {/* When to come back (R1). Absent on verdicts stored before the
-                field existed — they render exactly as they always did. */}
-            {output.next_review && (
-              <Typography variant="body2" className="text-text-secondary">
-                {t("next-review-label", { when: output.next_review })}
-              </Typography>
             )}
           </Box>
-          {onFeedback && (
-            <Box className="flex flex-row flex-wrap items-center gap-1">
-              <Typography variant="body2" className="text-text-secondary mr-1">
-                {t("feedback-question")}
-              </Typography>
-              {(["useful", "not_useful", "incorrect"] as DiagnosisRating[]).map((value) => (
-                <Button
-                  key={value}
-                  size="small"
-                  color={feedback === value ? "primary" : "grey"}
-                  variant={feedback === value ? "outlined" : "text"}
-                  disabled={feedbackBusy}
-                  onClick={() => onFeedback(value)}
-                >
-                  {t(`feedback-${value}`)}
-                </Button>
-              ))}
-            </Box>
-          )}
-        </Box>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
