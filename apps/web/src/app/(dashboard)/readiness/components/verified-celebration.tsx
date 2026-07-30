@@ -31,6 +31,9 @@ export default function VerifiedCelebration({
 }) {
   const t = useTranslations("readiness");
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  // Top-center sits UNDER the fixed app header on small screens; bottom is
+  // transient (5s) and clears the sticky action bar's z-order (U8).
+  const mobile = useMediaQuery("(max-width:640px)");
   const names = items.map((key) => t(`item-${key}`)).join(", ");
 
   return (
@@ -42,7 +45,7 @@ export default function VerifiedCelebration({
         // the timeout and an explicit dismiss close it.
         if (reason !== "clickaway") onClose();
       }}
-      anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      anchorOrigin={{ vertical: mobile ? "bottom" : "top", horizontal: "center" }}
       slots={{ transition: reduceMotion ? Fade : Grow }}
     >
       <Alert

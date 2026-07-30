@@ -2,6 +2,7 @@ import "@/lib/connectors";
 
 import { diagnosisFunctions } from "@/lib/diagnosis/jobs";
 import { metaAdsFunctions } from "@/lib/meta-ads/jobs";
+import { readinessFunctions } from "@/lib/readiness/jobs";
 import { backupFunctions } from "@flyee/backup/jobs";
 import { billingFunctions } from "@flyee/billing/jobs";
 import { connectorFunctions } from "@flyee/connectors/jobs";
@@ -23,5 +24,6 @@ export const { GET, POST, PUT } = serve({
     ...backupFunctions,
     ...billingFunctions,
     ...diagnosisFunctions,
+    ...readinessFunctions,
   ],
 });

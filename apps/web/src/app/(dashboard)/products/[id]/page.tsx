@@ -4,12 +4,12 @@ import { deleteProduct } from "../actions";
 import ProductNextStepCard from "../components/next-step-card";
 import ProductForm from "../components/product-form";
 import ProductsHeader from "../components/products-header";
-import { type CompletenessField, computeCompleteness } from "../lib/completeness";
+import { COMPLETENESS_FIELDS, type CompletenessField, computeCompleteness } from "../lib/completeness";
 import { mapProductRow } from "../lib/map";
 import type { ProductWithChildren } from "../types";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Alert, Box, Button, Grid, Skeleton } from "@mui/material";
 
@@ -40,6 +40,21 @@ export default function EditProductPage() {
   // clicking it opens the right section and scrolls there. The nonce lets the
   // same field be requested again after the user scrolls away.
   const [focusField, setFocusField] = useState<{ field: CompletenessField; nonce: number } | null>(null);
+
+  // The same jump, exposed as a URL: /products/<id>?focus=<field> opens the
+  // owning section and scrolls there (the readiness blockers link here — the
+  // "no page / no price" dead end gets a door). One-shot on mount; an invalid
+  // value is silently ignored, never a crash on a crafted URL.
+  const searchParams = useSearchParams();
+  const focusParamConsumedRef = useRef(false);
+  useEffect(() => {
+    if (focusParamConsumedRef.current || loading || !product) return;
+    focusParamConsumedRef.current = true;
+    const requested = searchParams.get("focus");
+    if (requested && (COMPLETENESS_FIELDS as readonly string[]).includes(requested)) {
+      setFocusField({ field: requested as CompletenessField, nonce: 1 });
+    }
+  }, [loading, product, searchParams]);
 
   const load = useCallback(async () => {
     const supabase = createClient();

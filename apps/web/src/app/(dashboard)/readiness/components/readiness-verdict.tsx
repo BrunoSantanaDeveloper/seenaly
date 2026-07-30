@@ -2,8 +2,8 @@
 
 import type { DiagnosisRating } from "../../diagnosis/components/diagnosis-card";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Accordion,
@@ -33,6 +33,7 @@ import NiFlask from "@/icons/nexture/ni-flask";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
+import NiTag from "@/icons/nexture/ni-tag";
 import type { Confidence, EvidenceSource } from "@/lib/diagnosis/schema";
 import {
   EMPTY_READINESS_PROFILE,
@@ -70,6 +71,9 @@ const VERDICT_TONE: Record<Verdict, string> = {
 const RESOLUTION_COLOR: Record<FindingResolution, "success" | "warning" | "error" | "grey"> = {
   open: "grey",
   declared: "grey",
+  // Same trust as `declared` (settled, not pending) — the distinct value
+  // exists so the card can say WHY our reader cannot vouch for it.
+  "declared-unverifiable": "grey",
   "awaiting-proof": "warning",
   verified: "success",
   contradicted: "error",
@@ -131,6 +135,9 @@ export default function ReadinessVerdict({
   registeredByIndex = {},
   experimentHref,
   creativePlanHref,
+  productContextHref,
+  focusRequest = null,
+  onOpenItemHelp,
 }: {
   output: ReadinessOutput;
   productName: string;
@@ -164,8 +171,36 @@ export default function ReadinessVerdict({
    * end; with it, the fix has a concrete door (docs/PRODUCT.md phase 8).
    */
   creativePlanHref?: string;
+  /**
+   * Same idea for `oferta`: audited from the product context BY DESIGN (no
+   * checklist group — see DIMENSION_GROUP), so its door is the context
+   * editor, ideally focused on the offer/economics section (?focus=).
+   */
+  productContextHref?: string;
+  /**
+   * External finding-focus request (the #finding-N deep link from an
+   * experiment backlink): expand + scroll that card. Nonce so the same index
+   * can be requested again.
+   */
+  focusRequest?: { index: number; nonce: number } | null;
+  /**
+   * Open the review modal AT one checklist item's teaching panel (U7) — the
+   * only surface where the concierge legitimately appears, and only when
+   * earned. The DESTINATION decides whether to sell; this is never a direct
+   * sell from the plan.
+   */
+  onOpenItemHelp?: (key: ReadinessItemKey) => void;
 }) {
   const t = useTranslations("readiness");
+  // App-locale date formatting, browser TIMEZONE kept (the next-intl global
+  // pins timeZone: "UTC", which would shift wall-clock 3h for pt-BR users) —
+  // same pattern as organic-growth's import-history.
+  const locale = useLocale();
+  const dateOnly = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+  const dateTime = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }),
+    [locale],
+  );
   const tone = VERDICT_TONE[output.verdict];
   /**
    * ONE open at a time. With several findings expanded the plan went back to
@@ -205,6 +240,9 @@ export default function ReadinessVerdict({
       // `onVerifyNow` exists only when there is a page we can read. No page,
       // no possible proof — so never park the user in "unconfirmed" forever.
       canVerify: Boolean(onVerifyNow),
+      // Items the latest scan can structurally never prove (SPA/GTM): with
+      // these, "awaiting proof" would be the same life sentence.
+      unprovable: evaluation?.unprovable ?? [],
     });
 
   /**
@@ -260,6 +298,15 @@ export default function ReadinessVerdict({
       });
     }, 60);
   };
+
+  // The deep-link entry point resolves to the same hook every pending chip
+  // uses — after the async mount, which is why the native hash scroll could
+  // never work here.
+  useEffect(() => {
+    if (focusRequest) focusFinding(focusRequest.index);
+    // Nonce is the trigger; focusFinding is stable in behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce]);
 
   const focusPrimaryBlocker = () => {
     if (groups.blockers[0]) focusFinding(groups.blockers[0].index);
@@ -327,7 +374,18 @@ export default function ReadinessVerdict({
       // walls of analysis bleeding into each other.
       <Box key={index} className="mb-2.5 rounded-xl shadow-sm">
         <Accordion id={`finding-${index}`} expanded={open} onChange={() => toggle(index)}>
-          <AccordionSummary className="group">
+          {/* Explicit accessible name (P4): without it the button's name is
+              the concatenation of the whole collapsed card — unusable in a
+              rotor list. The state (resolution when settled, status when
+              open) restates the one chip a sighted reader sees. */}
+          <AccordionSummary
+            className="group"
+            aria-label={t("finding-summary-aria", {
+              position,
+              dimension: t(`dimension-${finding.dimension}`),
+              state: resolution !== "open" ? t(`resolution-${resolution}`) : t(`status-${finding.status}`),
+            })}
+          >
             <Card className="w-full shadow-none! group-aria-expanded:rounded-b-none">
               <CardContent className="flex flex-col gap-1.5">
                 <Box className="flex flex-row flex-wrap items-center gap-2">
@@ -516,6 +574,25 @@ export default function ReadinessVerdict({
                 </Box>
               )}
 
+              {/* `oferta` is context-driven by design: the fix happens on the
+                  product context screen, and the next verdict re-reads it. */}
+              {finding.dimension === "oferta" && productContextHref && (
+                <Box className="flex flex-col items-start gap-1">
+                  <Button
+                    component={Link}
+                    href={productContextHref}
+                    size="small"
+                    variant="contained"
+                    startIcon={<NiTag size="small" />}
+                  >
+                    {t("offer-context-cta")}
+                  </Button>
+                  <Typography variant="body2" className="text-text-secondary">
+                    {t("offer-context-hint")}
+                  </Typography>
+                </Box>
+              )}
+
               {/* The honest middle state, spelled out: they said it is done and
                   we CAN check — so say we haven't yet, and hand them the
                   one-click way to settle it instead of a vague warning. */}
@@ -542,6 +619,16 @@ export default function ReadinessVerdict({
               {resolution === "declared" && (
                 <Typography variant="body2" className="text-text-secondary">
                   {t("resolution-declared-body")}
+                </Typography>
+              )}
+
+              {/* Settled by trust, with the WHY: our page read structurally
+                  cannot see these tags (client-side rendering / GTM), so the
+                  user's word is the best data obtainable. Plain text, not a
+                  warning — it is settled, not pending. */}
+              {resolution === "declared-unverifiable" && (
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("resolution-declared-unverifiable-body")}
                 </Typography>
               )}
 
@@ -609,9 +696,20 @@ export default function ReadinessVerdict({
                   )}
 
                   {needsSpecialist && (
-                    <Typography variant="body2" className="text-text-secondary">
-                      {t("howto-specialist")}
-                    </Typography>
+                    <Box className="flex flex-row flex-wrap items-center gap-2">
+                      <Typography variant="body2" className="text-text-secondary">
+                        {t("howto-specialist")}
+                      </Typography>
+                      {/* The door to the item's TEACHING panel — where the
+                          earned concierge appears only if assistReason says
+                          so. oferta/midia map to no items: plain text, no
+                          fake door. */}
+                      {items.length > 0 && onOpenItemHelp && (
+                        <Button size="small" variant="text" color="primary" onClick={() => onOpenItemHelp(items[0])}>
+                          {t("howto-specialist-cta")}
+                        </Button>
+                      )}
+                    </Box>
                   )}
                 </Box>
 
@@ -693,7 +791,7 @@ export default function ReadinessVerdict({
             <Typography variant="body2" className="text-text-secondary">
               {t("verdict-meta", {
                 product: productName,
-                when: new Date(meta.createdAt).toLocaleDateString(),
+                when: dateOnly.format(new Date(meta.createdAt)),
               })}
             </Typography>
           </Box>
@@ -777,6 +875,12 @@ export default function ReadinessVerdict({
                     variant="outlined"
                     color={color}
                     className="cursor-pointer"
+                    // Plan position + action, not just a dimension name — two
+                    // findings can share a dimension (P4).
+                    aria-label={t("pending-chip-aria", {
+                      position: planOrder.indexOf(index) + 1,
+                      dimension: t(`dimension-${finding.dimension}`),
+                    })}
                     onClick={() => focusFinding(index)}
                   />
                 ))}
@@ -819,9 +923,18 @@ export default function ReadinessVerdict({
         )}
 
         <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <Typography variant="body2" className="text-text-secondary">
-            {t("generated-at", { when: new Date(meta.createdAt).toLocaleString() })}
-          </Typography>
+          <Box className="flex flex-col">
+            <Typography variant="body2" className="text-text-secondary">
+              {t("generated-at", { when: dateTime.format(new Date(meta.createdAt)) })}
+            </Typography>
+            {/* When to come back (R1). Absent on verdicts stored before the
+                field existed — they render exactly as they always did. */}
+            {output.next_review && (
+              <Typography variant="body2" className="text-text-secondary">
+                {t("next-review-label", { when: output.next_review })}
+              </Typography>
+            )}
+          </Box>
           {onFeedback && (
             <Box className="flex flex-row flex-wrap items-center gap-1">
               <Typography variant="body2" className="text-text-secondary mr-1">

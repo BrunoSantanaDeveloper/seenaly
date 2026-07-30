@@ -26,6 +26,13 @@ export interface OnboardingStateRow {
   completedSteps: string[];
   dismissed: boolean;
   completedAt: string | null;
+  /**
+   * The READ failed (network, RLS, outage) — the empty-looking state above is
+   * a degraded default, NOT proof the user never onboarded. Anything that
+   * gates or redirects on "not onboarded" must treat this as unknown and fail
+   * open (error ≠ empty); display-only consumers may ignore it.
+   */
+  readFailed?: boolean;
 }
 
 export interface FlowKey {
@@ -45,7 +52,11 @@ export async function getOnboardingState(supabase: SupabaseClient, key: FlowKey)
     .eq("user_id", key.userId)
     .eq("flow", key.flow);
   const scoped = key.orgId ? query.eq("org_id", key.orgId) : query.is("org_id", null);
-  const { data } = await scoped.maybeSingle();
+  const { data, error } = await scoped.maybeSingle();
+  // A failed read must be DISTINGUISHABLE from "no row yet": the guard used
+  // to bounce fully-onboarded users to /onboarding on any transient outage
+  // because both cases looked identical (found by the readiness journey walk).
+  if (error) return { ...EMPTY, readFailed: true };
   if (!data) return EMPTY;
   return {
     completedSteps: (data.completed_steps as string[]) ?? [],

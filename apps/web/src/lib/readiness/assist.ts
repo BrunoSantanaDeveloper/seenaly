@@ -22,7 +22,39 @@
  * either direction (nagging, or never appearing) is a product failure.
  */
 
-import { READINESS_ITEM_BY_KEY, type ReadinessItemKey } from "./checklist";
+import { READINESS_ITEM_BY_KEY, READINESS_ITEM_KEYS, type ReadinessItemKey } from "./checklist";
+
+/**
+ * The DURABLE half of the resistance signals (U5): "skipped" and "has ever
+ * opened the help panel" used to live in component-local state that died on
+ * step unmount — the hard-won concierge offer evaporated on a collapse or a
+ * reload. Persisted under product_readiness.extra.journey (the jsonb column
+ * shipped unused in 0028, reserved exactly for this kind of extension).
+ *
+ * helpOpened is one-way accumulating BY DESIGN: adding removal would make the
+ * "stuck-on-specialist" trigger gameable off.
+ */
+export interface ReadinessJourneySignals {
+  skippedItems: ReadinessItemKey[];
+  helpOpenedItems: ReadinessItemKey[];
+}
+
+export const EMPTY_JOURNEY_SIGNALS: ReadinessJourneySignals = { skippedItems: [], helpOpenedItems: [] };
+
+/** Never trust the client (or a stale row) shape — same discipline as
+ *  sanitizeProfile: filter to known keys, dedupe, cap. */
+export function sanitizeJourneySignals(input: unknown): ReadinessJourneySignals {
+  const raw = (input ?? {}) as Record<string, unknown>;
+  const known = new Set<string>(READINESS_ITEM_KEYS);
+  const clean = (value: unknown): ReadinessItemKey[] =>
+    Array.isArray(value)
+      ? [...new Set(value.filter((key): key is ReadinessItemKey => typeof key === "string" && known.has(key)))].slice(
+          0,
+          READINESS_ITEM_KEYS.length,
+        )
+      : [];
+  return { skippedItems: clean(raw.skippedItems), helpOpenedItems: clean(raw.helpOpenedItems) };
+}
 
 /** Everything we know about how hard this user is struggling with ONE item. */
 export interface AssistSignals {

@@ -43,7 +43,10 @@ export default function OnboardingGuard({ children }: { children: React.ReactNod
         const state = await getOnboardingState(supabase, key);
         const progress = computeProgress(ONBOARDING_STEPS, state);
 
-        if (!state.completedAt && !progress.complete) {
+        // A failed READ is not "never onboarded" — redirecting on it bounced
+        // a fully-onboarded user to /onboarding on any transient Supabase
+        // failure (error ≠ empty). Unknown state fails OPEN: stay put.
+        if (!state.readFailed && !state.completedAt && !progress.complete) {
           router.replace("/onboarding");
           return;
         }

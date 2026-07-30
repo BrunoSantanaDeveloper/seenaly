@@ -52,3 +52,18 @@ export function isHowToOutput(value: unknown): value is HowToOutput {
     typeof output.note === "string"
   );
 }
+
+/**
+ * Rebuild a stored how-to (readiness_howtos.steps jsonb, or the raced return
+ * of the record RPC) into the exact shape the UI consumes. One function for
+ * every read path, so the cache-hit, the race-loser and the fresh generation
+ * can never drift into three subtly different shapes.
+ */
+export function normalizeStoredHowTo(stored: unknown): HowToOutput {
+  const raw = (stored ?? {}) as Record<string, unknown>;
+  return {
+    steps: Array.isArray(raw.steps) ? raw.steps.filter((step): step is string => typeof step === "string") : [],
+    needs_specialist: raw.needs_specialist === true,
+    note: typeof raw.note === "string" ? raw.note : "",
+  };
+}

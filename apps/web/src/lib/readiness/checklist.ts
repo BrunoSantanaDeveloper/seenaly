@@ -12,6 +12,7 @@
  * one place.
  */
 
+import { classifyPageFast } from "./pagespeed-analyze";
 import type { ScanSignals } from "./scan-analyze";
 
 export type ReadinessGroupKey = "mensuracao" | "pagina" | "checkout" | "ativacao" | "descoberta" | "funil";
@@ -158,7 +159,11 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
     items: [
       { key: "pageHasProof", verification: "declared", difficulty: "diy" },
       { key: "pageMobileTested", verification: "weak", difficulty: "diy" },
-      { key: "pageFast", verification: "weak", difficulty: "specialist" },
+      // Proved via the official PageSpeed measurement (V3) — the one channel
+      // that can honestly refuse a false "my page is fast" on Google's own
+      // thresholds. Without a PSI measurement it degrades to
+      // declared-unverifiable (see unprovableItems), never a refusal.
+      { key: "pageFast", verification: "proved", difficulty: "specialist" },
     ],
   },
   {
@@ -252,15 +257,26 @@ export function groupsForModel(model: FunnelModel | null): ReadinessGroup[] {
  *
  * `oferta` lives in the product context and `midia` in the creative library —
  * neither is a checklist group, so findings on those dimensions offer no
- * "mark as resolved" (there would be nothing true to record).
+ * "mark as resolved" (there would be nothing true to record); their concrete
+ * doors are the context screen and the Creative Test Plan.
+ *
+ * `ativacao` maps to the trial-first activation group (migration 0034), so a
+ * trial→paid finding finally resolves via the group fallback instead of
+ * depending on the model emitting explicit related_items.
  */
 export const DIMENSION_GROUP: Record<string, ReadinessGroupKey | undefined> = {
   mensuracao: "mensuracao",
   pagina: "pagina",
   checkout: "checkout",
+  ativacao: "ativacao",
   descoberta: "descoberta",
   funil: "funil",
 };
+
+/** The group that CONTAINS an item — total by construction of the spec. */
+export function groupForItem(key: ReadinessItemKey): ReadinessGroupKey {
+  return READINESS_GROUPS.find((group) => group.items.some((item) => item.key === key))!.key;
+}
 
 /** Every item of the group a dimension maps to. */
 export function itemsForDimension(dimension: string): ReadinessItemKey[] {
@@ -367,39 +383,125 @@ export type VerificationOutcome = "verified" | "contradicted" | "unverifiable";
  * failure this whole mechanism exists to prevent.
  */
 export function observeItem(key: ReadinessItemKey, signals: ScanSignals | null): boolean | null {
-  if (!signals || signals.jsRenderedLikely) return null;
+  if (!signals) return null;
+  // Evidence CHANNELS, not one blanket SPA guard. The old shape returned null
+  // for everything on a client-rendered page — but the probes hit separate
+  // URLs (independent of the page's JS), a noindex/robots-block in the served
+  // response is definitive anywhere, and a tag PRESENT in the initial HTML is
+  // real proof even on an SPA (head tags are commonly server-rendered). Only
+  // tag ABSENCE is undecidable there.
+  const spa = signals.jsRenderedLikely;
   switch (key) {
     case "pixelInstalled":
-      return signals.tracking.metaPixel;
+      // GTM present ⇒ tag absence is not disproof: the Pixel is routinely
+      // loaded through the GTM container, invisible to a raw HTML read even on
+      // a server-rendered page. Refusing that (very common, legitimate) setup
+      // would be the confident lie this mechanism exists to prevent.
+      if (signals.tracking.metaPixel) return true;
+      if (spa || signals.tracking.gtm) return null;
+      return false;
     case "analyticsInstalled":
-      return signals.tracking.ga4 || signals.tracking.gtm;
+      // Immune to the GTM laundering above: GTM itself counts as analytics.
+      if (signals.tracking.ga4 || signals.tracking.gtm) return true;
+      return spa ? null : false;
     case "seoBasics":
-      return Boolean(signals.seo.title) && Boolean(signals.seo.metaDescription);
+      // No GTM exemption: title/meta must be in the served HTML to matter for
+      // crawlers, so absence remains real disproof — except on an SPA, where
+      // absence from the initial HTML proves nothing.
+      if (Boolean(signals.seo.title) && Boolean(signals.seo.metaDescription)) return true;
+      return spa ? null : false;
     case "indexable":
-      return !signals.seo.noindex && !signals.discovery.robotsDisallowsAll;
+      // A noindex in the served HTML or a robots.txt block is definitive on
+      // ANY page — proof of absence never needs the page's JS.
+      if (signals.seo.noindex || signals.discovery.robotsDisallowsAll) return false;
+      return spa ? null : true;
     case "sitemapRobots": {
-      // "published" means both. A definitive `missing` disproves it; an `error`
-      // means we could not check, which is not evidence of absence.
+      // Probe channel: robots.txt / sitemap.xml are separate fetches, fully
+      // independent of the page's rendering. "published" means both; a
+      // definitive `missing` disproves it; an `error` means we could not
+      // check, which is not evidence of absence.
       const { sitemapXml, robotsTxt } = signals.discovery;
       if (sitemapXml === "error" || robotsTxt === "error") return null;
       return sitemapXml === "found" && robotsTxt === "found";
     }
     case "structuredData":
       // Malformed JSON-LD still counts as PRESENT (the engine flags the invalid
-      // one separately) — refusing would overstate what we know.
-      return signals.seo.structuredDataTypes.length > 0;
+      // one separately) — refusing would overstate what we know. And injecting
+      // JSON-LD through GTM is a real, Google-processed practice, so GTM
+      // presence makes absence undecidable here too.
+      if (signals.seo.structuredDataTypes.length > 0) return true;
+      if (spa || signals.tracking.gtm) return null;
+      return false;
+
+    case "pageFast":
+      // The PSI channel is independent of our HTML read entirely — Google
+      // fetched and measured the page. Field p75 preferred, lab fallback,
+      // Google's own good/poor cut points; the gray zone and any non-ok
+      // measurement return null (never grounds to refuse).
+      return classifyPageFast(signals.psi);
 
     // Weak hints: surfaced to the user, never used to refuse (see verifyItem).
     case "pageMobileTested":
-      return signals.seo.hasViewport;
+      return spa ? null : signals.seo.hasViewport;
     case "hasGuarantee":
     case "socialProfiles":
     case "emailCapture":
-    case "pageFast":
       return null;
     default:
       return null;
   }
+}
+
+/** The proved-tier items whose evidence rides the page's own tags. */
+const TAG_CHANNEL_ITEMS: ReadinessItemKey[] = [
+  "pixelInstalled",
+  "analyticsInstalled",
+  "seoBasics",
+  "indexable",
+  "structuredData",
+];
+
+/**
+ * Proved-tier items whose positive proof is STRUCTURALLY unattainable from the
+ * latest successful scan: the page renders client-side (absence undecidable)
+ * or the tag may live inside GTM. These are the claims that would otherwise be
+ * "awaiting proof" forever — a life sentence no action of the user can lift.
+ *
+ * Deliberately narrow:
+ *  - null signals ⇒ [] — no scan yet is NOT unprovable; scanning is still a
+ *    real path to proof, so the honest state remains "awaiting proof";
+ *  - `sitemapRobots` never appears — its probes are independent of the page's
+ *    JS, and a transient probe `error` should keep the item awaiting-proof
+ *    (a retry can still settle it).
+ */
+/** The proved-tier keys — the only ones the honest scan trend may count. */
+export const PROVABLE_ITEM_KEYS: ReadinessItemKey[] = READINESS_GROUPS.flatMap((group) => group.items)
+  .filter((item) => item.verification === "proved")
+  .map((item) => item.key);
+
+/**
+ * How many proved-tier items one scan positively PROVED — the only honest
+ * series the product_scans time series supports: it plots the same inforgeable
+ * number celebrations fire on, never the tick-inflatable confirmed count.
+ * Null (not zero) when the read cannot see tags at all (no signals / SPA):
+ * "unreadable" must never render as lost progress.
+ */
+export function scanProvedCount(signals: ScanSignals | null): number | null {
+  if (!signals || signals.jsRenderedLikely) return null;
+  return PROVABLE_ITEM_KEYS.filter((key) => observeItem(key, signals) === true).length;
+}
+
+export function unprovableItems(signals: ScanSignals | null): ReadinessItemKey[] {
+  if (!signals) return [];
+  // For the tag-channel items, observeItem's null is structural by
+  // construction (SPA or GTM) — never a transient error.
+  const out = TAG_CHANNEL_ITEMS.filter((key) => observeItem(key, signals) === null);
+  // pageFast's channel is the official PageSpeed measurement: without one
+  // (key off, measurement failed, legacy scan row) proof can never come from
+  // a re-scan of this state — but a GRAY-ZONE measurement stays out, because
+  // improving the page and re-scanning is a real path to proof.
+  if (signals.psi?.status !== "ok") out.push("pageFast");
+  return out;
 }
 
 /**
@@ -472,9 +574,23 @@ export function autoConfirmProven(profile: ReadinessProfile, signals: ScanSignal
  *                     server-side, PIX sits behind a checkout). The user's word
  *                     is the best truth obtainable, so this counts as done —
  *                     nagging forever would be dishonest in the other direction.
+ *  - `declared-unverifiable` — ticked, provable items exist, but their proof is
+ *                     STRUCTURALLY unattainable from our page read (SPA hides
+ *                     its tags, or the tag lives inside GTM). Same trust as
+ *                     `declared`, distinct value on purpose: the user is owed
+ *                     the WHY ("our reader cannot see your tags"), never a
+ *                     silent trust — and without this value a ticked pixel on
+ *                     an SPA stayed "awaiting proof" forever, a life sentence
+ *                     no action could lift.
  *  - `open`         — not ticked (or nothing to tick).
  */
-export type FindingResolution = "open" | "declared" | "awaiting-proof" | "verified" | "contradicted";
+export type FindingResolution =
+  | "open"
+  | "declared"
+  | "declared-unverifiable"
+  | "awaiting-proof"
+  | "verified"
+  | "contradicted";
 
 export function findingResolution(
   items: ReadinessItemKey[],
@@ -490,6 +606,12 @@ export function findingResolution(
      * and take their word (see `observeItem` returning null).
      */
     canVerify?: boolean;
+    /**
+     * Items whose positive proof is structurally unattainable from the latest
+     * scan (see `unprovableItems`). Optional for backward compatibility —
+     * callers that omit it keep the exact pre-existing behavior.
+     */
+    unprovable?: ReadinessItemKey[];
   },
 ): FindingResolution {
   // Dimensions with no checklist items (oferta, midia) can never be "resolved"
@@ -501,7 +623,15 @@ export function findingResolution(
   const provable = items.filter((key) => READINESS_ITEM_BY_KEY[key]?.verification === "proved");
   if (provable.length === 0) return "declared";
   if (provable.every((key) => evidence.verified.includes(key))) return "verified";
-  return evidence.canVerify === false ? "declared" : "awaiting-proof";
+  if (evidence.canVerify === false) return "declared";
+  // Everything still waiting is structurally unprovable (SPA / GTM): asking
+  // for scan proof that can never come would be the same life sentence the
+  // canVerify branch exists to prevent — settle it as trusted, with the WHY.
+  const waiting = provable.filter((key) => !evidence.verified.includes(key));
+  if (waiting.length > 0 && waiting.every((key) => evidence.unprovable?.includes(key) ?? false)) {
+    return "declared-unverifiable";
+  }
+  return "awaiting-proof";
 }
 
 /**
@@ -512,9 +642,34 @@ export function findingResolution(
  * job is done on nothing but their own say-so — the exact inflation the
  * verification layer exists to prevent. The UI compensates by labelling it
  * distinctly (and offering the re-scan) instead of hiding it.
+ *
+ * `declared-unverifiable` is NOT pending — that is its whole point: when the
+ * proof can structurally never come, keeping the item pending is a life
+ * sentence, not honesty.
  */
 export function isFindingPending(resolution: FindingResolution): boolean {
   return resolution === "open" || resolution === "awaiting-proof" || resolution === "contradicted";
+}
+
+/**
+ * Rebuild the finding→experiment map from the database (U6): the origin of a
+ * registered experiment is its (diagnosis_id, change_made) anchor — the same
+ * idempotency key registerExperimentFromReadinessFinding writes — so matching
+ * recommended_action back to a finding index survives reloads honestly. First
+ * matching index wins: two findings with the same action collapse server-side
+ * into one experiment, so first-match mirrors the insert.
+ */
+export function mapRegisteredExperiments(
+  findings: { recommended_action: string }[],
+  rows: { id: string; change_made: string | null }[],
+): Record<number, string> {
+  const map: Record<number, string> = {};
+  for (const row of rows) {
+    if (!row.change_made) continue;
+    const index = findings.findIndex((finding) => finding.recommended_action === row.change_made);
+    if (index >= 0 && map[index] === undefined) map[index] = row.id;
+  }
+  return map;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -643,6 +798,12 @@ export interface ReadinessEvaluation {
   verified: ReadinessItemKey[];
   /** Claims the scan disproves. The UI refuses these ticks, with evidence. */
   contradicted: ReadinessItemKey[];
+  /**
+   * Proved-tier items the latest scan can structurally never prove (SPA/GTM —
+   * see `unprovableItems`). The UI hides the doomed "verify now" button for
+   * these and settles their findings as trusted instead of pending forever.
+   */
+  unprovable: ReadinessItemKey[];
   /** Out of this business's reach — de-emphasised, never hidden. */
   notApplicable: ReadinessItemKey[];
   /** Why each of those does not apply, so consumers never recompute (and never
@@ -667,6 +828,7 @@ export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessC
   const signals = context.signals ?? null;
   const verified = READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "verified");
   const contradicted = READINESS_ITEM_KEYS.filter((key) => verifyItem(key, profile[key], signals) === "contradicted");
+  const unprovable = unprovableItems(signals);
   const notApplicableReasons: Partial<Record<ReadinessItemKey, NotApplicableReason>> = {};
   for (const key of READINESS_ITEM_KEYS) {
     const reason = notApplicableReason(key, profile, context);
@@ -675,6 +837,7 @@ export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessC
   const notApplicable = Object.keys(notApplicableReasons) as ReadinessItemKey[];
 
   const verifiedSet = new Set(verified);
+  const unprovableSet = new Set(unprovable);
   const naSet = new Set(notApplicable);
   const isProvable = (key: ReadinessItemKey) => READINESS_ITEM_BY_KEY[key].verification === "proved";
 
@@ -687,8 +850,14 @@ export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessC
       total: keys.length,
       applicable: applicableKeys.length,
       verified: applicableKeys.filter((key) => verifiedSet.has(key)).length,
-      // Provable ⇒ must be proved by the scan; everything else ⇒ the user's tick.
-      achieved: applicableKeys.filter((key) => verifiedSet.has(key) || (!isProvable(key) && profile[key])).length,
+      // Provable ⇒ must be proved by the scan; everything else ⇒ the user's
+      // tick. A provable item whose proof is STRUCTURALLY unattainable
+      // (unprovableItems) counts on the tick too — same trust the
+      // declared-unverifiable resolution settles on, and without it the ring
+      // would punish the user for our reader's blindness.
+      achieved: applicableKeys.filter(
+        (key) => verifiedSet.has(key) || ((!isProvable(key) || unprovableSet.has(key)) && profile[key]),
+      ).length,
     };
   });
   const confirmed = byGroup.reduce((sum, group) => sum + group.confirmed, 0);
@@ -723,6 +892,7 @@ export function evaluateReadiness(profile: ReadinessProfile, context: ReadinessC
     untouched: confirmed === 0 && profile.checkoutType === null && profile.funnelModel === null,
     verified,
     contradicted,
+    unprovable,
     notApplicable,
     notApplicableReasons,
     applicableTotal: total - notApplicable.length,

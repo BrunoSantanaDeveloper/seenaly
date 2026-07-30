@@ -17,6 +17,8 @@ export type JobEvents = {
   "whatsapp/message.received": { data: { messageId: string; from: string; text: string } };
   /** Run a logical database backup now (@flyee/backup); also fires on a daily cron. */
   "backup/run.requested": { data: Record<string, never> };
+  /** Measure a scanned page with PageSpeed Insights (owning module: apps/web/src/lib/readiness/jobs.ts). */
+  "readiness/pagespeed.requested": { data: { scanId: string } };
 };
 
 export const isInngestConfigured = Boolean(process.env.INNGEST_EVENT_KEY && process.env.INNGEST_SIGNING_KEY);

@@ -16,6 +16,9 @@ export interface PlanCreativeRow {
   format: string | null;
   angle: string | null;
   hook: string | null;
+  /** The ad-side promise — the message-match input the readiness brief reads.
+   *  Optional: pre-existing callers/fixtures never carried it. */
+  promise?: string | null;
   proof_type: string | null;
   emotion: string | null;
   funnel_stage: string | null;

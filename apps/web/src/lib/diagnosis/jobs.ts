@@ -1,3 +1,4 @@
+import { type DueReviewRow, type LatestRow, selectDueReviewTargets } from "@/lib/diagnosis/review-select";
 import { notifyUsers } from "@/lib/notifications";
 import { createServiceClient } from "@flyee/auth/service";
 import { inngest } from "@flyee/jobs";
@@ -23,41 +24,30 @@ export const diagnosisReviewReminders = inngest.createFunction(
 
       const { data: due, error } = await supabase
         .from("diagnoses")
-        .select("id, org_id, product_id, created_by, created_at")
+        .select("id, org_id, product_id, scope, created_by, created_at")
         .lte("next_review_at", now)
         .is("review_notified_at", null)
         .order("created_at", { ascending: false });
       if (error) throw new Error(`Listing due diagnoses failed: ${error.message}`);
       if (!due?.length) return { due: 0, notified: 0 };
 
-      // A product may have several due rows; only its most recent diagnosis is
-      // still "current" — older ones are superseded and get stamped silently.
-      const currentByProduct = new Map<string, (typeof due)[number]>();
-      for (const row of due) {
-        if (!currentByProduct.has(row.product_id)) currentByProduct.set(row.product_id, row);
-      }
-
-      // If an even newer (not-yet-due) diagnosis exists for the product, the
-      // user already moved on — don't nag about the older one.
-      const productIds = [...currentByProduct.keys()];
+      // Supersession is per product AND scope (selectDueReviewTargets): a
+      // newer campaign diagnosis must not suppress a due readiness reminder —
+      // they are different conversations about the same product.
+      const productIds = [...new Set(due.map((row) => row.product_id as string))];
       const { data: latest } = await supabase
         .from("diagnoses")
-        .select("id, product_id, created_at")
+        .select("id, product_id, scope, created_at")
         .in("product_id", productIds)
         .order("created_at", { ascending: false });
-      const latestIdByProduct = new Map<string, string>();
-      for (const row of latest ?? []) {
-        if (!latestIdByProduct.has(row.product_id)) latestIdByProduct.set(row.product_id, row.id);
-      }
+      const targets = selectDueReviewTargets(due as DueReviewRow[], (latest ?? []) as LatestRow[]);
 
       // Product names make the notification specific ("Curso X: hora de reavaliar").
       const { data: products } = await supabase.from("products").select("id, name").in("id", productIds);
       const productName = new Map((products ?? []).map((p) => [p.id, p.name as string]));
 
       let notified = 0;
-      for (const [productId, row] of currentByProduct) {
-        if (latestIdByProduct.get(productId) !== row.id) continue; // superseded
-
+      for (const row of targets) {
         // Recipients: whoever ran it; fall back to the org's owners/admins.
         let recipients: string[] = row.created_by ? [row.created_by] : [];
         if (recipients.length === 0) {
@@ -68,14 +58,22 @@ export const diagnosisReviewReminders = inngest.createFunction(
             .in("role", ["owner", "admin"]);
           recipients = (owners ?? []).map((m) => m.user_id as string);
         }
-        const name = productName.get(productId);
+        const name = productName.get(row.product_id);
+        // Scope-aware copy/route: a readiness verdict re-checks STRUCTURE at
+        // its own surface; every other scope keeps the original wording.
+        // (pt-BR by platform precedent — notification rows store rendered text.)
+        const isReadiness = row.scope === "readiness";
         const result = await notifyUsers(recipients, {
           type: "system",
-          title: "Hora de reavaliar um diagnóstico",
-          body: name
-            ? `${name}: revise o diagnóstico e registre o que mudou desde a última leitura.`
-            : "Revise o diagnóstico e registre o que mudou desde a última leitura.",
-          href: "/diagnosis",
+          title: isReadiness ? "Hora de reconferir a prontidão" : "Hora de reavaliar um diagnóstico",
+          body: isReadiness
+            ? name
+              ? `${name}: refaça a verificação de prontidão e registre o que mudou na estrutura.`
+              : "Refaça a verificação de prontidão e registre o que mudou na estrutura."
+            : name
+              ? `${name}: revise o diagnóstico e registre o que mudou desde a última leitura.`
+              : "Revise o diagnóstico e registre o que mudou desde a última leitura.",
+          href: isReadiness ? `/products/${row.product_id}/readiness` : "/diagnosis",
         });
         if (result.sent) notified += 1;
       }

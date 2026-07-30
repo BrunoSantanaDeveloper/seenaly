@@ -18,8 +18,18 @@ export type { Confidence, DiagnosisEvidence, DiagnosisTechnicalBasis, EvidenceSo
 /** Ready to spend / cheap wins first / do not spend yet. */
 export type ReadinessVerdict = "pronto" | "quase" | "nao_pronto";
 
-/** Mirrors the audited dimensions in docs/PRODUCT.md. */
-export type ReadinessDimension = "oferta" | "pagina" | "checkout" | "mensuracao" | "funil" | "descoberta" | "midia";
+/** Mirrors the audited dimensions in docs/PRODUCT.md. `ativacao` exists only
+ *  for trial-first funnels (post-login structure: signup friction, activation
+ *  moment, trial→paid, upgrade path) — the brief forbids it elsewhere. */
+export type ReadinessDimension =
+  | "oferta"
+  | "pagina"
+  | "checkout"
+  | "mensuracao"
+  | "ativacao"
+  | "funil"
+  | "descoberta"
+  | "midia";
 
 export type ReadinessStatus = "ok" | "atencao" | "critico" | "sem_dados";
 export type ReadinessLevel = "baixo" | "medio" | "alto";
@@ -56,6 +66,15 @@ export interface ReadinessOutput {
   confidence: Confidence;
   insufficient_data: boolean;
   missing_data: string;
+  /**
+   * When to re-read (R1): the model proposes, the server GUARANTEES — unlike
+   * the campaign diagnosis, a readiness verdict always gets a next_review_at
+   * (see readinessNextReviewDays), because the reminder IS the loop's engine.
+   * OPTIONAL on the type for the same reason as related_items: verdicts stored
+   * before these fields existed must keep validating and rendering.
+   */
+  next_review?: string;
+  next_review_days?: number;
 }
 
 export const READINESS_SCHEMA_NAME = "seenaly_readiness";
@@ -84,7 +103,8 @@ export const READINESS_JSON_SCHEMA: Record<string, unknown> = {
         properties: {
           dimension: {
             type: "string",
-            enum: ["oferta", "pagina", "checkout", "mensuracao", "funil", "descoberta", "midia"],
+            enum: ["oferta", "pagina", "checkout", "mensuracao", "ativacao", "funil", "descoberta", "midia"],
+            description: "Use `ativacao` SOMENTE quando o modelo declarado for trial-first (estrutura pós-login).",
           },
           status: {
             type: "string",
@@ -157,12 +177,42 @@ export const READINESS_JSON_SCHEMA: Record<string, unknown> = {
       description:
         "O que preencher ou confirmar para o veredito ficar mais firme. Preencha mesmo quando insufficient_data for false. String vazia apenas se nada relevante faltar.",
     },
+    next_review: {
+      type: "string",
+      description: "Quando reconferir a prontidão (janela de tempo, em linguagem natural), coerente com o veredito.",
+    },
+    next_review_days: {
+      type: "integer",
+      minimum: 1,
+      maximum: 60,
+      description:
+        "Em quantos dias reconferir, coerente com o esforço das findings: bloqueadores pedem dias, higiene pede semanas.",
+    },
   },
-  required: ["verdict", "summary", "findings", "blocking", "confidence", "insufficient_data", "missing_data"],
+  required: [
+    "verdict",
+    "summary",
+    "findings",
+    "blocking",
+    "confidence",
+    "insufficient_data",
+    "missing_data",
+    "next_review",
+    "next_review_days",
+  ],
 };
 
 const VERDICTS: ReadinessVerdict[] = ["pronto", "quase", "nao_pronto"];
-const DIMENSIONS: ReadinessDimension[] = ["oferta", "pagina", "checkout", "mensuracao", "funil", "descoberta", "midia"];
+const DIMENSIONS: ReadinessDimension[] = [
+  "oferta",
+  "pagina",
+  "checkout",
+  "mensuracao",
+  "ativacao",
+  "funil",
+  "descoberta",
+  "midia",
+];
 const STATUSES: ReadinessStatus[] = ["ok", "atencao", "critico", "sem_dados"];
 const LEVELS: ReadinessLevel[] = ["baixo", "medio", "alto"];
 
@@ -196,8 +246,31 @@ export function isReadinessOutput(value: unknown): value is ReadinessOutput {
     output.blocking.every((item) => typeof item === "string") &&
     (output.confidence === "baixa" || output.confidence === "media" || output.confidence === "alta") &&
     typeof output.insufficient_data === "boolean" &&
-    typeof output.missing_data === "string"
+    typeof output.missing_data === "string" &&
+    // Tolerant on purpose (diagnosis precedent): the JSON schema REQUIRES the
+    // review fields going forward, but stored verdicts predate them.
+    (output.next_review === undefined || typeof output.next_review === "string") &&
+    (output.next_review_days === undefined || typeof output.next_review_days === "number")
   );
+}
+
+/**
+ * How many days until this verdict should be re-read. The model proposes
+ * (clamped to [1, 60] — a structural audit older than two months predates
+ * page/checkout changes too easily); a missing or nonsense value falls back
+ * by verdict: nao_pronto carries day-scale blocker fixes and the user is one
+ * decision from spending anyway (7 keeps momentum), quase means 1–3 cheap
+ * wins (~2 weeks), pronto only needs hygiene because the campaign loop takes
+ * over (30).
+ */
+export function readinessNextReviewDays(output: ReadinessOutput): number {
+  const proposed = output.next_review_days;
+  if (typeof proposed === "number" && Number.isFinite(proposed) && proposed > 0) {
+    return Math.min(60, Math.max(1, Math.round(proposed)));
+  }
+  if (output.verdict === "nao_pronto") return 7;
+  if (output.verdict === "quase") return 14;
+  return 30;
 }
 
 /**

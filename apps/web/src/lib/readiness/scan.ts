@@ -29,6 +29,31 @@
 import { analyzeScan, type ScanSignals } from "./scan-analyze";
 import { lookup } from "node:dns/promises";
 
+/**
+ * Minimum interval between scans of the same product. This is resource
+ * throttling for a free action that drives an outbound fetch (up to 8s plus
+ * two probes) — not billing: the legitimate loop is "change the site →
+ * rescan", which takes a human at least a minute, so one fetch per minute per
+ * product never blocks a real fix-verify cycle while capping what a hammering
+ * client can make us send at someone else's server.
+ */
+export const SCAN_MIN_INTERVAL_MS = 60_000;
+
+/**
+ * Seconds until the next scan is allowed, from the latest persisted scan
+ * timestamp. Pure so the rule is unit-testable; FAILS OPEN (returns 0) on a
+ * null or unparseable timestamp — a bad row must never brick scanning.
+ */
+export function scanCooldownRemainingSeconds(lastScanIso: string | null, nowMs = Date.now()): number {
+  if (!lastScanIso) return 0;
+  const last = Date.parse(lastScanIso);
+  if (!Number.isFinite(last)) return 0;
+  const remaining = Math.ceil(Math.max(0, last + SCAN_MIN_INTERVAL_MS - nowMs) / 1000);
+  // A future timestamp (clock skew, bad row) may never lock scanning for
+  // longer than the interval itself.
+  return Math.min(remaining, Math.ceil(SCAN_MIN_INTERVAL_MS / 1000));
+}
+
 /** Total budget for the main document. */
 const FETCH_TIMEOUT_MS = 8000;
 /** Shorter budget for the auxiliary robots.txt / sitemap.xml probes. */

@@ -6,12 +6,12 @@ import { recordAudit } from "@/lib/audit";
 import {
   creativeEvidenceBlock,
   planCohortBlock,
-  type PlanCreativeRow,
   planCreativesBlock,
   planOrganicBlock,
   type PlanOrganicPresence,
   planRetrievalQuery,
 } from "@/lib/creative-plan/brief";
+import { loadCreativeEvidence } from "@/lib/creative-plan/evidence";
 import {
   CREATIVE_PLAN_JSON_SCHEMA,
   CREATIVE_PLAN_SCHEMA_NAME,
@@ -44,42 +44,6 @@ export async function getCreativePlanCreditInfo(orgId: string): Promise<PlanCred
   const error = assistantError ?? balanceError;
   if (error) return { ok: false, error: error.message };
   return { ok: true, balance: Number(balance ?? 0), cost: Number(assistant?.credits_per_message ?? 0) };
-}
-
-/**
- * Load the library + its organic linkage for a product — the shared shape both
- * the plan brief and the paid diagnosis evidence block read.
- */
-async function loadCreativeEvidence(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  productId: string,
-): Promise<PlanCreativeRow[]> {
-  const { data: creativeRows } = await supabase
-    .from("creatives")
-    .select("id, name, status, source, format, angle, hook, proof_type, emotion, funnel_stage, result_summary")
-    .eq("product_id", productId)
-    .neq("status", "archived")
-    .order("updated_at", { ascending: false })
-    .limit(60);
-  const rows = (creativeRows ?? []) as (Omit<PlanCreativeRow, "organic_count"> & { id: string })[];
-  if (rows.length === 0) return [];
-
-  // Publication counts per creative. Counts, deliberately not metrics — the
-  // cross-network invariant lives in the brief builders.
-  const { data: links } = await supabase
-    .from("organic_content_items")
-    .select("creative_id")
-    .in(
-      "creative_id",
-      rows.map((row) => row.id),
-    )
-    .limit(1000);
-  const counts = new Map<string, number>();
-  for (const link of (links ?? []) as { creative_id: string | null }[]) {
-    if (!link.creative_id) continue;
-    counts.set(link.creative_id, (counts.get(link.creative_id) ?? 0) + 1);
-  }
-  return rows.map(({ id, ...row }) => ({ ...row, organic_count: counts.get(id) ?? 0 }));
 }
 
 /** Exposed for the paid diagnosis briefing (fase C). */

@@ -13,7 +13,8 @@ import {
   saveReadiness,
   scanProductSite,
 } from "./actions";
-import { type ScanView } from "./components/readiness-scan";
+import ReadinessHistory, { DeltaChips } from "./components/readiness-history";
+import { type ScanTrendEntry, type ScanView } from "./components/readiness-scan";
 import ReadinessVerdict, { type HowToState, type ReadinessMeta } from "./components/readiness-verdict";
 import ReadinessWizard from "./components/readiness-wizard";
 import VerifiedCelebration from "./components/verified-celebration";
@@ -53,16 +54,21 @@ import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import { track } from "@/lib/analytics";
+import { EMPTY_JOURNEY_SIGNALS, type ReadinessJourneySignals, sanitizeJourneySignals } from "@/lib/readiness/assist";
 import {
   autoConfirmProven,
   EMPTY_READINESS_PROFILE,
   evaluateReadiness,
-  observeItem,
+  mapRegisteredExperiments,
   READINESS_ITEM_KEYS,
   type ReadinessItemKey,
   type ReadinessProfile,
+  scanProvedCount,
   toReadinessProfile,
+  verifyItem,
 } from "@/lib/readiness/checklist";
+import { compareVerdicts } from "@/lib/readiness/compare";
+import type { ReadinessErrorCode } from "@/lib/readiness/errors";
 import type { ReadinessOutput } from "@/lib/readiness/schema";
 import { createClient } from "@flyee/auth/client";
 
@@ -104,11 +110,29 @@ export function ReadinessExperience({
 
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  // Multi-org correctness: the org everything charges/reads against is the
+  // RESOLVED product's org, never useOrganization's orgs[0] default — a user
+  // in two orgs opening a product from org #2 must see org #2's balance and
+  // never a silently-substituted product.
+  const [productOrgId, setProductOrgId] = useState<string | null>(null);
+  const [productNotFound, setProductNotFound] = useState(false);
   const [hasPlanPrice, setHasPlanPrice] = useState(false);
   const [profile, setProfile] = useState<ReadinessProfile>(EMPTY_READINESS_PROFILE);
   const [savedProfile, setSavedProfile] = useState<ReadinessProfile>(EMPTY_READINESS_PROFILE);
+  // Concierge resistance signals (U5) — durable, so the earned offer survives
+  // a step change or a reload instead of evaporating with local state.
+  const [journey, setJourney] = useState<ReadinessJourneySignals>(EMPTY_JOURNEY_SIGNALS);
+  const [savedJourney, setSavedJourney] = useState<ReadinessJourneySignals>(EMPTY_JOURNEY_SIGNALS);
   const [rows, setRows] = useState<VerdictRow[]>([]);
   const [scan, setScan] = useState<ScanView | null>(null);
+  // The honest proved-count series (R3) — read from the product_scans time
+  // series that previously only ever served its latest row.
+  const [scanTrend, setScanTrend] = useState<ScanTrendEntry[]>([]);
+  const [historyExpandedId, setHistoryExpandedId] = useState<string | null>(null);
+  // Deep link (U1): ?verdict=<id>#finding-<n> from the experiment backlink.
+  const requestedVerdictId = searchParams.get("verdict");
+  const pendingFindingRef = useRef<number | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ index: number; nonce: number } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [registeringIndex, setRegisteringIndex] = useState<number | null>(null);
   const [registeredByIndex, setRegisteredByIndex] = useState<Record<number, string>>({});
@@ -117,7 +141,13 @@ export function ReadinessExperience({
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Failures arrive as stable CODES (lib/readiness/errors) translated client-
+  // side; `detail` is the raw upstream text rendered as a secondary technical
+  // line. "unknown" wraps actions that have not adopted the contract yet.
+  const [error, setError] = useState<{ code: ReadinessErrorCode | "unknown"; detail?: string } | null>(null);
+  // Guidance that is NOT an error (scan cooldown, generation already running):
+  // rendered as an info alert, never red.
+  const [notice, setNotice] = useState<string | null>(null);
   const [dataLoadError, setDataLoadError] = useState(false);
   // Cost + balance, so the user knows what a check spends BEFORE clicking and
   // never meets "insufficient credits" as a dead end.
@@ -128,6 +158,13 @@ export function ReadinessExperience({
   } | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [outOfCredits, setOutOfCredits] = useState(false);
+  // No active subscription: a guided state with a door to billing — never a
+  // raw red alert (U4).
+  const [noSubscription, setNoSubscription] = useState(false);
+  // A failed credit read is an ERROR with a retry, never a silently missing
+  // banner (P5 — error ≠ empty).
+  const [creditLoadFailed, setCreditLoadFailed] = useState(false);
+  const [creditRetrying, setCreditRetrying] = useState(false);
   const [howToByIndex, setHowToByIndex] = useState<Record<number, HowToState | undefined>>({});
   // The user ticked a fix as done AFTER this verdict was produced, so the
   // verdict on screen is now behind reality.
@@ -147,14 +184,30 @@ export function ReadinessExperience({
   const [scanAttempts, setScanAttempts] = useState(0);
   const verifiedRef = useRef<Set<ReadinessItemKey>>(new Set());
   const verifiedSeededRef = useRef(false);
+  // Latest profile, for the DELAYED speed-measurement refetch: folding with a
+  // 25s-old closure would overwrite every box ticked meanwhile.
+  const profileRef = useRef<ReadinessProfile>(profile);
+  // One pending refetch for the background PageSpeed job; cleared on unmount
+  // and on product switch so it can never fold another product's scan.
+  const psiTimerRef = useRef<number | null>(null);
   // Checklist + scan live in a modal now, off the main result scroll.
   const [reviewOpen, setReviewOpen] = useState(false);
+  // U7: open the review modal AT one item's teaching panel (dimension step +
+  // expanded help). Nonce so the same item can be requested again.
+  const [reviewFocus, setReviewFocus] = useState<{ itemKey: ReadinessItemKey; nonce: number } | null>(null);
   const fullScreenDialog = useMediaQuery("(max-width:640px)");
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
+  // The org money and data are scoped to: the resolved product's org when a
+  // product is forced, the session's current org otherwise.
+  const effectiveOrgId = productOrgId ?? currentOrg?.id ?? null;
   const ready = productsLoaded && loaded;
   const canShowProductData = !dataLoadError || Boolean(product && loaded);
-  const dirty = useMemo(() => JSON.stringify(profile) !== JSON.stringify(savedProfile), [profile, savedProfile]);
+  // Journey signals ride the same debounced autosave as the profile (U5).
+  const dirty = useMemo(
+    () => JSON.stringify({ profile, journey }) !== JSON.stringify({ profile: savedProfile, journey: savedJourney }),
+    [profile, journey, savedProfile, savedJourney],
+  );
 
   // Mirrors the server's context exactly — the two must never disagree about
   // whether a blocker exists (the brief tells the engine these are on screen).
@@ -174,11 +227,27 @@ export function ReadinessExperience({
   // when what the scan proved actually changes — not on every render.
   const verifiedSignature = useMemo(() => [...evaluation.verified].sort().join("|"), [evaluation.verified]);
 
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
   // Switching products must re-seed silently: the next product's already-proved
-  // items are its baseline, not a fresh win to celebrate.
+  // items are its baseline, not a fresh win to celebrate. The pending speed
+  // refetch dies with the switch too — it must never fold another product.
   useEffect(() => {
     verifiedSeededRef.current = false;
+    if (psiTimerRef.current) {
+      window.clearTimeout(psiTimerRef.current);
+      psiTimerRef.current = null;
+    }
   }, [selectedProductId]);
+
+  useEffect(
+    () => () => {
+      if (psiTimerRef.current) window.clearTimeout(psiTimerRef.current);
+    },
+    [],
+  );
 
   // Fire ONLY on growth within a session. The first pass after load seeds the
   // baseline (proofs already on file are not a new achievement); any item that
@@ -206,6 +275,59 @@ export function ReadinessExperience({
   const loadProducts = useCallback(async () => {
     if (!currentOrg) return;
     const supabase = createClient();
+
+    // FORCED PRODUCT (workspace route / ?product=): resolve THAT row first,
+    // under RLS, and derive the org from it. The old shape filtered by
+    // orgs[0] and fell back to localStorage/list[0] when the forced id was
+    // not in that list — silently rendering ANOTHER product under this URL
+    // for a user whose product lives in their second org.
+    if (requestedProductId) {
+      const { data: forced, error: forcedError } = await supabase
+        .from("products")
+        .select("id, name, landing_page_url, price, org_id")
+        .eq("id", requestedProductId)
+        .maybeSingle();
+      if (forcedError) {
+        setDataLoadError(true);
+        setProductsLoaded(true);
+        setLoaded(true);
+        return;
+      }
+      if (!forced) {
+        // Deleted mid-session or a foreign id: a proper not-found state,
+        // never a silent substitution (the server layout already 404s the
+        // cold path — this covers client-navigation races).
+        setProductNotFound(true);
+        setProducts([]);
+        setSelectedProductId(null);
+        setProductOrgId(null);
+        setProductsLoaded(true);
+        return;
+      }
+      setProductNotFound(false);
+      setProductOrgId(forced.org_id as string);
+      const { data, error: productsError } = await supabase
+        .from("products")
+        .select("id, name, landing_page_url, price")
+        .eq("org_id", forced.org_id)
+        .order("updated_at", { ascending: false });
+      if (productsError) {
+        setDataLoadError(true);
+        setProductsLoaded(true);
+        setLoaded(true);
+        return;
+      }
+      setDataLoadError(false);
+      setProducts((data as ProductRow[]) ?? []);
+      setSelectedProductId(requestedProductId);
+      setProductsLoaded(true);
+      return;
+    }
+
+    // Free browsing (/readiness with no product): the current org scopes the
+    // list, as before.
+    setProductNotFound(false);
+    setProductOrgId(null);
     const { data, error: productsError } = await supabase
       .from("products")
       .select("id, name, landing_page_url, price")
@@ -222,7 +344,6 @@ export function ReadinessExperience({
     setProducts(list);
     setSelectedProductId((prev) => {
       if (prev && list.some((p) => p.id === prev)) return prev;
-      if (requestedProductId && list.some((p) => p.id === requestedProductId)) return requestedProductId;
       const lastProductId = window.localStorage.getItem(`seenaly:last-product:${currentOrg.id}`);
       if (lastProductId && list.some((p) => p.id === lastProductId)) return lastProductId;
       return list.length === 1 ? list[0].id : null;
@@ -246,15 +367,19 @@ export function ReadinessExperience({
       { data: plans, error: plansError },
       { data: scanRow, error: scanError },
       { count: scanCount },
+      { data: trendRows, error: trendError },
     ] = await Promise.all([
       supabase.from("product_readiness").select("*").eq("product_id", selectedProductId).maybeSingle(),
+      // 6, not 5: the 6th row exists solely as the predecessor of the 5th
+      // displayed history row, so every visible row carries a real delta or
+      // the honest "first verdict" caption.
       supabase
         .from("diagnoses")
         .select("id, output, created_at, knowledge_refs")
         .eq("product_id", selectedProductId)
         .eq("scope", "readiness")
         .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(6),
       supabase.from("product_plans").select("price").eq("product_id", selectedProductId),
       supabase
         .from("product_scans")
@@ -266,8 +391,15 @@ export function ReadinessExperience({
       // Total reads of this page, ever. Resistance must survive a reload: the
       // user who tried yesterday and failed is still stuck today.
       supabase.from("product_scans").select("id", { count: "exact", head: true }).eq("product_id", selectedProductId),
+      // The proved-count series (R3): the time series finally feeds the UI.
+      supabase
+        .from("product_scans")
+        .select("ok, created_at, result")
+        .eq("product_id", selectedProductId)
+        .order("created_at", { ascending: false })
+        .limit(6),
     ]);
-    if (readinessError || verdictsError || plansError || scanError) {
+    if (readinessError || verdictsError || plansError || scanError || trendError) {
       setDataLoadError(true);
       setLoaded(true);
       return;
@@ -276,6 +408,12 @@ export function ReadinessExperience({
     const next = toReadinessProfile(readinessRow as Record<string, unknown> | null);
     setProfile(next);
     setSavedProfile(next);
+    // Sanitize on read too — the row shape is never trusted.
+    const storedJourney = sanitizeJourneySignals(
+      ((readinessRow as { extra?: { journey?: unknown } } | null)?.extra ?? {}).journey,
+    );
+    setJourney(storedJourney);
+    setSavedJourney(storedJourney);
     const list = (verdicts as VerdictRow[]) ?? [];
     setRows(list);
     setHasPlanPrice(((plans as { price: number | null }[]) ?? []).some((plan) => plan.price != null));
@@ -293,21 +431,43 @@ export function ReadinessExperience({
         : null,
     );
 
+    setScanTrend(
+      ((trendRows as { ok: boolean; created_at: string; result: unknown }[]) ?? [])
+        .map((row) => ({
+          createdAt: row.created_at,
+          ok: row.ok === true,
+          proved: row.ok === true ? scanProvedCount(row.result as ScanView["signals"]) : null,
+        }))
+        // Oldest→newest, the direction a trend reads.
+        .reverse() as ScanTrendEntry[],
+    );
+    setHistoryExpandedId(null);
     setScanAttempts(scanCount ?? 0);
     setStaleVerdict(false);
 
     // Restore how-tos the org already PAID for — losing them on reload would
-    // charge twice for the same answer.
+    // charge twice for the same answer. Same pass rebuilds the registered-
+    // experiment map (U6): the in-memory-only version made "Register
+    // experiment" reappear after a reload — a button that lies.
     if (list[0]) {
-      const { data: howtos, error: howtosError } = await supabase
-        .from("readiness_howtos")
-        .select("finding_index, steps, sources")
-        .eq("diagnosis_id", list[0].id);
+      const [{ data: howtos, error: howtosError }, { data: experimentRows }] = await Promise.all([
+        supabase.from("readiness_howtos").select("finding_index, steps, sources").eq("diagnosis_id", list[0].id),
+        supabase.from("experiments").select("id, change_made").eq("diagnosis_id", list[0].id),
+      ]);
       if (howtosError) {
         setDataLoadError(true);
         setLoaded(true);
         return;
       }
+      // A failed experiments read falls back to the un-registered rendering —
+      // safe: the register action is idempotent and free, a re-click cannot
+      // duplicate or charge.
+      setRegisteredByIndex(
+        mapRegisteredExperiments(
+          list[0].output.findings,
+          (experimentRows as { id: string; change_made: string | null }[]) ?? [],
+        ),
+      );
       const map: Record<number, HowToState> = {};
       for (const row of (howtos ?? []) as {
         finding_index: number;
@@ -326,6 +486,7 @@ export function ReadinessExperience({
       setHowToByIndex(map);
     } else {
       setHowToByIndex({});
+      setRegisteredByIndex({});
     }
 
     // This user's own ratings, to render the active choice.
@@ -355,11 +516,13 @@ export function ReadinessExperience({
   }, [selectedProductId, userId]);
 
   const submitFeedback = async (verdictId: string, rating: DiagnosisRating) => {
-    if (!currentOrg) return;
+    // The verdict belongs to the PRODUCT's org — writing orgs[0] here filed
+    // an org-#2 verdict's feedback under org #1.
+    if (!effectiveOrgId) return;
     const previous = feedbackByVerdict[verdictId];
     setFeedbackByVerdict((prev) => ({ ...prev, [verdictId]: rating })); // optimistic
     setFeedbackBusy(true);
-    const result = await recordDiagnosisFeedback(currentOrg.id, verdictId, rating);
+    const result = await recordDiagnosisFeedback(effectiveOrgId, verdictId, rating);
     setFeedbackBusy(false);
     if (result.ok) {
       track("feedback_recorded", { rating, scope: "readiness" });
@@ -371,20 +534,28 @@ export function ReadinessExperience({
       else delete next[verdictId];
       return next;
     });
-    setError(result.error);
+    // Foreign action, not yet on the code contract — wrap as unknown.
+    setError({ code: "unknown", detail: result.error });
   };
 
   const loadCredit = useCallback(async () => {
-    if (!currentOrg) return;
-    const info = await getReadinessCreditInfo(currentOrg.id);
+    if (!effectiveOrgId) return;
+    setCreditRetrying(true);
+    const info = await getReadinessCreditInfo(effectiveOrgId);
+    setCreditRetrying(false);
     if (info.ok) {
+      setCreditLoadFailed(false);
       setCredit({
         balance: info.balance,
         verdictCost: info.verdictCost,
         howToCost: info.howToCost,
       });
+      return;
     }
-  }, [currentOrg]);
+    // A failed read used to be swallowed: no cost banner, outOfBalance false,
+    // and the user could click into a knowable failure. Error ≠ empty (P5).
+    setCreditLoadFailed(true);
+  }, [effectiveOrgId]);
 
   useEffect(() => {
     loadProducts();
@@ -395,14 +566,16 @@ export function ReadinessExperience({
   }, [loadCredit]);
 
   const loadAssist = useCallback(async () => {
-    if (!currentOrg || !selectedProductId) return;
-    const info = await getAssistInfo(currentOrg.id, selectedProductId);
-    // A missing catalog means the service is off — the offer simply never
-    // appears. That is a valid state, not an error to shout about.
+    if (!selectedProductId) return;
+    const info = await getAssistInfo(selectedProductId);
+    // A missing catalog arrives as ok:true with a null offering — the offer
+    // simply never appears. A NOT-ok result is a real read failure; the
+    // concierge is optional enrichment, so it degrades silently for now
+    // (P5 upgrades this to a retriable inline state).
     if (!info.ok) return;
     setAssistOffering(info.offering);
     setAssistOpenItems(info.openItems);
-  }, [currentOrg, selectedProductId]);
+  }, [selectedProductId]);
 
   useEffect(() => {
     loadAssist();
@@ -418,7 +591,8 @@ export function ReadinessExperience({
     const result = await requestAssist(selectedProductId, key, reason, note);
     if (!result.ok) {
       if (result.code === "insufficient_credits") setOutOfCredits(true);
-      else setError(result.error);
+      else if (result.code === "no_subscription" || result.code === "subscription_suspended") setNoSubscription(true);
+      else setError({ code: result.code, detail: result.detail });
       return false;
     }
     track("readiness_assist_requested", { item: key, reason, already: result.alreadyOpen });
@@ -430,17 +604,67 @@ export function ReadinessExperience({
     loadReadiness();
   }, [loadReadiness]);
 
+  // The redirects carry EVERY query param except `product` (which becomes the
+  // path segment) plus the hash — dropping them killed the welcome greeting
+  // (new=1) and the experiment backlink (?verdict=…#finding-N).
+  const redirectSuffix = useCallback(() => {
+    const qs = new URLSearchParams(searchParams.toString());
+    qs.delete("product");
+    const query = qs.toString();
+    return (query ? `?${query}` : "") + window.location.hash;
+  }, [searchParams]);
+
   useEffect(() => {
     if (!workspace && requestedProductId) {
-      router.replace(`/products/${requestedProductId}/readiness`);
+      router.replace(`/products/${requestedProductId}/readiness${redirectSuffix()}`);
     }
-  }, [requestedProductId, router, workspace]);
+  }, [redirectSuffix, requestedProductId, router, workspace]);
 
   useEffect(() => {
     if (!workspace && !requestedProductId && productsLoaded && selectedProductId) {
-      router.replace(`/products/${selectedProductId}/readiness`);
+      router.replace(`/products/${selectedProductId}/readiness${redirectSuffix()}`);
     }
-  }, [productsLoaded, requestedProductId, router, selectedProductId, workspace]);
+  }, [productsLoaded, redirectSuffix, requestedProductId, router, selectedProductId, workspace]);
+
+  // Deep link (U1): the hash never reaches searchParams — read it once on
+  // mount. The scroll must run AFTER the async load (native hash scroll fires
+  // before #finding-N exists).
+  useEffect(() => {
+    const match = /^#finding-(\d+)$/.exec(window.location.hash);
+    if (match) pendingFindingRef.current = Number(match[1]);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || rows.length === 0) return;
+    // ?verdict= names a specific verdict. When it IS the latest, the main card
+    // handles it (plus the finding focus below); an older one gets its history
+    // row expanded and scrolled to its anchor; an unknown id degrades to an
+    // info notice — never an error rendered over a working screen.
+    if (requestedVerdictId && requestedVerdictId !== rows[0].id) {
+      const inHistory = rows.slice(1).some((row) => row.id === requestedVerdictId);
+      if (inHistory) {
+        setHistoryExpandedId(requestedVerdictId);
+        window.setTimeout(() => {
+          document.getElementById(`verdict-${requestedVerdictId}`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 120);
+      } else {
+        setNotice(t("deep-link-verdict-missing"));
+      }
+      pendingFindingRef.current = null;
+      return;
+    }
+    if (pendingFindingRef.current !== null) {
+      const findings = rows[0].output.findings.length;
+      const index = Math.min(Math.max(0, pendingFindingRef.current), Math.max(0, findings - 1));
+      pendingFindingRef.current = null;
+      setFocusRequest({ index, nonce: Date.now() });
+    }
+    // Run once per load of this product's rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, rows]);
 
   // Takes the profile explicitly: "mark as resolved" saves immediately, and
   // reading `profile` from the closure would persist the pre-tick state.
@@ -448,18 +672,40 @@ export function ReadinessExperience({
     async (next: ReadinessProfile = profile) => {
       if (!selectedProductId) return false;
       setSaveState("saving");
-      const result = await saveReadiness(selectedProductId, next);
+      const result = await saveReadiness(selectedProductId, next, journey);
       if (!result.ok) {
         setSaveState("error");
-        setError(result.error);
+        setError({ code: result.code, detail: result.detail });
         return false;
       }
       setSavedProfile(next);
+      setSavedJourney(journey);
       setSaveState("saved");
       return true;
     },
-    [profile, selectedProductId],
+    [journey, profile, selectedProductId],
   );
+
+  /** Record one durable resistance signal (U5) — a set-union, one-way. */
+  const recordJourneySignal = useCallback((kind: "skipped" | "helpOpened", key: ReadinessItemKey) => {
+    setJourney((current) => {
+      const listKey = kind === "skipped" ? "skippedItems" : "helpOpenedItems";
+      if (current[listKey].includes(key)) return current;
+      return { ...current, [listKey]: [...current[listKey], key] };
+    });
+  }, []);
+
+  /**
+   * "Ver opções de ajuda" from a specialist finding (U7): open the review
+   * modal at that item's teaching panel. Counts as an explicit help request —
+   * the same resistance signal as the "não sei o que é isso" button.
+   */
+  const openReviewAtItem = (key: ReadinessItemKey) => {
+    setResolveRefused(null);
+    setReviewFocus({ itemKey: key, nonce: Date.now() });
+    setReviewOpen(true);
+    recordJourneySignal("helpOpened", key);
+  };
 
   useEffect(() => {
     if (!ready || !selectedProductId || !dirty || busy || scanning) return;
@@ -496,8 +742,11 @@ export function ReadinessExperience({
     // The checklist refuses a claim the page disproves; this checkbox used to
     // write straight to the profile, so the verdict card was a way AROUND the
     // whole verification layer — tick here and a real blocker silently cleared.
-    // Same rule, same choke point: only what the evidence does not contradict.
-    const disproved = resolved ? items.filter((key) => observeItem(key, signals) === false) : [];
+    // Same rule, ONE tier-aware authority: verifyItem refuses only proved-tier
+    // claims the evidence positively disproves — a raw observeItem===false
+    // here also refused weak-tier hints (e.g. mobile-tested without a viewport
+    // tag), which the contract forbids ("weak … never used to refuse").
+    const disproved = resolved ? items.filter((key) => verifyItem(key, true, signals) === "contradicted") : [];
     const allowed = items.filter((key) => !disproved.includes(key));
 
     if (disproved.length > 0) {
@@ -528,7 +777,11 @@ export function ReadinessExperience({
         setOutOfCredits(true);
         return;
       }
-      setError(result.error);
+      if (result.code === "no_subscription" || result.code === "subscription_suspended") {
+        setNoSubscription(true);
+        return;
+      }
+      setError({ code: result.code, detail: result.detail });
       return;
     }
     setHowToByIndex((prev) => ({ ...prev, [findingIndex]: { howTo: result.howTo, sources: result.sources } }));
@@ -545,7 +798,8 @@ export function ReadinessExperience({
     try {
       const result = await registerExperimentFromReadinessFinding(latest.id, findingIndex);
       if (!result.ok) {
-        setError(result.error);
+        // Foreign action, not yet on the code contract — wrap as unknown.
+        setError({ code: "unknown", detail: result.error });
         return;
       }
       track("experiment_registered", { from: "readiness" });
@@ -561,41 +815,65 @@ export function ReadinessExperience({
    * its internal step index to 1) and overwrites `profile` from the database,
    * wiping every box the user had just ticked but not yet saved.
    */
-  const refreshScan = useCallback(async () => {
-    if (!selectedProductId) return;
-    const supabase = createClient();
-    const { data: scanRow, error: scanError } = await supabase
-      .from("product_scans")
-      .select("requested_url, final_url, ok, status_code, error, result, created_at")
-      .eq("product_id", selectedProductId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (scanError) {
-      setError(scanError.message);
-      return;
+  const refreshScan = useCallback(
+    async ({ countAttempt = true }: { countAttempt?: boolean } = {}) => {
+      if (!selectedProductId) return;
+      const supabase = createClient();
+      const { data: scanRow, error: scanError } = await supabase
+        .from("product_scans")
+        .select("requested_url, final_url, ok, status_code, error, result, created_at")
+        .eq("product_id", selectedProductId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (scanError) {
+        setError({ code: "load_failed", detail: scanError.message });
+        return;
+      }
+      // `scanAttempts` feeds the concierge's resistance heuristics — only a REAL
+      // new page read counts. Refreshing to pick up the background speed
+      // measurement must not inflate it.
+      if (countAttempt) setScanAttempts((previous) => previous + 1);
+      const view: ScanView | null = scanRow
+        ? {
+            requestedUrl: scanRow.requested_url as string,
+            finalUrl: (scanRow.final_url as string | null) ?? null,
+            ok: scanRow.ok === true,
+            statusCode: (scanRow.status_code as number | null) ?? null,
+            error: (scanRow.error as string | null) ?? null,
+            createdAt: scanRow.created_at as string,
+            signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
+          }
+        : null;
+      setScan(view);
+      // Handed back so the caller can fold the proof into the profile without
+      // waiting a render for `scan` state to settle.
+      return view;
+    },
+    [selectedProductId],
+  );
+
+  /**
+   * Fold what the read PROVED into the profile (one-way — see
+   * `autoConfirmProven`). Reads the LATEST profile via ref, because the
+   * delayed speed-measurement refetch calls this 25s later and a stale
+   * closure would overwrite every box ticked meanwhile.
+   */
+  const foldProven = async (view: ScanView | null) => {
+    const current = profileRef.current;
+    const proven = autoConfirmProven(current, view?.ok ? view.signals : null);
+    if (proven !== current) {
+      const gained = READINESS_ITEM_KEYS.filter((key) => proven[key] && !current[key]);
+      setProfile(proven);
+      await persist(proven);
+      track("readiness_autoconfirmed", { items: gained.length });
     }
-    setScanAttempts((previous) => previous + 1);
-    const view: ScanView | null = scanRow
-      ? {
-          requestedUrl: scanRow.requested_url as string,
-          finalUrl: (scanRow.final_url as string | null) ?? null,
-          ok: scanRow.ok === true,
-          statusCode: (scanRow.status_code as number | null) ?? null,
-          error: (scanRow.error as string | null) ?? null,
-          createdAt: scanRow.created_at as string,
-          signals: scanRow.ok === true ? (scanRow.result as ScanView["signals"]) : null,
-        }
-      : null;
-    setScan(view);
-    // Handed back so the caller can fold the proof into the profile without
-    // waiting a render for `scan` state to settle.
-    return view;
-  }, [selectedProductId]);
+  };
 
   const runScan = async () => {
     if (!selectedProductId) return;
     setError(null);
+    setNotice(null);
     setScanning(true);
     try {
       // Persist first: the user is mid-wizard with unsaved ticks, and a scan
@@ -605,22 +883,35 @@ export function ReadinessExperience({
       // A site that did not answer is a recorded outcome the card explains —
       // only "we could not even try" surfaces as an error.
       if (!result.ok) {
-        setError(result.error);
+        // The cooldown is guidance, never a red error: the page was read
+        // moments ago and the throttle protects a free resource.
+        if (result.code === "scan_cooldown") {
+          setNotice(t("scan-cooldown", { seconds: result.retryAfterSeconds ?? 60 }));
+          return;
+        }
+        setError({ code: result.code, detail: result.detail });
         return;
       }
       track("readiness_scanned", { reachable: result.scanned });
+      // A fresh read makes any earlier refusal text stale (U8).
+      setResolveRefused(null);
       const view = await refreshScan();
 
       // Everything the read PROVED is now settled — confirm it instead of
       // asking the user to declare what we just saw with our own eyes. This is
       // one-way (see `autoConfirmProven`): absence never un-confirms anything,
       // because a client-rendered page hides its tags from an HTML fetch.
-      const proven = autoConfirmProven(profile, view?.ok ? view.signals : null);
-      if (proven !== profile) {
-        const gained = READINESS_ITEM_KEYS.filter((key) => proven[key] && !profile[key]);
-        setProfile(proven);
-        await persist(proven);
-        track("readiness_autoconfirmed", { items: gained.length });
+      await foldProven(view ?? null);
+
+      // The official speed measurement runs in a background job (10–25s):
+      // one delayed refetch picks it up — without counting as a new page
+      // read — and re-folds so a fast page auto-ticks pageFast.
+      if (view?.ok && view.signals?.psi?.status === "pending") {
+        if (psiTimerRef.current) window.clearTimeout(psiTimerRef.current);
+        psiTimerRef.current = window.setTimeout(async () => {
+          const fresh = await refreshScan({ countAttempt: false });
+          await foldProven(fresh ?? null);
+        }, 25_000);
       }
     } finally {
       setScanning(false);
@@ -632,6 +923,7 @@ export function ReadinessExperience({
   const verify = async () => {
     if (!selectedProductId) return;
     setError(null);
+    setNotice(null);
     setOutOfCredits(false);
     setBusy(true);
     try {
@@ -649,7 +941,18 @@ export function ReadinessExperience({
           setOutOfCredits(true);
           return;
         }
-        setError(result.error);
+        // Another tab already started this verification — its result will
+        // land here; waiting is the answer, not a red error.
+        if (result.code === "generation_in_progress") {
+          setNotice(t("verify-in-progress"));
+          return;
+        }
+        // No subscription: guidance with a door, never a red dead end.
+        if (result.code === "no_subscription" || result.code === "subscription_suspended") {
+          setNoSubscription(true);
+          return;
+        }
+        setError({ code: result.code, detail: result.detail });
         return;
       }
       track("readiness_generated");
@@ -662,7 +965,12 @@ export function ReadinessExperience({
   const latest = rows[0];
   const history = rows.slice(1);
   const isReady = latest?.output.verdict === "pronto";
-  const outOfBalance = credit != null && credit.verdictCost > 0 && credit.balance < credit.verdictCost;
+  // ONE derived gate for every "generate" affordance (U4) — finish-early on
+  // step 2 and the final step must never disagree. Permissive when the cost
+  // is unknown or zero: the server re-checks, and a phantom gate would
+  // violate the value-first invariant.
+  const canGenerate = !(credit != null && credit.verdictCost > 0 && credit.balance < credit.verdictCost);
+  const outOfBalance = !canGenerate;
   // Marking a fix done leaves the verdict behind reality; re-verify becomes the
   // one thing to do next. Otherwise the forward action depends on being ready.
   const reVerifyIsPrimary = staleVerdict || dirty;
@@ -839,8 +1147,22 @@ export function ReadinessExperience({
           </Grid>
         )}
 
+        {/* The URL names a product that no longer resolves (deleted mid-
+            session, foreign id): a proper not-found, never a silently
+            substituted product. */}
+        {currentOrg && ready && !dataLoadError && productNotFound && (
+          <Grid size={12}>
+            <EmptyState
+              icon={<NiTag />}
+              title={t("product-not-found-title")}
+              description={t("product-not-found-body")}
+              action={{ label: t("product-not-found-cta"), href: "/products" }}
+            />
+          </Grid>
+        )}
+
         {/* No product context: readiness has nothing to audit. */}
-        {currentOrg && ready && !dataLoadError && products.length === 0 && (
+        {currentOrg && ready && !dataLoadError && !productNotFound && products.length === 0 && (
           <Grid size={12}>
             <EmptyState
               icon={<NiTag />}
@@ -851,7 +1173,10 @@ export function ReadinessExperience({
           </Grid>
         )}
 
-        {currentOrg && ready && !dataLoadError && products.length > 1 && !product && (
+        {/* Workspace mode has its own product switcher in the rail — this
+            guidance points at the in-page selector, which only exists on the
+            standalone route. */}
+        {!workspace && currentOrg && ready && !dataLoadError && products.length > 1 && !product && (
           <Grid size={12}>
             <Alert severity="info" className="neutral bg-background-paper/60!">
               {t("select-product-guidance")}
@@ -862,7 +1187,56 @@ export function ReadinessExperience({
         {error && (
           <Grid size={12}>
             <Alert severity="error" className="neutral bg-background-paper/60!">
-              {error}
+              <Typography variant="body2">{t(`error-${error.code}`)}</Typography>
+              {error.detail && (
+                <Typography variant="caption" className="text-text-secondary">
+                  {t("error-detail", { detail: error.detail })}
+                </Typography>
+              )}
+            </Alert>
+          </Grid>
+        )}
+
+        {notice && (
+          <Grid size={12}>
+            <Alert severity="info" className="neutral bg-background-paper/60!">
+              {notice}
+            </Alert>
+          </Grid>
+        )}
+
+        {/* A failed credit read renders as a retriable error, never as a
+            silently missing cost banner (P5). Gated on !dataLoadError so a
+            total load failure shows ONE error, not a stack. */}
+        {creditLoadFailed && !dataLoadError && (
+          <Grid size={12}>
+            <LoadErrorState
+              title={t("credit-load-error-title")}
+              description={t("credit-load-error-body")}
+              retryLabel={tc("retry")}
+              busy={creditRetrying}
+              onRetry={() => void loadCredit()}
+            />
+          </Grid>
+        )}
+
+        {/* No subscription: the guided path (U4) — what happened and the one
+            door out, in every flow that can hit it (verdict, how-to, assist). */}
+        {noSubscription && (
+          <Grid size={12}>
+            <Alert severity="warning" className="neutral bg-background-paper/60!">
+              <Typography variant="subtitle2">{t("no-subscription-title")}</Typography>
+              <Typography variant="body2">{t("no-subscription-body")}</Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                className="mt-2"
+                href="/settings/billing"
+                LinkComponent={Link}
+              >
+                {t("no-subscription-cta")}
+              </Button>
             </Alert>
           </Grid>
         )}
@@ -917,6 +1291,10 @@ export function ReadinessExperience({
                 scan={scan}
                 hasUrl={Boolean(product.landing_page_url)}
                 onScan={runScan}
+                onRefreshScan={() => void refreshScan({ countAttempt: false })}
+                scanTrend={scanTrend}
+                productId={product.id}
+                canGenerate={canGenerate}
                 scanning={scanning}
                 onComplete={verify}
                 busy={busy}
@@ -926,6 +1304,9 @@ export function ReadinessExperience({
                 onBeforeAdvance={() => (dirty ? persist() : Promise.resolve(true))}
                 assistOffering={assistOffering}
                 assistOpenItems={assistOpenItems}
+                skippedItems={journey.skippedItems}
+                helpOpenedItems={journey.helpOpenedItems}
+                onJourneySignal={recordJourneySignal}
                 scanAttempts={scanAttempts}
                 creditBalance={credit?.balance ?? null}
                 onRequestAssist={requestAssistFor}
@@ -965,7 +1346,22 @@ export function ReadinessExperience({
                 registeredByIndex={registeredByIndex}
                 experimentHref={(id) => `/products/${product.id}/experiments/${id}`}
                 creativePlanHref={`/products/${product.id}/creatives`}
+                productContextHref={`/products/${product.id}?focus=price`}
+                focusRequest={focusRequest}
+                onOpenItemHelp={openReviewAtItem}
               />
+
+              {/* The payoff of re-checking, right under the verdict: what
+                  moved since the previous reading. Informational chips only —
+                  nothing here competes with the single-primary action bar. */}
+              {rows.length > 1 && (
+                <Box className="mt-3 flex flex-row flex-wrap items-center gap-1">
+                  <Typography variant="body2" className="text-text-secondary mr-1">
+                    {t("delta-since-last")}
+                  </Typography>
+                  <DeltaChips delta={compareVerdicts(rows[1].output, rows[0].output)} />
+                </Box>
+              )}
 
               {/* A "mark as fixed" the page disproves is refused here exactly
                   as it is in the checklist — and says which item and why, so
@@ -999,7 +1395,11 @@ export function ReadinessExperience({
                   variant={reVerifyIsPrimary ? "text" : "contained"}
                   color={reVerifyIsPrimary ? "grey" : "primary"}
                   startIcon={<NiListCheck size="small" />}
-                  onClick={() => setReviewOpen(true)}
+                  onClick={() => {
+                    // Reopening the editor makes an old refusal stale (U8).
+                    setResolveRefused(null);
+                    setReviewOpen(true);
+                  }}
                 >
                   {t("review-answers")}
                 </Button>
@@ -1027,7 +1427,10 @@ export function ReadinessExperience({
         {product && ready && canShowProductData && latest && (
           <Dialog
             open={reviewOpen}
-            onClose={() => setReviewOpen(false)}
+            onClose={() => {
+              setReviewOpen(false);
+              setReviewFocus(null);
+            }}
             fullScreen={fullScreenDialog}
             fullWidth
             maxWidth="md"
@@ -1042,7 +1445,14 @@ export function ReadinessExperience({
                   {t("review-body")}
                 </Typography>
               </Box>
-              <IconButton aria-label={t("review-close")} onClick={() => setReviewOpen(false)} className="flex-none">
+              <IconButton
+                aria-label={t("review-close")}
+                onClick={() => {
+                  setReviewOpen(false);
+                  setReviewFocus(null);
+                }}
+                className="flex-none"
+              >
                 <NiCross size="small" />
               </IconButton>
             </DialogTitle>
@@ -1055,12 +1465,17 @@ export function ReadinessExperience({
                   a replacement for the intake. */}
               <ReadinessWizard
                 bare
+                initialFocus={reviewFocus}
                 profile={profile}
                 evaluation={evaluation}
                 onChange={setProfile}
                 scan={scan}
                 hasUrl={Boolean(product.landing_page_url)}
                 onScan={runScan}
+                onRefreshScan={() => void refreshScan({ countAttempt: false })}
+                scanTrend={scanTrend}
+                productId={product.id}
+                canGenerate={canGenerate}
                 scanning={scanning}
                 onComplete={() => {
                   setReviewOpen(false);
@@ -1073,6 +1488,9 @@ export function ReadinessExperience({
                 onBeforeAdvance={() => (dirty ? persist() : Promise.resolve(true))}
                 assistOffering={assistOffering}
                 assistOpenItems={assistOpenItems}
+                skippedItems={journey.skippedItems}
+                helpOpenedItems={journey.helpOpenedItems}
+                onJourneySignal={recordJourneySignal}
                 scanAttempts={scanAttempts}
                 creditBalance={credit?.balance ?? null}
                 onRequestAssist={requestAssistFor}
@@ -1096,18 +1514,14 @@ export function ReadinessExperience({
             <Typography variant="h5" component="h2" className="mb-3">
               {t("history-title")}
             </Typography>
-            <Box className="flex flex-col gap-2">
-              {history.map((row) => (
-                <Box key={row.id} className="border-grey-50 flex flex-col gap-0.5 border-b pb-2">
-                  <Typography variant="body2" className="text-text-secondary">
-                    {new Date(row.created_at).toLocaleString()} · {t(`verdict-${row.output.verdict}`)}
-                  </Typography>
-                  <Typography variant="body2" className="line-clamp-2">
-                    {row.output.summary}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
+            <ReadinessHistory
+              rows={history}
+              expandedId={historyExpandedId}
+              onExpandedChange={setHistoryExpandedId}
+              // 6 fetched, 5 shown: a full fetch means the last visible row
+              // still has an older, unfetched predecessor.
+              hasOlderPredecessor={rows.length === 6}
+            />
           </Grid>
         )}
       </Grid>

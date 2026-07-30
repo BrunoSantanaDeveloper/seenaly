@@ -9,6 +9,7 @@ import { recordAudit } from "@/lib/audit";
 import { buildCampaignBrief } from "@/lib/campaign-data";
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
 import { DIAGNOSIS_JSON_SCHEMA, DIAGNOSIS_SCHEMA_NAME, isDiagnosisOutput } from "@/lib/diagnosis/schema";
+import { EXPERIMENT_BRIEF_LIMIT, experimentsBlock, type ExperimentSummaryRow } from "@/lib/experiments/brief";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
 import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
@@ -55,8 +56,6 @@ export async function recordDiagnosisFeedback(
 const ASSISTANT_SLUG = "diagnosis-engine";
 /** Most recent tagged creatives summarized for the engine. */
 const MAX_CREATIVES = 20;
-/** Most recent experiments summarized for the engine (memory feedback loop). */
-const MAX_EXPERIMENTS = 15;
 
 interface FunnelSnapshotRow extends FunnelCounts {
   label: string | null;
@@ -74,15 +73,6 @@ interface CreativeSummaryRow {
   proof_type: string | null;
   emotion: string | null;
   result_summary: string | null;
-}
-
-interface ExperimentSummaryRow {
-  title: string;
-  status: string;
-  hypothesis: string | null;
-  result: string | null;
-  conclusion: string | null;
-  next_step: string | null;
 }
 
 /**
@@ -106,40 +96,6 @@ function creativesBlock(creatives: CreativeSummaryRow[]): string {
         .filter(Boolean)
         .join("; ");
       return `- [${c.status}] ${c.name}${tags ? ` — ${tags}` : ""}`;
-    })
-    .join("\n");
-}
-
-/**
- * Experiment memory (docs/PRODUCT.md — the key differentiator). Concluded
- * tests feed back so the engine builds on prior learning and does NOT
- * recommend re-testing what was already disproven.
- */
-const EXPERIMENT_STATUS_PRIORITY: Record<string, number> = {
-  concluded: 0,
-  running: 1,
-  planned: 2,
-  abandoned: 3,
-};
-
-function experimentsBlock(experiments: ExperimentSummaryRow[]): string {
-  if (experiments.length === 0) {
-    return "Nenhum experimento registrado ainda. Ao recomendar um teste, oriente a registrá-lo na memória de experimentos (hipótese → mudança → resultado → conclusão) para não repetir o que já foi testado.";
-  }
-  // Concluded first (they carry the learning the engine must not re-test),
-  // abandoned last; the DB query only gives us the most-recent window.
-  return [...experiments]
-    .sort((a, b) => (EXPERIMENT_STATUS_PRIORITY[a.status] ?? 9) - (EXPERIMENT_STATUS_PRIORITY[b.status] ?? 9))
-    .map((e) => {
-      const parts = [
-        e.hypothesis && `hipótese: ${e.hypothesis}`,
-        e.result && `resultado: ${e.result}`,
-        e.conclusion && `conclusão: ${e.conclusion}`,
-        e.next_step && `próximo passo: ${e.next_step}`,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-      return `- [${e.status}] ${e.title}${parts ? ` — ${parts}` : ""}`;
     })
     .join("\n");
 }
@@ -239,7 +195,7 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
       .select("title, status, hypothesis, result, conclusion, next_step")
       .eq("product_id", productId)
       .order("updated_at", { ascending: false })
-      .limit(MAX_EXPERIMENTS),
+      .limit(EXPERIMENT_BRIEF_LIMIT),
     // Latest funnel snapshot — the page/checkout/purchase numbers Meta can't see.
     supabase
       .from("funnel_snapshots")

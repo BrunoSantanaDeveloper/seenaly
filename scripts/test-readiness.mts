@@ -26,24 +26,41 @@ import {
   autoConfirmProven,
   evaluateReadiness,
   findingResolution,
+  groupForItem,
   isFindingPending,
   itemsForDimension,
+  mapRegisteredExperiments,
   notApplicableReason,
+  READINESS_GROUPS,
   READINESS_ITEM_BY_KEY,
   READINESS_ITEM_KEYS,
   type ReadinessItemKey,
   type ReadinessProfile,
   resolvableItems,
   sanitizeRelatedItems,
+  scanProvedCount,
   toReadinessProfile,
   toReadinessRow,
+  unprovableItems,
   verifyAgainstScan,
   verifyItem,
 } from "../apps/web/src/lib/readiness/checklist";
-import { readinessFunnelModelBlock, readinessScanBlock } from "../apps/web/src/lib/readiness/brief";
-import { type AssistSignals, assistReason } from "../apps/web/src/lib/readiness/assist";
+import {
+  readinessChecklistBlock,
+  readinessCreativesBlock,
+  readinessFunnelModelBlock,
+  readinessScanBlock,
+} from "../apps/web/src/lib/readiness/brief";
+import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
+import { isReadinessOutput, readinessNextReviewDays } from "../apps/web/src/lib/readiness/schema";
+import { selectDueReviewTargets } from "../apps/web/src/lib/diagnosis/review-select";
+import { experimentsBlock } from "../apps/web/src/lib/experiments/brief";
+import { type AssistSignals, assistReason, sanitizeJourneySignals } from "../apps/web/src/lib/readiness/assist";
+import { READINESS_ERROR_CODES } from "../apps/web/src/lib/readiness/errors";
+import { normalizeStoredHowTo } from "../apps/web/src/lib/readiness/howto";
+import { classifyPageFast, extractPsiSnapshot } from "../apps/web/src/lib/readiness/pagespeed-analyze";
 import { analyzeScan } from "../apps/web/src/lib/readiness/scan-analyze";
-import { isBlockedAddress } from "../apps/web/src/lib/readiness/scan";
+import { isBlockedAddress, scanCooldownRemainingSeconds } from "../apps/web/src/lib/readiness/scan";
 
 let failures = 0;
 let passes = 0;
@@ -161,7 +178,7 @@ check("oferta has no resolvable items", resolvableItems("oferta", undefined), []
 check("midia has no resolvable items", resolvableItems("midia", undefined), []);
 check("unknown dimension is safe", resolvableItems("inventada", undefined), []);
 // Every mapped dimension must resolve to real keys, or the checkbox lies.
-for (const dimension of ["mensuracao", "pagina", "checkout", "descoberta", "funil"]) {
+for (const dimension of ["mensuracao", "pagina", "checkout", "ativacao", "descoberta", "funil"]) {
   const items = itemsForDimension(dimension);
   check(
     `${dimension} maps to real checklist keys`,
@@ -169,6 +186,34 @@ for (const dimension of ["mensuracao", "pagina", "checkout", "descoberta", "funi
     true,
   );
 }
+
+// S1: the trial-first activation dimension resolves via the group fallback —
+// trial→paid findings no longer depend on the model emitting related_items.
+check("ativacao maps to the four activation items", itemsForDimension("ativacao"), [
+  "signupFrictionLow",
+  "activationDefined",
+  "trialToPaidTracked",
+  "upgradePathClear",
+]);
+check("ativacao explicit related_items still win", resolvableItems("ativacao", ["trialToPaidTracked"]), [
+  "trialToPaidTracked",
+]);
+// The brief only ever invites the dimension where it exists.
+check(
+  "trial-first brief names the ativacao dimension",
+  readinessFunnelModelBlock(p({ funnelModel: "trial_first" })).includes("dimensão `ativacao`"),
+  true,
+);
+check(
+  "direct brief never mentions ativacao",
+  readinessFunnelModelBlock(p({ funnelModel: "direct" })).includes("ativacao"),
+  false,
+);
+check(
+  "lead-first brief never mentions ativacao",
+  readinessFunnelModelBlock(p({ funnelModel: "lead_first" })).includes("ativacao"),
+  false,
+);
 
 /* ========================================================================== */
 section("Verification — refuse only with proof");
@@ -237,7 +282,9 @@ for (const key of ["capiInstalled", "conversionEventTested", "paymentPix", "chec
   check(`declared item never refused: ${key}`, verifyItem(key, true, signalsWith({ tracking: { metaPixel: false } })), "unverifiable");
 }
 // Weak hints must not refuse either — rejecting on a guess is worse than trusting.
-for (const key of ["pageMobileTested", "pageFast", "hasGuarantee", "socialProfiles", "emailCapture"] as const) {
+// (pageFast left this list in V3: it is proved-tier now, via the official
+// PageSpeed channel — tested in its own section below.)
+for (const key of ["pageMobileTested", "hasGuarantee", "socialProfiles", "emailCapture"] as const) {
   check(`weak item never refused: ${key}`, verifyItem(key, true, signalsWith({ seo: { hasViewport: false } })), "unverifiable");
 }
 
@@ -312,6 +359,668 @@ function checkTipCoverage(flag: "recommendedEvents" | "recommendedParameters", p
 }
 checkTipCoverage("recommendedEvents", "item-events");
 checkTipCoverage("recommendedParameters", "item-parameters");
+
+/* ========================================================================== */
+section("GTM laundering — a tag inside the container is invisible, not absent");
+/* ========================================================================== */
+
+// The most common legitimate setup: the Meta Pixel loaded through Google Tag
+// Manager. A raw HTML read sees GTM but no fbq — refusing that tick would be
+// the confident lie the verification layer exists to prevent.
+check(
+  "GTM-only page + claimed pixel => unverifiable, never contradicted",
+  verifyItem("pixelInstalled", true, signalsWith({ tracking: { metaPixel: false, gtm: true } })),
+  "unverifiable",
+);
+check(
+  "fbq present => verified regardless of GTM",
+  verifyItem("pixelInstalled", true, signalsWith({ tracking: { metaPixel: true, gtm: true } })),
+  "verified",
+);
+check(
+  "no GTM + no fbq + claimed => still contradicted",
+  verifyItem("pixelInstalled", true, signalsWith({ tracking: { metaPixel: false, gtm: false } })),
+  "contradicted",
+);
+check(
+  "GTM-only page never lands in the refusal list",
+  verifyAgainstScan(p({ pixelInstalled: true }), signalsWith({ tracking: { metaPixel: false, gtm: true } })),
+  [],
+);
+check(
+  "GTM-only never auto-confirms the pixel",
+  autoConfirmProven(p(), signalsWith({ tracking: { metaPixel: false, gtm: true } })).pixelInstalled,
+  false,
+);
+// Same rule for JSON-LD, which GTM can inject (a real, Google-processed practice).
+check(
+  "structuredData: none + GTM => unverifiable",
+  verifyItem(
+    "structuredData",
+    true,
+    signalsWith({ seo: { structuredDataTypes: [] }, tracking: { metaPixel: false, gtm: true } }),
+  ),
+  "unverifiable",
+);
+check(
+  "structuredData: none + no GTM + claimed => contradicted",
+  verifyItem("structuredData", true, signalsWith({ seo: { structuredDataTypes: [] } })),
+  "contradicted",
+);
+// Immunity guard: GTM itself counts as analytics — presence, not laundering.
+check(
+  "analyticsInstalled: GTM-only page => verified",
+  verifyItem("analyticsInstalled", true, signalsWith({ tracking: { metaPixel: false, ga4: false, gtm: true } })),
+  "verified",
+);
+// The engine brief must carry the caveat exactly when it applies.
+const gtmScan = {
+  requestedUrl: "https://x.com",
+  finalUrl: "https://x.com",
+  ok: true,
+  statusCode: 200,
+  error: null,
+  createdAt: "2026-07-29T12:00:00Z",
+  signals: signalsWith({ tracking: { metaPixel: false, gtm: true } }),
+};
+check("brief carries the GTM caveat when gtm && !pixel", readinessScanBlock(gtmScan).includes("contêiner"), true);
+check(
+  "brief omits the GTM caveat when the pixel is seen",
+  readinessScanBlock({ ...gtmScan, signals: signalsWith({ tracking: { metaPixel: true, gtm: true } }) }).includes(
+    "contêiner",
+  ),
+  false,
+);
+
+/* ========================================================================== */
+section("PageSpeed — official speed evidence for pageFast");
+/* ========================================================================== */
+
+// PSI v5 fixture with both field (CrUX) and lab (Lighthouse) data.
+const psiFixture = {
+  lighthouseResult: {
+    categories: { performance: { score: 0.87 } },
+    audits: {
+      "largest-contentful-paint": { numericValue: 3100 },
+      "cumulative-layout-shift": { numericValue: 0.02 },
+      "total-blocking-time": { numericValue: 150 },
+    },
+  },
+  loadingExperience: {
+    overall_category: "FAST",
+    metrics: {
+      LARGEST_CONTENTFUL_PAINT_MS: { percentile: 2000 },
+      CUMULATIVE_LAYOUT_SHIFT_SCORE: { percentile: 5 },
+      INTERACTION_TO_NEXT_PAINT: { percentile: 180 },
+    },
+  },
+};
+{
+  const snap = extractPsiSnapshot(psiFixture, "2026-07-29T12:00:00Z");
+  check("extractor: score 0..100", snap?.performanceScore, 87);
+  check("extractor: field LCP", snap?.field?.lcpMs, 2000);
+  check("extractor: field CLS /100", snap?.field?.cls, 0.05);
+  check("extractor: lab LCP fallback present", snap?.lab.lcpMs, 3100);
+  check("extractor: overall", snap?.field?.overall, "FAST");
+}
+check("extractor: malformed json => null", extractPsiSnapshot({ nope: true }, "t"), null);
+check("extractor: non-object => null", extractPsiSnapshot("x", "t"), null);
+
+const psiOk = (lcpMs: number | null, useField = true) =>
+  ({
+    status: "ok",
+    fetchedAt: "t",
+    strategy: "mobile",
+    performanceScore: 80,
+    lab: { lcpMs: useField ? 9999 : lcpMs, cls: null, tbtMs: null },
+    field: useField ? { lcpMs, cls: null, inpMs: null, overall: null } : null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+check("classifier: field 2000 => fast", classifyPageFast(psiOk(2000)), true);
+check("classifier: field 3200 => gray zone (null)", classifyPageFast(psiOk(3200)), null);
+check("classifier: field 4500 => slow", classifyPageFast(psiOk(4500)), false);
+check("classifier: lab fallback when no field", classifyPageFast(psiOk(2100, false)), true);
+check("classifier: pending => null", classifyPageFast({ status: "pending" }), null);
+check("classifier: failed => null", classifyPageFast({ status: "failed", error: "x" }), null);
+check("classifier: absent => null", classifyPageFast(undefined), null);
+
+// Tier flip: pageFast is proved via the PSI channel — official cut points only.
+check(
+  "claimed fast + officially slow => contradicted",
+  verifyItem("pageFast", true, signalsWith({ psi: psiOk(4500) })),
+  "contradicted",
+);
+check("claimed fast + officially fast => verified", verifyItem("pageFast", true, signalsWith({ psi: psiOk(2000) })), "verified");
+check("claimed fast + gray zone => unverifiable", verifyItem("pageFast", true, signalsWith({ psi: psiOk(3200) })), "unverifiable");
+check("claimed fast + no measurement => unverifiable", verifyItem("pageFast", true, signalsWith()), "unverifiable");
+check(
+  "fast page auto-confirms pageFast",
+  autoConfirmProven(p(), signalsWith({ psi: psiOk(2000) })).pageFast,
+  true,
+);
+check(
+  "unprovable excludes pageFast when a measurement exists",
+  unprovableItems(signalsWith({ psi: psiOk(3200) })).includes("pageFast"),
+  false, // gray zone stays awaiting-proof: improving + re-scanning is a real path
+);
+check("unprovable includes pageFast without a measurement", unprovableItems(signalsWith()).includes("pageFast"), true);
+check(
+  "unprovable includes pageFast on a failed measurement",
+  unprovableItems(signalsWith({ psi: { status: "failed", error: "x" } })).includes("pageFast"),
+  true,
+);
+
+// The brief: official line when measured; the "not CWV" caveat stays verbatim.
+{
+  const okScan = { ...gtmScan, signals: signalsWith({ psi: psiOk(2000) }) };
+  const block = readinessScanBlock(okScan);
+  check("brief carries the official PSI line", block.includes("Velocidade OFICIAL (PageSpeed"), true);
+  check("brief keeps the fetch-time caveat", block.includes("NÃO é Core Web Vitals"), true);
+  const noPsi = readinessScanBlock({ ...gtmScan, signals: signalsWith() });
+  check("brief omits the PSI line without a measurement", noPsi.includes("Velocidade OFICIAL"), false);
+  const failedPsi = readinessScanBlock({ ...gtmScan, signals: signalsWith({ psi: { status: "failed", error: "x" } }) });
+  check("brief flags a failed measurement honestly", failedPsi.includes("FALHOU"), true);
+}
+
+// Locale coverage for the speed section keys.
+for (const locale of LOCALES) {
+  for (const key of [
+    "scan-group-speed",
+    "scan-fact-psi-score",
+    "scan-fact-psi-lcp",
+    "scan-fact-psi-cls",
+    "scan-psi-pending",
+    "scan-psi-refresh",
+    "scan-psi-failed",
+  ]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
+
+/* ========================================================================== */
+section("Scan cooldown — throttle, never a wall");
+/* ========================================================================== */
+
+const COOLDOWN_NOW = Date.parse("2026-07-29T12:00:00Z");
+check("no previous scan => 0", scanCooldownRemainingSeconds(null, COOLDOWN_NOW), 0);
+check(
+  "30s ago with the 60s window => 30",
+  scanCooldownRemainingSeconds(new Date(COOLDOWN_NOW - 30_000).toISOString(), COOLDOWN_NOW),
+  30,
+);
+check("61s ago => 0", scanCooldownRemainingSeconds(new Date(COOLDOWN_NOW - 61_000).toISOString(), COOLDOWN_NOW), 0);
+check(
+  "exactly 60s ago => 0",
+  scanCooldownRemainingSeconds(new Date(COOLDOWN_NOW - 60_000).toISOString(), COOLDOWN_NOW),
+  0,
+);
+check("unparseable timestamp fails open => 0", scanCooldownRemainingSeconds("not-a-date", COOLDOWN_NOW), 0);
+check(
+  "future timestamp (clock skew) is bounded by the interval itself",
+  scanCooldownRemainingSeconds(new Date(COOLDOWN_NOW + 3_600_000).toISOString(), COOLDOWN_NOW),
+  60,
+);
+
+/* ========================================================================== */
+section("HowTo cache normalization — one shape for every read path");
+/* ========================================================================== */
+
+check("null => empty, honest shape", normalizeStoredHowTo(null), { steps: [], needs_specialist: false, note: "" });
+check("well-formed stored object round-trips", normalizeStoredHowTo({ steps: ["a", "b"], needs_specialist: true, note: "n" }), {
+  steps: ["a", "b"],
+  needs_specialist: true,
+  note: "n",
+});
+check(
+  "non-string steps are filtered",
+  normalizeStoredHowTo({ steps: ["a", 2, null, "b"], needs_specialist: false, note: "" }).steps,
+  ["a", "b"],
+);
+check(
+  "truthy-but-not-true needs_specialist => false",
+  normalizeStoredHowTo({ steps: [], needs_specialist: 1, note: "" }).needs_specialist,
+  false,
+);
+
+/* ========================================================================== */
+section("Error-code contract — every code translated in every locale");
+/* ========================================================================== */
+
+check("codes are unique", new Set(READINESS_ERROR_CODES).size, READINESS_ERROR_CODES.length);
+check(
+  "codes are snake_case slugs",
+  READINESS_ERROR_CODES.every((code) => /^[a-z][a-z_]+$/.test(code)),
+  true,
+);
+for (const locale of LOCALES) {
+  for (const code of READINESS_ERROR_CODES) {
+    check(
+      `error-${code} has real copy in ${locale}`,
+      typeof readinessMessages[locale][`error-${code}`] === "string" &&
+        readinessMessages[locale][`error-${code}`].trim().length > 0,
+      true,
+    );
+  }
+  check(
+    `error-unknown has real copy in ${locale}`,
+    typeof readinessMessages[locale]["error-unknown"] === "string" &&
+      readinessMessages[locale]["error-unknown"].trim().length > 0,
+    true,
+  );
+  check(`error-detail interpolates in ${locale}`, (readinessMessages[locale]["error-detail"] ?? "").includes("{detail}"), true);
+  check(
+    `scan-gtm-pixel-note has real copy in ${locale}`,
+    (readinessMessages[locale]["scan-gtm-pixel-note"] ?? "").trim().length > 0,
+    true,
+  );
+  check(`scan-cooldown interpolates in ${locale}`, (readinessMessages[locale]["scan-cooldown"] ?? "").includes("{seconds}"), true);
+  check(
+    `verify-in-progress has real copy in ${locale}`,
+    (readinessMessages[locale]["verify-in-progress"] ?? "").trim().length > 0,
+    true,
+  );
+  for (const key of ["product-not-found-title", "product-not-found-body", "product-not-found-cta"]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
+
+/* ========================================================================== */
+section("Re-audit cadence — the model proposes, the server guarantees");
+/* ========================================================================== */
+
+const baseVerdict = {
+  verdict: "quase",
+  summary: "s",
+  findings: [
+    {
+      dimension: "mensuracao",
+      status: "atencao",
+      finding: "f",
+      evidence: [{ statement: "e", source: "product_context" }],
+      technical_basis: [],
+      recommended_action: "a",
+      effort: "baixo",
+      impact: "alto",
+      success_criterion: "c",
+    },
+  ],
+  blocking: [],
+  confidence: "media",
+  insufficient_data: false,
+  missing_data: "",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
+
+check("nao_pronto fallback = 7", readinessNextReviewDays({ ...baseVerdict, verdict: "nao_pronto" }), 7);
+check("quase fallback = 14", readinessNextReviewDays(baseVerdict), 14);
+check("pronto fallback = 30", readinessNextReviewDays({ ...baseVerdict, verdict: "pronto" }), 30);
+check("clamps 999 to 60", readinessNextReviewDays({ ...baseVerdict, next_review_days: 999 }), 60);
+check("rounds 6.4 to 6", readinessNextReviewDays({ ...baseVerdict, next_review_days: 6.4 }), 6);
+check("rejects 0 to fallback", readinessNextReviewDays({ ...baseVerdict, next_review_days: 0 }), 14);
+check("rejects negative to fallback", readinessNextReviewDays({ ...baseVerdict, next_review_days: -3 }), 14);
+check("rejects NaN to fallback", readinessNextReviewDays({ ...baseVerdict, next_review_days: Number.NaN }), 14);
+
+// Backward compat: stored verdicts predate the review fields (and ativacao).
+check("old verdict without review fields still validates", isReadinessOutput(baseVerdict), true);
+check(
+  "string next_review_days fails validation",
+  isReadinessOutput({ ...baseVerdict, next_review_days: "7" }),
+  false,
+);
+check("numeric next_review fails validation", isReadinessOutput({ ...baseVerdict, next_review: 7 }), false);
+check(
+  "ativacao finding validates (S1)",
+  isReadinessOutput({
+    ...baseVerdict,
+    findings: [{ ...baseVerdict.findings[0], dimension: "ativacao" }],
+  }),
+  true,
+);
+check(
+  "invented dimension fails validation",
+  isReadinessOutput({
+    ...baseVerdict,
+    findings: [{ ...baseVerdict.findings[0], dimension: "inventada" }],
+  }),
+  false,
+);
+
+// The cron selector: supersession only within the SAME product+scope.
+{
+  const readinessDue = {
+    id: "r1",
+    product_id: "p1",
+    scope: "readiness",
+    org_id: "o1",
+    created_by: "u1",
+    created_at: "2026-07-01",
+  };
+  const newerCampaign = { id: "c1", product_id: "p1", scope: "product", created_at: "2026-07-20" };
+  check(
+    "a newer campaign diagnosis does NOT suppress a due readiness reminder",
+    selectDueReviewTargets([readinessDue], [newerCampaign, { ...readinessDue }]).map((r) => r.id),
+    ["r1"],
+  );
+  check(
+    "a newer same-scope verdict DOES supersede",
+    selectDueReviewTargets(
+      [readinessDue],
+      [{ id: "r2", product_id: "p1", scope: "readiness", created_at: "2026-07-20" }, { ...readinessDue }],
+    ),
+    [],
+  );
+  const olderDue = { ...readinessDue, id: "r0", created_at: "2026-06-01" };
+  check(
+    "only the newest due row per product+scope is considered",
+    selectDueReviewTargets([readinessDue, olderDue], [{ ...readinessDue }]).map((r) => r.id),
+    ["r1"],
+  );
+}
+
+/* ========================================================================== */
+section("Experiment memory block — shared by both engines");
+/* ========================================================================== */
+
+check(
+  "empty memory teaches instead of staying silent",
+  experimentsBlock([]).startsWith("Nenhum experimento registrado"),
+  true,
+);
+{
+  const rows = [
+    { title: "T-planned", status: "planned", hypothesis: null, result: null, conclusion: null, next_step: null },
+    { title: "T-abandoned", status: "abandoned", hypothesis: null, result: null, conclusion: null, next_step: null },
+    { title: "T-concluded", status: "concluded", hypothesis: "h", result: "r", conclusion: "aprendido", next_step: null },
+    { title: "T-running", status: "running", hypothesis: null, result: null, conclusion: null, next_step: null },
+    { title: "T-weird", status: "weird", hypothesis: null, result: null, conclusion: null, next_step: null },
+  ];
+  const block = experimentsBlock(rows);
+  const order = ["T-concluded", "T-running", "T-planned", "T-abandoned", "T-weird"].map((title) =>
+    block.indexOf(title),
+  );
+  check("concluded first, unknown status last", [...order].every((pos, i) => i === 0 || pos > order[i - 1]), true);
+  check("a concluded row carries its conclusion", block.includes("conclusão: aprendido"), true);
+}
+
+/* ========================================================================== */
+section("Creative evidence block — presence, never performance");
+/* ========================================================================== */
+
+check(
+  "empty library is missing data, never proof of absence",
+  readinessCreativesBlock([]).includes("DADO AUSENTE") && readinessCreativesBlock([]).includes("Plano de Teste Criativo"),
+  true,
+);
+{
+  const creative = (over: Record<string, unknown>) => ({
+    name: "c",
+    status: "draft",
+    source: "manual",
+    format: null,
+    angle: null,
+    hook: null,
+    promise: null,
+    proof_type: null,
+    emotion: null,
+    funnel_stage: null,
+    result_summary: null,
+    organic_count: 0,
+    ...over,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+  const block = readinessCreativesBlock([
+    creative({ angle: "dor", promise: "emagreça em 30 dias" }),
+    creative({ angle: "prova", organic_count: 2 }),
+    creative({ angle: "dor" }),
+  ]);
+  check("counts totals", block.includes("Criativos registrados: 3"), true);
+  check("counts distinct angles", block.includes("2 ângulos distintos"), true);
+  check("counts organic-linked creatives", block.includes("Com publicação orgânica vinculada: 1"), true);
+  check("never claims attribution", block.includes("NUNCA afirme que um criativo causou venda"), true);
+  check("message match lists the registered promise", block.includes("emagreça em 30 dias"), true);
+  check("message match names the pagina dimension", block.includes("dimensão pagina"), true);
+
+  const noPromise = readinessCreativesBlock([creative({}), creative({})]);
+  check(
+    "no registered promise => explicit data-absent framing, no invented promise",
+    noPromise.includes("ainda não existe registrada"),
+    true,
+  );
+  check("no promise => no MESSAGE MATCH list", noPromise.includes("promessas/ganchos já registrados"), false);
+}
+
+// Locale coverage for the phase-3 keys.
+for (const locale of LOCALES) {
+  for (const key of ["dimension-ativacao", "next-review-label"]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
+
+// S2 regression pins: oferta stays context-driven and hasGuarantee must NEVER
+// move out of the checkout group — old checkout findings resolve through the
+// group fallback, and a move would silently detach their guarantee tick.
+check("oferta still has no resolvable items (context-driven by design)", resolvableItems("oferta", undefined), []);
+check(
+  "hasGuarantee stays in the checkout group (old-verdict fallback)",
+  itemsForDimension("checkout").includes("hasGuarantee"),
+  true,
+);
+
+/* ========================================================================== */
+section("Verdict diff — honest deltas, never string-diffed prose");
+/* ========================================================================== */
+
+{
+  const mk = (verdict: string, blocking: string[], findings: { dimension: string; status: string }[]) =>
+    ({
+      ...baseVerdict,
+      verdict,
+      blocking,
+      findings: findings.map((f) => ({ ...baseVerdict.findings[0], ...f })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any;
+
+  const improved = compareVerdicts(
+    mk("nao_pronto", ["a", "b", "c"], [{ dimension: "mensuracao", status: "critico" }]),
+    mk("quase", ["x"], [{ dimension: "mensuracao", status: "atencao" }]),
+  );
+  check("verdict transition improved", improved.verdict.direction, "improved");
+  check("blocker counts, never string-diffed", improved.blockers, { before: 3, after: 1, direction: "improved" });
+  check("dimension transition captured", improved.transitions, [
+    { dimension: "mensuracao", from: "critico", to: "atencao", direction: "improved" },
+  ]);
+  check("improved delta is changed", improved.changed, true);
+
+  const regressed = compareVerdicts(
+    mk("pronto", [], [{ dimension: "pagina", status: "ok" }]),
+    mk("nao_pronto", ["x"], [{ dimension: "pagina", status: "critico" }]),
+  );
+  check("verdict regression detected", regressed.verdict.direction, "regressed");
+  check("blocker growth is a regression", regressed.blockers.direction, "regressed");
+
+  // Two findings on one dimension: the WORST one is its status.
+  const worst = worstStatusByDimension(
+    mk("quase", [], [
+      { dimension: "pagina", status: "atencao" },
+      { dimension: "pagina", status: "critico" },
+    ]),
+  );
+  check("worst status wins within a dimension", worst.get("pagina"), "critico");
+
+  const clearedAndNew = compareVerdicts(
+    mk("quase", [], [{ dimension: "checkout", status: "atencao" }]),
+    mk("quase", [], [{ dimension: "descoberta", status: "atencao" }]),
+  );
+  check("dimension absent now is CLEARED (neutral), not resolved", clearedAndNew.clearedDimensions, ["checkout"]);
+  check("dimension only in next is NEW", clearedAndNew.newDimensions, [
+    { dimension: "descoberta", status: "atencao" },
+  ]);
+
+  const identical = compareVerdicts(
+    mk("quase", ["a"], [{ dimension: "pagina", status: "atencao" }]),
+    mk("quase", ["a reworded"], [{ dimension: "pagina", status: "atencao" }]),
+  );
+  check("reworded blocker prose is NOT a change (counts only)", identical.changed, false);
+}
+
+// The honest scan series: proved-count, never the tick-inflatable confirmed.
+check("scanProvedCount: no signals => null (unreadable, not zero)", scanProvedCount(null), null);
+check(
+  "scanProvedCount: SPA => null",
+  scanProvedCount(signalsWith({ jsRenderedLikely: true })),
+  null,
+);
+check(
+  "scanProvedCount: full fixture proves the six tag/probe items",
+  scanProvedCount(signalsWith()),
+  6, // pixel, analytics, seoBasics, indexable, sitemapRobots, structuredData — pageFast needs PSI
+);
+check(
+  "scanProvedCount: PSI-fast adds pageFast",
+  scanProvedCount(signalsWith({ psi: psiOk(2000) })),
+  7,
+);
+check(
+  "scanProvedCount: partial fixture counts only observed-true",
+  scanProvedCount(
+    signalsWith({
+      // NOTE: signalsWith replaces sub-objects wholesale — this seo has no
+      // title/description, so seoBasics is NOT observed-true here.
+      tracking: { metaPixel: true, ga4: false, gtm: false },
+      seo: { structuredDataTypes: [] },
+      discovery: { sitemapXml: "error" },
+    }),
+  ),
+  2, // pixel + indexable (analytics/seoBasics/structuredData false, sitemapRobots + pageFast null)
+);
+
+// Locale coverage for the R3/U1 keys.
+for (const locale of LOCALES) {
+  for (const key of [
+    "delta-since-last",
+    "delta-none",
+    "delta-verdict",
+    "delta-blockers",
+    "delta-dimension",
+    "delta-dimension-cleared",
+    "delta-dimension-new",
+    "history-first-verdict",
+    "history-blocking-title",
+    "scan-trend-title",
+    "scan-trend-proved",
+    "scan-trend-unreadable",
+    "scan-trend-failed",
+    "deep-link-verdict-missing",
+  ]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
+
+// Locale coverage for the phase-4A door/wizard keys.
+for (const locale of LOCALES) {
+  for (const key of [
+    "wizard-jump-to",
+    "blocker-fix-page-cta",
+    "blocker-fix-price-cta",
+    "scan-no-url-cta",
+    "offer-context-cta",
+    "offer-context-hint",
+  ]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
+
+/* ========================================================================== */
+section("Journey plumbing — durable signals, registered map, item→group");
+/* ========================================================================== */
+
+// groupForItem is total: every item maps to the group that contains it (U7).
+for (const key of READINESS_ITEM_KEYS) {
+  const group = groupForItem(key);
+  check(
+    `groupForItem(${key}) contains the item`,
+    READINESS_GROUPS.find((entry) => entry.key === group)!.items.some((item) => item.key === key),
+    true,
+  );
+}
+
+// sanitizeJourneySignals: never trust the client (or a stale row) shape (U5).
+check("journey: null => empty", sanitizeJourneySignals(null), { skippedItems: [], helpOpenedItems: [] });
+check("journey: garbage string => empty", sanitizeJourneySignals("x"), { skippedItems: [], helpOpenedItems: [] });
+check(
+  "journey: unknown keys dropped, duplicates collapsed",
+  sanitizeJourneySignals({ skippedItems: ["bogus", "pixelInstalled", "pixelInstalled", 42] }),
+  { skippedItems: ["pixelInstalled"], helpOpenedItems: [] },
+);
+check(
+  "journey: valid payload round-trips",
+  sanitizeJourneySignals({ skippedItems: ["capiInstalled"], helpOpenedItems: ["pixelInstalled", "seoBasics"] }),
+  { skippedItems: ["capiInstalled"], helpOpenedItems: ["pixelInstalled", "seoBasics"] },
+);
+
+// Persistence changed the DURABILITY of the concierge inputs, never the
+// earning rules: a persisted helpOpened on a DIY item still earns nothing.
+const journeyBase: AssistSignals = {
+  contradicted: false,
+  skipped: false,
+  openedHelp: false,
+  scanAttempts: 1,
+  resolved: false,
+  notApplicable: false,
+};
+check(
+  "persisted helpOpened alone on a DIY item still earns no offer",
+  assistReason("pageHasProof", { ...journeyBase, openedHelp: true }),
+  null,
+);
+check(
+  "persisted skipped on a specialist item still earns the offer",
+  assistReason("capiInstalled", { ...journeyBase, skipped: true }),
+  "skipped-specialist",
+);
+
+// mapRegisteredExperiments (U6): the (diagnosis_id, change_made) anchor,
+// reversed — reload-proof without a schema change.
+{
+  const findings = [{ recommended_action: "instalar o pixel" }, { recommended_action: "adicionar PIX" }];
+  check(
+    "exact action maps to its finding index",
+    mapRegisteredExperiments(findings, [{ id: "e1", change_made: "adicionar PIX" }]),
+    { 1: "e1" },
+  );
+  check(
+    "duplicate actions collapse to the FIRST index (mirrors the insert)",
+    mapRegisteredExperiments(
+      [{ recommended_action: "a" }, { recommended_action: "a" }],
+      [{ id: "e1", change_made: "a" }],
+    ),
+    { 0: "e1" },
+  );
+  check("null change_made produces no entry", mapRegisteredExperiments(findings, [{ id: "e1", change_made: null }]), {});
+  check("unmatched rows produce no entry", mapRegisteredExperiments(findings, [{ id: "e1", change_made: "x" }]), {});
+  check("empty inputs produce {}", mapRegisteredExperiments([], []), {});
+}
+
+// Locale coverage for the phase-4C keys.
+for (const locale of LOCALES) {
+  for (const key of [
+    "no-subscription-title",
+    "no-subscription-body",
+    "no-subscription-cta",
+    "howto-specialist-cta",
+    "copy-failed",
+    "credit-load-error-title",
+    "credit-load-error-body",
+    "assist-load-error-title",
+    "assist-load-error-body",
+    "dont-know-item",
+    "hide-explanation-item",
+    "finding-summary-aria",
+    "pending-chip-aria",
+  ]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
 
 /* ========================================================================== */
 section("Per-dimension progress — celebration may only fire on proof");
@@ -529,10 +1238,17 @@ section("Auto-confirm from the page read — one way only");
   check("checkout items are untouched", after.paymentPix, false);
 }
 
-// A JS-rendered page proves nothing — do not confirm from it.
+// A JS-rendered page: PRESENCE in the initial HTML is real proof (head tags
+// are commonly server-rendered even on SPAs) — only ABSENCE is undecidable.
 check(
-  "a client-rendered page confirms nothing",
+  "presence on an SPA confirms (tags in the initial HTML are real)",
   autoConfirmProven(p(), signalsWith({ jsRenderedLikely: true })).pixelInstalled,
+  true,
+);
+check(
+  "absence on an SPA never confirms",
+  autoConfirmProven(p(), signalsWith({ jsRenderedLikely: true, tracking: { metaPixel: false, ga4: false, gtm: false } }))
+    .pixelInstalled,
   false,
 );
 check("no scan at all confirms nothing", autoConfirmProven(p(), null).pixelInstalled, false);
@@ -627,6 +1343,129 @@ check(
   }),
   "contradicted",
 );
+
+/* ========================================================================== */
+section("Structural unprovability — no more 'awaiting proof' life sentences");
+/* ========================================================================== */
+
+// unprovableItems: the proved-tier claims the CURRENT scan can never prove.
+check("no scan yet is NOT unprovable (scanning is still a path)", unprovableItems(null), []);
+{
+  const spaNothing = signalsWith({
+    jsRenderedLikely: true,
+    tracking: { metaPixel: false, ga4: false, gtm: false },
+    seo: { title: null, metaDescription: null, structuredDataTypes: [] },
+  });
+  const list = unprovableItems(spaNothing);
+  for (const key of ["pixelInstalled", "analyticsInstalled", "seoBasics", "indexable", "structuredData"] as const) {
+    check(`SPA with nothing visible: ${key} is unprovable`, list.includes(key), true);
+  }
+  check("sitemapRobots is NEVER unprovable (probe channel)", list.includes("sitemapRobots"), false);
+}
+check(
+  "GTM-only on a server-rendered page: pixel unprovable, analytics not",
+  unprovableItems(signalsWith({ tracking: { metaPixel: false, ga4: false, gtm: true } })),
+  // pageFast rides along on every scan without a PSI measurement (V3).
+  ["pixelInstalled", "pageFast"],
+);
+check(
+  "what is already proven is not unprovable",
+  unprovableItems(signalsWith({ jsRenderedLikely: true })).includes("pixelInstalled"),
+  false, // fixture has metaPixel: true — presence hoists above the SPA guard
+);
+
+// Probe channels survive the SPA guard in observeItem.
+check(
+  "sitemap missing still contradicts on an SPA",
+  verifyItem("sitemapRobots", true, signalsWith({ jsRenderedLikely: true, discovery: { sitemapXml: "missing" } })),
+  "contradicted",
+);
+check(
+  "probes found still verify on an SPA",
+  verifyItem("sitemapRobots", true, signalsWith({ jsRenderedLikely: true })),
+  "verified",
+);
+check(
+  "noindex is definitive even on an SPA",
+  verifyItem("indexable", true, signalsWith({ jsRenderedLikely: true, seo: { noindex: true } })),
+  "contradicted",
+);
+check(
+  "pixel present on an SPA verifies",
+  verifyItem("pixelInstalled", true, signalsWith({ jsRenderedLikely: true })),
+  "verified",
+);
+
+// findingResolution: structurally unprovable settles as trusted, with the WHY.
+check(
+  "ticked pixel + unprovable => declared-unverifiable",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    ...noEvidence,
+    unprovable: ["pixelInstalled"],
+  }),
+  "declared-unverifiable",
+);
+check("declared-unverifiable is not pending", isFindingPending("declared-unverifiable"), false);
+check(
+  "a still-provable sibling keeps the finding awaiting-proof",
+  findingResolution(["pixelInstalled", "sitemapRobots"], p({ pixelInstalled: true, sitemapRobots: true }), {
+    ...noEvidence,
+    unprovable: ["pixelInstalled"],
+  }),
+  "awaiting-proof",
+);
+check(
+  "once the provable sibling is proved, the unprovable rest settles",
+  findingResolution(["pixelInstalled", "sitemapRobots"], p({ pixelInstalled: true, sitemapRobots: true }), {
+    verified: ["sitemapRobots"],
+    contradicted: [],
+    unprovable: ["pixelInstalled"],
+  }),
+  "declared-unverifiable",
+);
+check(
+  "contradiction still wins over unprovable",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    verified: [],
+    contradicted: ["pixelInstalled"],
+    unprovable: ["pixelInstalled"],
+  }),
+  "contradicted",
+);
+check(
+  "canVerify:false still degrades to declared (coarser label, same outcome)",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    ...noEvidence,
+    canVerify: false,
+    unprovable: ["pixelInstalled"],
+  }),
+  "declared",
+);
+// Backward-compat guard: evidence WITHOUT the new field reproduces the old table.
+check(
+  "omitting `unprovable` keeps the pre-existing behavior",
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), noEvidence),
+  "awaiting-proof",
+);
+
+// The brief marks a claimed-but-unprovable item honestly.
+{
+  const spaEval = evaluateReadiness(p({ pixelInstalled: true }), {
+    hasLandingPage: true,
+    hasPrice: true,
+    signals: signalsWith({ jsRenderedLikely: true, tracking: { metaPixel: false, ga4: false, gtm: false } }),
+  });
+  check("evaluateReadiness exposes unprovable", spaEval.unprovable.includes("pixelInstalled"), true);
+  const block = readinessChecklistBlock(p({ pixelInstalled: true }), spaEval);
+  check("brief says IMPOSSÍVEL de verificar for unprovable claims", block.includes("IMPOSSÍVEL de verificar"), true);
+}
+
+// Locale coverage for the three new keys.
+for (const locale of LOCALES) {
+  for (const key of ["resolution-declared-unverifiable", "resolution-declared-unverifiable-body", "item-unprovable-note"]) {
+    check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
+  }
+}
 
 // Contradiction outranks everything — even a fully ticked finding.
 check(

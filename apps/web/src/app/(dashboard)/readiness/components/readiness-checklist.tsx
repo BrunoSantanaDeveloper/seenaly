@@ -3,7 +3,7 @@
 import type { AssistOffering } from "../actions";
 import AssistOffer from "./assist-offer";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Alert,
@@ -42,13 +42,13 @@ import {
   type CheckoutType,
   groupsForModel,
   notApplicableReason,
-  observeItem,
   READINESS_ITEM_BY_KEY,
   type ReadinessEvaluation,
   type ReadinessGroup,
   type ReadinessGroupKey,
   type ReadinessItemKey,
   type ReadinessProfile,
+  verifyItem,
 } from "@/lib/readiness/checklist";
 import type { ScanSignals } from "@/lib/readiness/scan-analyze";
 import { cn } from "@/lib/utils";
@@ -96,9 +96,13 @@ export default function ReadinessChecklist({
   scanning = false,
   assistOffering = null,
   assistOpenItems = [],
+  skippedItems = [],
+  helpOpenedItems = [],
+  onJourneySignal,
   scanAttempts = 0,
   creditBalance = null,
   onRequestAssist,
+  focusItemKey = null,
 }: {
   profile: ReadinessProfile;
   evaluation: ReadinessEvaluation;
@@ -120,18 +124,26 @@ export default function ReadinessChecklist({
   assistOffering?: AssistOffering | null;
   /** Items with a request already in the queue — never sell the same one twice. */
   assistOpenItems?: string[];
+  /** Durable resistance signals (U5): "skipped" and "has EVER opened help". */
+  skippedItems?: ReadinessItemKey[];
+  helpOpenedItems?: ReadinessItemKey[];
+  onJourneySignal?: (kind: "skipped" | "helpOpened", key: ReadinessItemKey) => void;
   /** How many times the page has been scanned — part of the resistance signal. */
   scanAttempts?: number;
   creditBalance?: number | null;
   onRequestAssist?: (key: ReadinessItemKey, reason: AssistReason, note: string) => Promise<boolean>;
+  /** Expand + scroll to ONE item's teaching panel on mount (U7). */
+  focusItemKey?: { itemKey: ReadinessItemKey; nonce: number } | null;
 }) {
   const t = useTranslations("readiness");
   const [openHelp, setOpenHelp] = useState<Set<ReadinessItemKey>>(new Set());
   const [refused, setRefused] = useState<Set<ReadinessItemKey>>(new Set());
   const [copied, setCopied] = useState<ReadinessItemKey | null>(null);
-  // Explicitly giving up on an item is the clearest "I can't do this" we ever
-  // get — it is what earns the concierge offer (see lib/readiness/assist.ts).
-  const [skipped, setSkipped] = useState<Set<ReadinessItemKey>>(new Set());
+  const [copyFailed, setCopyFailed] = useState<ReadinessItemKey | null>(null);
+  // "skipped" and "ever opened help" now live in the PERSISTED journey
+  // signals (U5) — local state died on step unmount, taking the earned
+  // concierge offer with it. `openHelp` stays local: it is only the collapse
+  // UI; the durable "has ever opened" is helpOpenedItems.
 
   const toggleSet = (
     setter: React.Dispatch<React.SetStateAction<Set<ReadinessItemKey>>>,
@@ -149,12 +161,32 @@ export default function ReadinessChecklist({
   const set = <K extends keyof ReadinessProfile>(key: K, value: ReadinessProfile[K]) =>
     onChange({ ...profile, [key]: value });
 
+  // U7: land ON the requested item with its teaching open. The delay follows
+  // the focusFinding/openSection pattern — the Dialog needs a tick to mount.
+  useEffect(() => {
+    if (!focusItemKey) return;
+    toggleSet(setOpenHelp, focusItemKey.itemKey, true);
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById(`readiness-item-${focusItemKey.itemKey}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusItemKey?.nonce]);
+
   /**
    * Ticking an item. A claim the evidence disproves is refused — the box stays
    * unticked and the user gets the proof plus three ways forward.
+   *
+   * verifyItem, not a raw observeItem === false: refusal authority lives in
+   * exactly one tier-aware function. The raw check also refused WEAK-tier
+   * hints (mobile-tested on a page without a viewport tag), which the
+   * documented contract forbids — weak evidence surfaces a hint, never a
+   * refusal.
    */
   const claim = (key: ReadinessItemKey, checked: boolean) => {
-    if (checked && observeItem(key, signals) === false) {
+    if (checked && verifyItem(key, true, signals) === "contradicted") {
       toggleSet(setRefused, key, true);
       toggleSet(setOpenHelp, key, false);
       return;
@@ -166,11 +198,14 @@ export default function ReadinessChecklist({
   const copySpec = async (key: ReadinessItemKey, spec: string) => {
     try {
       await navigator.clipboard.writeText(spec);
+      setCopyFailed(null);
       setCopied(key);
       window.setTimeout(() => setCopied((current) => (current === key ? null : current)), 2000);
     } catch {
-      // Clipboard blocked (permissions, insecure context): the text is on
-      // screen and selectable, so this is a silent degradation, not a failure.
+      // Clipboard blocked (permissions, insecure context): SAY so — the text
+      // is on screen and selectable, and a button that silently does nothing
+      // reads as broken (U8).
+      setCopyFailed(key);
     }
   };
 
@@ -183,6 +218,9 @@ export default function ReadinessChecklist({
     const meta = READINESS_ITEM_BY_KEY[key];
     const naReason = notApplicableReason(key, profile, { hasLandingPage });
     const isVerified = evaluation.verified.includes(key);
+    // Proof structurally unattainable (SPA / tag inside GTM): the "verify now"
+    // button would be a control that can never succeed — hide it and say why.
+    const isUnprovable = evaluation.unprovable.includes(key);
     const helpOpen = openHelp.has(key);
     // A claim ticked BEFORE the evidence existed must not survive it. Guarding
     // only the moment of ticking would let anyone tick everything first and
@@ -201,13 +239,15 @@ export default function ReadinessChecklist({
 
     // The concierge is EARNED: it appears only after this specific item has
     // shown real resistance, and never for something already proved, already
-    // requested, or that this business cannot do anyway.
+    // requested, or that this business cannot do anyway. The inputs are the
+    // DURABLE signals (persisted history OR the live session) — the offer must
+    // not evaporate when a panel collapses or a step unmounts.
     const offer =
       assistOffering && onRequestAssist
         ? assistReason(key, {
             contradicted: isContradicted,
-            skipped: skipped.has(key),
-            openedHelp: helpOpen,
+            skipped: skippedItems.includes(key),
+            openedHelp: helpOpenedItems.includes(key) || helpOpen,
             scanAttempts,
             resolved: isVerified,
             notApplicable: Boolean(naReason),
@@ -215,7 +255,7 @@ export default function ReadinessChecklist({
         : null;
 
     return (
-      <Box key={key} className={cn("flex flex-col py-0.5", naReason && "opacity-60")}>
+      <Box key={key} id={`readiness-item-${key}`} className={cn("flex flex-col py-0.5", naReason && "opacity-60")}>
         <Box className="flex flex-row flex-wrap items-center gap-x-2">
           {/* A proved item is settled by evidence, not opinion — so its box is
               read-only. Leaving it editable would re-open the very gap the
@@ -273,8 +313,23 @@ export default function ReadinessChecklist({
             className="min-w-0"
             startIcon={<NiQuestionHexagon size="small" />}
             endIcon={<NiChevronDown size="small" className={cn("transition-transform", helpOpen && "rotate-180")} />}
-            onClick={() => toggleSet(setOpenHelp, key)}
+            onClick={() => {
+              const willOpen = !helpOpen;
+              toggleSet(setOpenHelp, key);
+              // "Has ever opened help" is a durable resistance signal (U5).
+              if (willOpen) onJourneySignal?.("helpOpened", key);
+            }}
             aria-expanded={helpOpen}
+            // Item-specific name: 25 identical "Não sei o que é isso" stops are
+            // useless in a screen-reader rotor (P4). aria-controls only while
+            // open — the Collapse is unmountOnExit, and the attribute must
+            // never reference a non-existent id.
+            aria-label={
+              helpOpen
+                ? t("hide-explanation-item", { item: t(`item-${key}`) })
+                : t("dont-know-item", { item: t(`item-${key}`) })
+            }
+            aria-controls={helpOpen ? `readiness-help-${key}` : undefined}
           >
             {helpOpen ? t("hide-explanation") : t("dont-know")}
           </Button>
@@ -286,7 +341,15 @@ export default function ReadinessChecklist({
             <Typography variant="subtitle2">{t("refused-title")}</Typography>
             <Typography variant="body2">{t("refused-body", { item: t(`item-${key}`), url: scanUrl ?? "" })}</Typography>
             <Box className="mt-2 flex flex-row flex-wrap gap-1">
-              <Button size="small" variant="outlined" color="grey" onClick={() => toggleSet(setOpenHelp, key, true)}>
+              <Button
+                size="small"
+                variant="outlined"
+                color="grey"
+                onClick={() => {
+                  toggleSet(setOpenHelp, key, true);
+                  onJourneySignal?.("helpOpened", key);
+                }}
+              >
                 {t("refused-do-it")}
               </Button>
               {hireSpec && (
@@ -296,6 +359,7 @@ export default function ReadinessChecklist({
                   color="grey"
                   onClick={() => {
                     toggleSet(setOpenHelp, key, true);
+                    onJourneySignal?.("helpOpened", key);
                     copySpec(key, hireSpec);
                   }}
                 >
@@ -308,7 +372,8 @@ export default function ReadinessChecklist({
                 color="grey"
                 onClick={() => {
                   toggleSet(setRefused, key, false);
-                  toggleSet(setSkipped, key, true);
+                  // The clearest "I can't do this" we ever get — durable (U5).
+                  onJourneySignal?.("skipped", key);
                 }}
               >
                 {t("refused-skip")}
@@ -340,7 +405,7 @@ export default function ReadinessChecklist({
 
         {/* The teaching, at the moment of the question. */}
         <Collapse in={helpOpen} unmountOnExit>
-          <Box className="bg-grey-25/60 mb-2 ml-8 flex flex-col gap-2 rounded-2xl p-3">
+          <Box id={`readiness-help-${key}`} className="bg-grey-25/60 mb-2 ml-8 flex flex-col gap-2 rounded-2xl p-3">
             <Box className="flex flex-row flex-wrap items-center gap-2">
               <Chip
                 label={meta.difficulty === "diy" ? t("difficulty-diy") : t("difficulty-specialist")}
@@ -415,6 +480,15 @@ export default function ReadinessChecklist({
                 <Typography variant="body2" className="leading-6 italic">
                   “{hireSpec}”
                 </Typography>
+                {copyFailed === key && (
+                  <Typography variant="body2" className="text-text-secondary">
+                    {t("copy-failed")}
+                  </Typography>
+                )}
+                {/* Screen readers hear the Copiado/failed swap too (U8). */}
+                <span className="sr-only" aria-live="polite">
+                  {copied === key ? t("copied") : copyFailed === key ? t("copy-failed") : ""}
+                </span>
               </Box>
             )}
 
@@ -456,7 +530,10 @@ export default function ReadinessChecklist({
                   </Button>
                 )}
 
-                {meta.verification === "proved" && onVerifyNow && hasLandingPage && (
+                {/* Never hand the user a button that can structurally never
+                    succeed: on an SPA (or a tag inside GTM) a re-read cannot
+                    prove this item — the honest note below replaces it. */}
+                {meta.verification === "proved" && onVerifyNow && hasLandingPage && !isUnprovable && (
                   <Button
                     size="small"
                     variant="pastel"
@@ -482,6 +559,14 @@ export default function ReadinessChecklist({
                   </Button>
                 )}
               </Box>
+            )}
+
+            {/* The honest replacement for the hidden verify button: our page
+                read cannot see these tags, so the tick counts on trust. */}
+            {meta.verification === "proved" && isUnprovable && (
+              <Typography variant="body2" className="text-text-secondary">
+                {t("item-unprovable-note")}
+              </Typography>
             )}
           </Box>
         </Collapse>

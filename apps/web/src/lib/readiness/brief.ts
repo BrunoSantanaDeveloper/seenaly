@@ -10,6 +10,7 @@
  * asserting absence from silence.
  */
 
+import type { PlanCreativeRow } from "../creative-plan/brief";
 import {
   type CheckoutType,
   type FunnelModel,
@@ -121,8 +122,9 @@ export function readinessFunnelModelBlock(profile: ReadinessProfile): string {
       "6. DIMENSÃO FUNIL/RETENÇÃO — leia com atenção, é onde o erro é mais fácil: o FORMULÁRIO DE CADASTRO DO TRIAL JÁ É uma captura de contato. NÃO recomende “implemente um formulário de captura de e-mail na página” como se não existisse nenhum: isso já existe e é a conversão principal. Aqui, captura de contato só faz sentido para quem NÃO se cadastra (ex.: material/lista para quem ainda não quer testar) — e é uma alavanca secundária, não a principal.",
       "7. A sequência de e-mail que decide dinheiro neste modelo NÃO é “boas-vindas e nutrição” genérica: é a régua do TRIAL — ativação nos primeiros dias (levar ao “aha”), lembrete de expiração e convite ao upgrade. Se for recomendar e-mail, recomende ISSO, com o gatilho e o momento.",
       "8. Remarketing aqui é SEGMENTADO POR ESTADO DO TRIAL (cadastrou e não ativou; ativou e não contratou; trial expirando) e precisa EXCLUIR quem já é cliente pagante e quem está em trial ativo das campanhas de aquisição. Não trate como “público de remarketing de visitantes da página”.",
+      "9. Achados sobre a estrutura pós-login (fricção do cadastro, momento de ativação, conversão trial → pagante, caminho de upgrade) usam a dimensão `ativacao` — nunca `checkout` nem `funil`. Fora do modelo trial-first, NUNCA use a dimensão `ativacao`.",
       "",
-      "Ao gerar related_items para findings deste modelo, além das chaves usuais você PODE usar exatamente estas: signupFrictionLow, activationDefined, trialToPaidTracked, upgradePathClear.",
+      "Ao gerar related_items para findings deste modelo: as chaves signupFrictionLow, activationDefined, trialToPaidTracked e upgradePathClear pertencem a findings da dimensão `ativacao`.",
     );
   }
 
@@ -158,6 +160,7 @@ const NA_REASON_LABEL: Record<NotApplicableReason, string> = {
 export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: ReadinessEvaluation): string {
   const verified = new Set(evaluation?.verified ?? []);
   const contradicted = new Set(evaluation?.contradicted ?? []);
+  const unprovable = new Set(evaluation?.unprovable ?? []);
   const reasons = evaluation?.notApplicableReasons ?? {};
 
   // Only the groups this funnel model actually has — listing trial activation
@@ -174,6 +177,10 @@ export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: 
       else if (contradicted.has(item.key))
         marks.push(
           "CONTESTADO — o usuário marcou, mas a leitura da página NÃO encontrou. Trate como ausente e aponte a divergência com respeito",
+        );
+      else if (claimed && unprovable.has(item.key))
+        marks.push(
+          "declarado e IMPOSSÍVEL de verificar pela nossa leitura (página renderizada no cliente ou tag dentro do GTM) — a palavra do usuário é o melhor dado disponível; NÃO peça prova por scan",
         );
       else if (claimed) marks.push("declarado, NÃO verificado");
       else marks.push("NÃO CONFIRMADO");
@@ -294,6 +301,21 @@ export function readinessScanBlock(scan: ScanRecord | null, funnelModel: FunnelM
     `- Peso do HTML: ${Math.round(s.bytes / 1024)} KB; tempo da nossa requisição: ${s.fetchMs ?? "?"} ms`,
   ];
 
+  // Official speed measurement (PageSpeed Insights), when it exists. This IS
+  // Core Web Vitals — the one performance evidence the caveat below does not
+  // apply to. Field p75 (real users) preferred over lab.
+  if (s.psi?.status === "ok") {
+    const lcp = s.psi.field?.lcpMs ?? s.psi.lab.lcpMs;
+    const lcpSource = s.psi.field?.lcpMs != null ? "campo/CrUX p75, usuários reais" : "laboratório/Lighthouse";
+    lines.push(
+      `- Velocidade OFICIAL (PageSpeed Insights, mobile): LCP=${lcp != null ? `${Math.round(lcp)} ms` : "sem dado"} (${lcpSource}; bom ≤ 2500 ms, ruim > 4000 ms), score de performance=${s.psi.performanceScore ?? "sem dado"}/100, CLS=${s.psi.field?.cls ?? s.psi.lab.cls ?? "sem dado"}. Isto É Core Web Vitals oficial — pode ser citado como evidência de performance.`,
+    );
+  } else if (s.psi?.status === "failed") {
+    lines.push(
+      "- A medição oficial de velocidade (PageSpeed) FALHOU nesta leitura. Não conclua nada sobre a velocidade real da página.",
+    );
+  }
+
   if (s.seo.noindex) {
     lines.push(
       "- ATENÇÃO CRÍTICA: a página declara NOINDEX. Ela está sendo removida dos resultados de busca. Isso não afeta o anúncio pago, mas anula qualquer aquisição orgânica — é um achado de alta prioridade na dimensão descoberta.",
@@ -307,6 +329,11 @@ export function readinessScanBlock(scan: ScanRecord | null, funnelModel: FunnelM
       ? `- A página trouxe pouquíssimo texto no HTML inicial (${s.visibleTextLength} caracteres), o que indica renderização no cliente (SPA). As tags acima podem existir e serem injetadas por JavaScript. NÃO afirme que estão ausentes — diga que não aparecem no HTML inicial, o que também afeta rastreadores, e peça confirmação.`
       : "- A página trouxe conteúdo no HTML inicial, então a leitura das tags é confiável.",
     "- A API de Conversões (CAPI) é server-side e é INVISÍVEL para qualquer scan. Nunca conclua que ela existe ou não existe a partir deste bloco; use apenas o checklist declarado.",
+    ...(s.tracking.gtm && !s.tracking.metaPixel
+      ? [
+          "- O Google Tag Manager ESTÁ presente e o Meta Pixel costuma ser carregado por dentro do contêiner, invisível a esta leitura. 'Meta Pixel=NÃO' acima significa apenas 'não visto no HTML inicial', NUNCA 'ausente'. Se o usuário declarou o Pixel instalado, trate como declarado — jamais como contestado.",
+        ]
+      : []),
     "- A leitura do robots.txt é aproximada (não implementa a gramática completa). Use-a para levantar a questão, não como veredito absoluto.",
     "- O tempo de requisição acima é medido do nosso servidor e NÃO é Core Web Vitals nem experiência real de usuário. Não o apresente como métrica de performance oficial.",
   );
@@ -363,12 +390,73 @@ export function readinessOrganicBlock(presence: OrganicPresence): string {
 }
 
 /**
+ * The creative library as the READINESS engine needs to see it: presence and
+ * coverage, never performance (docs/PRODUCT.md phase 8 feeds the `midia`
+ * dimension). Framed like readinessOrganicBlock — counts, the honest
+ * missing-data posture, and the two invariants.
+ *
+ * Also carries the MESSAGE MATCH input (S4): the ad-side promise is NOT a
+ * declared intake field — it lives on the creatives themselves
+ * (creatives.promise / hook). While no creative carries one, the honest state
+ * is "the ad promise does not exist yet", and the door is the Creative Test
+ * Plan — never a hypothetical promise typed into a form.
+ */
+export function readinessCreativesBlock(creatives: PlanCreativeRow[]): string {
+  if (creatives.length === 0) {
+    return [
+      "Nenhum criativo registrado na biblioteca para este produto.",
+      "Isso é DADO AUSENTE, não prova de que criativos não existem. Para a dimensão midia, não afirme que o usuário não tem criativos; trate como não registrado — a porta concreta é o Plano de Teste Criativo, e quando for relevante peça o registro/plano em missing_data.",
+    ].join("\n");
+  }
+
+  const distinct = (values: (string | null | undefined)[]) => new Set(values.filter(Boolean)).size;
+  const byStatus = new Map<string, number>();
+  for (const creative of creatives) byStatus.set(creative.status, (byStatus.get(creative.status) ?? 0) + 1);
+  const bySource = new Map<string, number>();
+  for (const creative of creatives) bySource.set(creative.source, (bySource.get(creative.source) ?? 0) + 1);
+
+  const lines = [
+    `- Criativos registrados: ${creatives.length}`,
+    `- Por status: ${[...byStatus.entries()].map(([status, count]) => `${status}=${count}`).join(", ")}`,
+    `- Por origem: ${[...bySource.entries()].map(([source, count]) => `${source}=${count}`).join(", ")}`,
+    `- Cobertura de tags: ${distinct(creatives.map((c) => c.angle))} ângulos distintos, ${distinct(creatives.map((c) => c.hook))} ganchos distintos, ${distinct(creatives.map((c) => c.proof_type))} tipos de prova distintos`,
+    `- Com publicação orgânica vinculada: ${creatives.filter((c) => c.organic_count > 0).length}`,
+    "",
+    "COMO USAR ISTO: presença, nunca desempenho. NUNCA compare métricas de redes diferentes como equivalentes e NUNCA afirme que um criativo causou venda. Use estas contagens como evidência product_context da dimensão midia (cobertura mínima de ângulos antes da 1ª campanha).",
+  ];
+
+  // MESSAGE MATCH: the ad side, from real registered creatives.
+  const promises = [
+    ...new Set(
+      creatives
+        .flatMap((creative) => [creative.promise, creative.hook])
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ].slice(0, 10);
+  if (promises.length > 0) {
+    lines.push(
+      "",
+      "MESSAGE MATCH — promessas/ganchos já registrados nos criativos:",
+      ...promises.map((promise) => `- ${promise}`),
+      "Compare-as com o H1/title OBSERVADO no scan e com a promessa principal do produto; divergência entre a promessa do anúncio e a da página é achado da dimensão pagina, citando os dois lados como evidência. Sem H1/title observado, não há o que comparar — não invente o lado da página.",
+    );
+  } else {
+    lines.push(
+      "",
+      "MESSAGE MATCH: a promessa do anúncio ainda não existe registrada (nenhum criativo carrega promessa/gancho) — não conclua nada sobre message match; se relevante, aponte o Plano de Teste Criativo em missing_data.",
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/**
  * What we ask the knowledge base. Spans the whole pre-spend structure — the
  * playbook (CRO/checkout/offer) carries most of it, and the Meta corpus carries
  * the measurement rules (pixel/CAPI, optimization event, learning phase).
  */
 export function readinessRetrievalQuery(hasPage: boolean): string {
   const base =
-    "prontidão antes de investir em tráfego pago: instalação de pixel e API de Conversões, escolha do evento de otimização, fase de aprendizado e volume mínimo, fricção de checkout e abandono, meios de pagamento PIX, equação de valor e garantia, prova social, message match entre anúncio e página, velocidade e experiência mobile, captura de contato e remarketing, fundamentos de SEO e descoberta orgânica";
+    "prontidão antes de investir em tráfego pago: instalação de pixel e API de Conversões, escolha do evento de otimização, fase de aprendizado e volume mínimo, fricção de checkout e abandono, meios de pagamento PIX, equação de valor e garantia, prova social, message match entre anúncio e página, velocidade e experiência mobile, captura de contato e remarketing, fundamentos de SEO e descoberta orgânica, criativos mínimos por ângulo antes da primeira campanha";
   return hasPage ? base : `${base}, o que precisa existir em uma página de vendas antes do primeiro anúncio`;
 }

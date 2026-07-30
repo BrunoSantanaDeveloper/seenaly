@@ -117,18 +117,34 @@ async function main() {
   try {
     const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
     const pending = [];
+    const broken = [];
 
     for (const file of files) {
       const text = await readFile(path.join(MIGRATIONS_DIR, file), "utf8");
       const marker = deriveMarker(text);
       if (!marker) {
-        console.warn(`SKIP ${file} — no marker object derivable; verify manually.`);
+        // A marker-less file would be skipped forever — the app ships code
+        // expecting the change and the change never lands (this exact bug
+        // shipped once as a silent `SKIP … verify manually` warning). Hard
+        // failure, in dry-run AND apply, so it is caught in review.
+        broken.push(file);
         continue;
       }
       const applied = await markerExists(sql, marker);
       const markerLabel = marker.kind === "column" ? `column ${marker.table}.${marker.name}` : `${marker.kind} ${marker.name}`;
       console.log(`${applied ? "applied" : "MISSING"}  ${file}  (marker: ${markerLabel})`);
       if (!applied) pending.push({ file, text });
+    }
+
+    if (broken.length > 0) {
+      for (const file of broken) {
+        console.error(
+          `NO MARKER ${file} — every migration must create a table/function/bucket or add a column ` +
+            `so applied-state is observable in the catalogs. Wrap data-only changes in a one-shot ` +
+            `"create function public.<name>" + select (see 0030_welcome_credits_backfill / 0037_readiness_token_budget).`,
+        );
+      }
+      process.exit(1);
     }
 
     if (pending.length === 0) {

@@ -3,11 +3,15 @@
 import { mapProductRow } from "../products/lib/map";
 
 import { recordAudit } from "@/lib/audit";
+import { loadCreativeEvidence } from "@/lib/creative-plan/evidence";
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
+import { EXPERIMENT_BRIEF_LIMIT, experimentsBlock, type ExperimentSummaryRow } from "@/lib/experiments/brief";
 import { notifyPlatformTeam } from "@/lib/notifications";
+import { sanitizeJourneySignals } from "@/lib/readiness/assist";
 import {
   type OrganicPresence,
   readinessChecklistBlock,
+  readinessCreativesBlock,
   readinessFunnelModelBlock,
   readinessOrganicBlock,
   readinessRetrievalQuery,
@@ -27,16 +31,27 @@ import {
   toReadinessProfile,
   toReadinessRow,
 } from "@/lib/readiness/checklist";
-import { HOWTO_JSON_SCHEMA, HOWTO_SCHEMA_NAME, type HowToOutput, isHowToOutput } from "@/lib/readiness/howto";
-import { scanSite } from "@/lib/readiness/scan";
+import { failure, type ReadinessActionFailure } from "@/lib/readiness/errors";
+import {
+  HOWTO_JSON_SCHEMA,
+  HOWTO_SCHEMA_NAME,
+  type HowToOutput,
+  isHowToOutput,
+  normalizeStoredHowTo,
+} from "@/lib/readiness/howto";
+import { isPageSpeedConfigured, runPageSpeed } from "@/lib/readiness/pagespeed";
+import { scanCooldownRemainingSeconds, scanSite } from "@/lib/readiness/scan";
 import {
   isReadinessOutput,
   READINESS_JSON_SCHEMA,
   READINESS_SCHEMA_NAME,
+  readinessNextReviewDays,
   reconcileVerdict,
 } from "@/lib/readiness/schema";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
+import { createServiceClient } from "@flyee/auth/service";
+import { isInngestConfigured, sendEvent } from "@flyee/jobs";
 import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
 const ASSISTANT_SLUG = "readiness-engine";
@@ -44,18 +59,20 @@ const HOWTO_ASSISTANT_SLUG = "readiness-howto";
 /** The concierge catalog entry (migration 0032) — price lives in the DB. */
 const ASSIST_OFFERING_SLUG = "readiness-item-session";
 
-export type SaveReadinessResult = { ok: true } | { ok: false; error: string };
-export type GenerateReadinessResult =
-  | { ok: true; id: string }
-  // `code` lets the UI turn a dead-end message into an actionable one (how many
-  // credits you have, what this costs, where to get more) instead of the user
-  // guessing. Never detect this by matching the message string.
-  | { ok: false; error: string; code?: "insufficient_credits" | "no_subscription"; balance?: number; cost?: number };
+/**
+ * ERROR CONTRACT (all actions in this file): failures return a stable CODE
+ * from lib/readiness/errors — the client translates it via the
+ * `readiness.error-*` catalog keys — plus an optional raw `detail` for the
+ * technical secondary line. Never a user-facing literal here, and never
+ * detect a case by matching the message string.
+ */
+export type SaveReadinessResult = { ok: true } | ReadinessActionFailure;
+export type GenerateReadinessResult = { ok: true; id: string } | ReadinessActionFailure;
 
 /** What a readiness check costs and what the org currently has. */
 export type ReadinessCreditInfo =
   | { ok: true; balance: number; verdictCost: number; howToCost: number }
-  | { ok: false; error: string };
+  | ReadinessActionFailure;
 
 /**
  * Read the price of a readiness check and the org's balance, so the user sees
@@ -75,7 +92,7 @@ export async function getReadinessCreditInfo(orgId: string): Promise<ReadinessCr
     supabase.rpc("org_credit_balance", { target_org: orgId }),
   ]);
   const error = verdictError ?? howToError ?? balanceError;
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure("load_failed", { detail: error.message });
   return {
     ok: true,
     balance: Number(balance ?? 0),
@@ -85,8 +102,8 @@ export async function getReadinessCreditInfo(orgId: string): Promise<ReadinessCr
 }
 /** A finished scan is a success even when the site was unreachable — the
  *  outcome is recorded and the UI explains it. Only "we could not even try"
- *  (no product, no URL, no session) is an error. */
-export type ScanProductResult = { ok: true; scanned: boolean } | { ok: false; error: string };
+ *  (no product, no URL, no session, cooldown) is a failure. */
+export type ScanProductResult = { ok: true; scanned: boolean } | ReadinessActionFailure;
 
 /**
  * Never trust the client shape: rebuild the profile key by key from the spec so
@@ -107,11 +124,19 @@ function sanitizeProfile(input: unknown): ReadinessProfile {
   return profile;
 }
 
-/** Persist the declared structure. Free — no credits, no LLM call. */
-export async function saveReadiness(productId: string, input: unknown): Promise<SaveReadinessResult> {
+/** Persist the declared structure. Free — no credits, no LLM call.
+ *
+ * `journey` (optional) carries the concierge resistance signals (U5) into
+ * product_readiness.extra. OMITTED from the payload when absent so an upsert
+ * that only touches the profile can never wipe stored signals. */
+export async function saveReadiness(
+  productId: string,
+  input: unknown,
+  journey?: unknown,
+): Promise<SaveReadinessResult> {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { ok: false, error: "Sessão expirada." };
+  if (!user.user) return failure("session_expired");
 
   // RLS would reject the write anyway; reading the product first gives us the
   // org_id the row needs and a clear error instead of a policy violation.
@@ -120,19 +145,23 @@ export async function saveReadiness(productId: string, input: unknown): Promise<
     .select("id, org_id, name")
     .eq("id", productId)
     .maybeSingle();
-  if (!product) return { ok: false, error: "Produto não encontrado." };
+  if (!product) return failure("product_not_found");
 
   const profile = sanitizeProfile(input);
+  // Whitelisted shape only, nested under extra.journey — the column is shared
+  // headroom for future features, never a dumping ground.
+  const journeySignals = journey === undefined ? null : sanitizeJourneySignals(journey);
   const { error } = await supabase.from("product_readiness").upsert(
     {
       product_id: productId,
       org_id: product.org_id,
       ...toReadinessRow(profile),
+      ...(journeySignals ? { extra: { journey: journeySignals } } : {}),
       updated_by: user.user.id,
     },
     { onConflict: "product_id" },
   );
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure("save_failed", { detail: error.message });
 
   await recordAudit(supabase, "readiness.profile_saved", {
     orgId: product.org_id as string,
@@ -151,45 +180,107 @@ export async function saveReadiness(productId: string, input: unknown): Promise<
  *
  * A failed scan is PERSISTED, not discarded: "your page did not answer our
  * crawler" is a real finding, and losing it would make the failure look like it
- * never happened. The SSRF guarding lives in `lib/readiness/scan.ts`.
+ * never happened. The SSRF guarding lives in `lib/readiness/scan.ts`; the
+ * per-product cooldown below is resource throttling for the outbound fetch
+ * (decided: 60s fixed, not plan-tiered — anti-abuse, not billing surface).
  */
 export async function scanProductSite(productId: string): Promise<ScanProductResult> {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { ok: false, error: "Sessão expirada." };
+  if (!user.user) return failure("session_expired");
 
   const { data: product } = await supabase
     .from("products")
     .select("id, org_id, landing_page_url")
     .eq("id", productId)
     .maybeSingle();
-  if (!product) return { ok: false, error: "Produto não encontrado." };
+  if (!product) return failure("product_not_found");
 
   const url = (product.landing_page_url as string | null)?.trim();
-  if (!url) {
-    return { ok: false, error: "Cadastre a página de destino do produto para poder escanear." };
+  if (!url) return failure("no_landing_page");
+
+  // Cooldown from the latest persisted attempt (failed scans count — they
+  // also drove a fetch). A read error here FAILS OPEN: availability first,
+  // the throttle is best-effort.
+  const { data: lastScan } = await supabase
+    .from("product_scans")
+    .select("created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const remaining = scanCooldownRemainingSeconds((lastScan?.created_at as string | null) ?? null);
+  if (remaining > 0) {
+    // Nothing was mutated and nothing fetched — no insert, no audit.
+    return failure("scan_cooldown", { retryAfterSeconds: remaining });
   }
 
   const outcome = await scanSite(url);
 
-  const { error } = await supabase.from("product_scans").insert({
-    product_id: productId,
-    org_id: product.org_id,
-    requested_url: outcome.requestedUrl,
-    final_url: outcome.finalUrl,
-    ok: outcome.ok,
-    status_code: outcome.statusCode,
-    error: outcome.error,
-    result: outcome.signals ?? {},
-    created_by: user.user.id,
-  });
-  if (error) return { ok: false, error: error.message };
+  // Official PageSpeed enrichment (V3) — optional and free, three paths:
+  //  - key absent: invisible, the flow is byte-identical to before;
+  //  - Inngest configured: insert with psi 'pending' and fire the job (PSI
+  //    takes 10–25s, beyond what this action should hold open);
+  //  - no Inngest: measure inline BEFORE the one user-session insert, because
+  //    product_scans is append-only under RLS (no UPDATE policy for users).
+  let resultPayload: Record<string, unknown> = outcome.signals ? { ...outcome.signals } : {};
+  let firePageSpeed = false;
+  if (outcome.ok && isPageSpeedConfigured()) {
+    if (isInngestConfigured) {
+      resultPayload = { ...resultPayload, psi: { status: "pending" } };
+      firePageSpeed = true;
+    } else {
+      resultPayload = { ...resultPayload, psi: await runPageSpeed(outcome.finalUrl ?? url) };
+    }
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("product_scans")
+    .insert({
+      product_id: productId,
+      org_id: product.org_id,
+      requested_url: outcome.requestedUrl,
+      final_url: outcome.finalUrl,
+      ok: outcome.ok,
+      status_code: outcome.statusCode,
+      error: outcome.error,
+      result: resultPayload,
+      created_by: user.user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !inserted) return failure("save_failed", { detail: error?.message });
+
+  if (firePageSpeed) {
+    const sent = await sendEvent("readiness/pagespeed.requested", { scanId: inserted.id as string });
+    if (!sent.sent) {
+      // Configured-but-send-failed: measure inline and persist via the
+      // service role (the only writer that can UPDATE the append-only table).
+      // Without a service key the row honestly stays 'pending' — the UI copy
+      // says a re-scan re-measures.
+      try {
+        const service = createServiceClient();
+        const psi = await runPageSpeed(outcome.finalUrl ?? url);
+        await service
+          .from("product_scans")
+          .update({ result: { ...resultPayload, psi } })
+          .eq("id", inserted.id);
+      } catch {
+        // No service key either — leave 'pending'.
+      }
+    }
+  }
 
   await recordAudit(supabase, "readiness.site_scanned", {
     orgId: product.org_id as string,
     entityType: "product",
     entityId: productId,
-    metadata: { ok: outcome.ok, status: outcome.statusCode, error: outcome.error },
+    metadata: {
+      ok: outcome.ok,
+      status: outcome.statusCode,
+      error: outcome.error,
+      psi: !outcome.ok || !isPageSpeedConfigured() ? "off" : firePageSpeed ? "queued" : "inline",
+    },
   });
 
   return { ok: true, scanned: outcome.ok };
@@ -203,16 +294,18 @@ export async function scanProductSite(productId: string): Promise<ScanProductRes
 export type AssistOffering = { id: string; name: string; description: string; credits: number; minutes: number };
 export type AssistOfferingResult =
   | { ok: true; offering: AssistOffering | null; openItems: string[] }
-  | { ok: false; error: string };
+  | ReadinessActionFailure;
 
 /**
  * Read the concierge catalog plus which items already have an OPEN request.
  *
  * Both together: the UI must never offer to sell a session for something the
  * org already asked for and is waiting on — that is how you double-charge a
- * confused user.
+ * confused user. (The former orgId parameter was dead code — every query here
+ * is by slug or product — and reading it from the wrong org was the multi-org
+ * trap; it is gone.)
  */
-export async function getAssistInfo(orgId: string, productId: string): Promise<AssistOfferingResult> {
+export async function getAssistInfo(productId: string): Promise<AssistOfferingResult> {
   const supabase = await createClient();
   const [{ data: offering, error: offeringError }, { data: open, error: openError }] = await Promise.all([
     supabase
@@ -229,8 +322,10 @@ export async function getAssistInfo(orgId: string, productId: string): Promise<A
   ]);
   // A missing catalog row is not an error — it means the service is switched
   // off, and the UI simply never offers it.
-  if (offeringError && offeringError.code !== "PGRST116") return { ok: false, error: offeringError.message };
-  if (openError) return { ok: false, error: openError.message };
+  if (offeringError && offeringError.code !== "PGRST116") {
+    return failure("load_failed", { detail: offeringError.message });
+  }
+  if (openError) return failure("load_failed", { detail: openError.message });
   return {
     ok: true,
     offering: offering
@@ -246,18 +341,20 @@ export async function getAssistInfo(orgId: string, productId: string): Promise<A
   };
 }
 
-export type RequestAssistResult =
-  | { ok: true; id: string; alreadyOpen: boolean }
-  | { ok: false; error: string; code?: "insufficient_credits" | "no_subscription" };
+export type RequestAssistResult = { ok: true; id: string; alreadyOpen: boolean } | ReadinessActionFailure;
 
 /**
  * Ask the Seenaly team to do one readiness item WITH the user, on a call.
  *
- * Charging order is the whole risk here, so it is explicit: we insert FIRST
- * (the partial unique index makes a double-click or a race collapse into one
- * open request) and charge SECOND, rolling the row back if the debit fails.
- * The alternative — charge then insert — can take the money and lose the
- * request, which is the one outcome a burned-by-agencies user must never see.
+ * Charging order used to be handled here (insert first, charge second, delete
+ * on failure) — but the compensating delete was a silent no-op: 0032 grants no
+ * DELETE on readiness_assists, so a failed debit left a queued job nobody paid
+ * for. And granting users delete rights would let a buggy client destroy a
+ * PAID request with no refund. So insert + charge are now ONE transaction in
+ * `record_assist_and_charge` (migration 0038): a double-click race collapses
+ * into the winner's row without a second charge, and a failed debit rolls the
+ * insert back — the burned-by-agencies user can never pay for nothing, and
+ * never see a ghost request they did not pay for.
  */
 export async function requestAssist(
   productId: string,
@@ -267,120 +364,82 @@ export async function requestAssist(
 ): Promise<RequestAssistResult> {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { ok: false, error: "Sessão expirada." };
+  if (!user.user) return failure("session_expired");
 
   // Never trust the client's idea of what a checklist item is.
-  if (!(READINESS_ITEM_KEYS as string[]).includes(itemKey)) {
-    return { ok: false, error: "Item inválido." };
-  }
+  if (!(READINESS_ITEM_KEYS as string[]).includes(itemKey)) return failure("invalid_item");
 
   const { data: product } = await supabase
     .from("products")
     .select("id, org_id, name")
     .eq("id", productId)
     .maybeSingle();
-  if (!product) return { ok: false, error: "Produto não encontrado." };
+  if (!product) return failure("product_not_found");
 
-  const { data: offering } = await supabase
-    .from("assist_offerings")
-    .select("id, credits")
-    .eq("slug", ASSIST_OFFERING_SLUG)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (!offering) return { ok: false, error: "Este serviço não está disponível no momento." };
-  const cost = Number(offering.credits ?? 0);
-
-  // Already asked and waiting: return the existing request instead of billing
-  // again. Idempotency is a billing guarantee here, not a nicety.
-  const { data: existing } = await supabase
-    .from("readiness_assists")
-    .select("id")
-    .eq("product_id", productId)
-    .eq("item_key", itemKey)
-    .in("status", ["requested", "scheduled", "in_progress"])
-    .maybeSingle();
-  if (existing) return { ok: true, id: existing.id as string, alreadyOpen: true };
-
+  // Subscription gate — free check, charges nothing.
   const { data: entitlements } = await supabase.rpc("org_entitlements", { target_org: product.org_id });
-  const ent = entitlements as { active?: boolean; credit_balance?: number } | null;
-  if (!ent?.active) return { ok: false, code: "no_subscription", error: "Nenhuma assinatura ativa." };
-  if (cost > 0 && (ent.credit_balance ?? 0) < cost) {
-    return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para pedir a sessão guiada." };
+  const ent = entitlements as { active?: boolean; suspended?: boolean } | null;
+  if (!ent?.active) return failure(ent?.suspended ? "subscription_suspended" : "no_subscription");
+
+  const { data: recorded, error: rpcError } = await supabase.rpc("record_assist_and_charge", {
+    target_product: productId,
+    p_item_key: itemKey,
+    p_request_reason: reason,
+    p_credit_reason: `Sessão guiada — ${itemKey}`,
+    // Free text only. The UI states we never ask for passwords; the RPC caps
+    // it at 2000 chars for the operator to read before the call.
+    p_contact_note: contactNote,
+  });
+  if (rpcError) return failure("save_failed", { detail: rpcError.message });
+
+  const payload = recorded as {
+    ok?: boolean;
+    code?: string;
+    id?: string;
+    already_open?: boolean;
+    charged?: number;
+  } | null;
+  if (!payload?.ok) {
+    if (payload?.code === "insufficient_credits") return failure("insufficient_credits");
+    if (payload?.code === "assist_unavailable") return failure("assist_unavailable");
+    return failure("save_failed");
   }
 
-  const { data: created, error: insertError } = await supabase
-    .from("readiness_assists")
-    .insert({
-      org_id: product.org_id,
-      product_id: productId,
-      offering_id: offering.id,
-      item_key: itemKey,
-      reason,
-      // Free text only. The UI states we never ask for passwords, and the note
-      // is stored as-is for the operator to read before the call.
-      contact_note: contactNote.slice(0, 2000) || null,
-      credits_charged: cost,
-      requested_by: user.user.id,
-    })
-    .select("id")
-    .single();
-  if (insertError || !created) {
-    // The partial unique index fired: someone (or a double-click) got here
-    // first. That is a success from the user's point of view, not an error.
-    if (insertError?.code === "23505") {
-      const { data: raced } = await supabase
-        .from("readiness_assists")
-        .select("id")
-        .eq("product_id", productId)
-        .eq("item_key", itemKey)
-        .in("status", ["requested", "scheduled", "in_progress"])
-        .maybeSingle();
-      if (raced) return { ok: true, id: raced.id as string, alreadyOpen: true };
-    }
-    return { ok: false, error: insertError?.message ?? "Falha ao registrar o pedido." };
-  }
-
-  if (cost > 0) {
-    const { error: creditError } = await supabase.rpc("consume_credits", {
-      target_org: product.org_id,
-      amount: cost,
-      reason: `Sessão guiada — ${itemKey}`,
+  // Audit + team ping only for a NEW request — a raced/already-open return is
+  // the winner's already-recorded work.
+  if (payload.already_open !== true) {
+    await recordAudit(supabase, "readiness.assist_requested", {
+      orgId: product.org_id as string,
+      entityType: "product",
+      entityId: productId,
+      metadata: { item: itemKey, reason, credits: Number(payload.charged ?? 0) },
     });
-    if (creditError) {
-      // Roll the request back so we never leave a queued job nobody paid for.
-      await supabase.from("readiness_assists").delete().eq("id", created.id);
-      return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para pedir a sessão guiada." };
-    }
+
+    // Tell the team. Best-effort by design: a notification failure must never
+    // undo a paid, recorded request — the row in the queue is the source of truth.
+    await notifyPlatformTeam({
+      title: "Nova sessão guiada pedida",
+      body: `${product.name}: ${itemKey} (${reason})`,
+      href: "/admin/assists",
+    });
   }
 
-  await recordAudit(supabase, "readiness.assist_requested", {
-    orgId: product.org_id as string,
-    entityType: "product",
-    entityId: productId,
-    metadata: { item: itemKey, reason, credits: cost },
-  });
-
-  // Tell the team. Best-effort by design: a notification failure must never
-  // undo a paid, recorded request — the row in the queue is the source of truth.
-  await notifyPlatformTeam({
-    title: "Nova sessão guiada pedida",
-    body: `${product.name}: ${itemKey} (${reason})`,
-    href: "/admin/assists",
-  });
-
-  return { ok: true, id: created.id, alreadyOpen: false };
+  return { ok: true, id: payload.id as string, alreadyOpen: payload.already_open === true };
 }
 
 export type HowToResult =
   | { ok: true; howTo: HowToOutput; sources: { title: string; trust_level: number }[]; cached: boolean }
-  | { ok: false; error: string; code?: "insufficient_credits" };
+  | ReadinessActionFailure;
 
 /**
  * Write the step-by-step for ONE finding, on demand.
  *
  * On demand and not inline: the user's complaint about the verdict was too much
  * text, so generating steps for every finding up front would make it worse.
- * Cached per (diagnosis, finding) — asking twice never charges twice.
+ * Cached per (diagnosis, finding) — asking twice never charges twice: the
+ * cache row is the idempotency key, and `record_readiness_howto_and_charge`
+ * (migration 0039) makes insert + charge one transaction, so the double-click
+ * race charges exactly once and both clicks get the same content.
  *
  * Honesty rule with teeth: when the knowledge base cannot support a how-to, the
  * engine returns no steps, we do NOT persist and we do NOT charge. A retry
@@ -395,13 +454,13 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     .select("id, org_id, product_id, output, scope")
     .eq("id", diagnosisId)
     .maybeSingle();
-  if (!verdict) return { ok: false, error: "Veredito não encontrado." };
-  if (verdict.scope !== "readiness") return { ok: false, error: "Este registro não é um veredito de prontidão." };
+  if (!verdict) return failure("verdict_not_found");
+  if (verdict.scope !== "readiness") return failure("not_readiness_verdict");
 
   const output = verdict.output;
-  if (!isReadinessOutput(output)) return { ok: false, error: "O veredito está fora do formato esperado." };
+  if (!isReadinessOutput(output)) return failure("verdict_malformed");
   const finding = output.findings[findingIndex];
-  if (!finding) return { ok: false, error: "Achado não encontrado no veredito." };
+  if (!finding) return failure("finding_not_found");
 
   // Cache first — this is what keeps it a one-time cost per finding.
   const { data: cached } = await supabase
@@ -411,22 +470,17 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     .eq("finding_index", findingIndex)
     .maybeSingle();
   if (cached) {
-    const stored = cached.steps as { steps?: string[]; needs_specialist?: boolean; note?: string };
     return {
       ok: true,
       cached: true,
-      howTo: {
-        steps: Array.isArray(stored?.steps) ? stored.steps : [],
-        needs_specialist: stored?.needs_specialist === true,
-        note: typeof stored?.note === "string" ? stored.note : "",
-      },
+      howTo: normalizeStoredHowTo(cached.steps),
       sources: (cached.sources as { title: string; trust_level: number }[]) ?? [],
     };
   }
 
   const { data: entitlements } = await supabase.rpc("org_entitlements", { target_org: verdict.org_id });
-  const ent = entitlements as { active?: boolean; credit_balance?: number } | null;
-  if (!ent?.active) return { ok: false, error: "Nenhuma assinatura ativa para esta organização." };
+  const ent = entitlements as { active?: boolean; suspended?: boolean; credit_balance?: number } | null;
+  if (!ent?.active) return failure(ent?.suspended ? "subscription_suspended" : "no_subscription");
 
   const { data: assistant } = await supabase
     .from("assistants")
@@ -434,9 +488,11 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     .eq("slug", HOWTO_ASSISTANT_SLUG)
     .eq("is_active", true)
     .maybeSingle();
-  if (!assistant) return { ok: false, error: `Assistente "${HOWTO_ASSISTANT_SLUG}" não encontrado ou inativo.` };
+  if (!assistant) return failure("assistant_unavailable");
+  // Pre-check so a clearly-short balance never pays for a doomed LLM call; the
+  // RPC below remains the authoritative, race-proof gate.
   if (assistant.credits_per_message > 0 && (ent.credit_balance ?? 0) < assistant.credits_per_message) {
-    return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para gerar o passo a passo." };
+    return failure("insufficient_credits");
   }
 
   // Retrieve for THIS action specifically, not the whole verdict.
@@ -454,7 +510,7 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
       excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
     }
   } catch (error) {
-    return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
+    return failure("knowledge_failed", { detail: (error as Error).message });
   }
 
   const brief = [
@@ -490,9 +546,9 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
       schema: HOWTO_JSON_SCHEMA,
     });
   } catch (error) {
-    return { ok: false, error: `Falha ao gerar o passo a passo: ${(error as Error).message}` };
+    return failure("engine_failed", { detail: (error as Error).message });
   }
-  if (!isHowToOutput(raw)) return { ok: false, error: "O motor devolveu um passo a passo fora do formato exigido." };
+  if (!isHowToOutput(raw)) return failure("engine_malformed");
 
   const sources = excerpts.map((excerpt) => ({ title: excerpt.title, trust_level: excerpt.trust_level }));
 
@@ -502,32 +558,44 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     return { ok: true, cached: false, howTo: raw, sources: [] };
   }
 
-  if (assistant.credits_per_message > 0) {
-    const { error: creditError } = await supabase.rpc("consume_credits", {
-      target_org: verdict.org_id,
-      amount: assistant.credits_per_message,
-      reason: `Passo a passo — ${finding.dimension}`,
-    });
-    if (creditError) {
-      return { ok: false, code: "insufficient_credits", error: "Créditos insuficientes para gerar o passo a passo." };
-    }
-  }
-
-  const { data: user } = await supabase.auth.getUser();
-  await supabase.from("readiness_howtos").insert({
-    diagnosis_id: diagnosisId,
-    org_id: verdict.org_id,
-    finding_index: findingIndex,
-    steps: raw,
-    sources,
-    created_by: user.user?.id ?? null,
+  // Persist + charge in one transaction; on the 23505 race the RPC returns the
+  // winner's row without charging this caller.
+  const { data: recorded, error: rpcError } = await supabase.rpc("record_readiness_howto_and_charge", {
+    p_diagnosis: diagnosisId,
+    p_finding_index: findingIndex,
+    p_steps: raw,
+    p_sources: sources,
+    p_reason: `Passo a passo — ${finding.dimension}`,
   });
+  if (rpcError) return failure("save_failed", { detail: rpcError.message });
+  const payload = recorded as {
+    ok?: boolean;
+    code?: string;
+    raced?: boolean;
+    steps?: unknown;
+    sources?: unknown;
+    charged?: number;
+  } | null;
+  if (!payload?.ok) {
+    if (payload?.code === "insufficient_credits") return failure("insufficient_credits");
+    return failure("save_failed");
+  }
+  if (payload.raced === true) {
+    // Lost the double-click race: the winner's cached content, no charge, and
+    // no audit (that is the winner's already-audited work).
+    return {
+      ok: true,
+      cached: true,
+      howTo: normalizeStoredHowTo(payload.steps),
+      sources: (payload.sources as { title: string; trust_level: number }[]) ?? [],
+    };
+  }
 
   await recordAudit(supabase, "readiness.howto_generated", {
     orgId: verdict.org_id as string,
     entityType: "diagnosis",
     entityId: diagnosisId,
-    metadata: { finding_index: findingIndex, steps: raw.steps.length },
+    metadata: { finding_index: findingIndex, steps: raw.steps.length, credits: Number(payload.charged ?? 0) },
   });
 
   return { ok: true, cached: false, howTo: raw, sources };
@@ -554,6 +622,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     { data: scanRow },
     { data: organicLinks },
     { data: organicReview },
+    { data: experimentRows },
   ] = await Promise.all([
     supabase.from("products").select("*").eq("id", productId).maybeSingle(),
     supabase.from("product_objections").select("content").eq("product_id", productId).order("created_at"),
@@ -587,13 +656,29 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       .order("period_end", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Experiment memory (R2): "todo experimento concluído volta ao briefing" —
+    // a structural fix concluded yesterday must not be re-recommended today.
+    // Deliberately NOT filtered by origin: structural fixes also get concluded
+    // from campaign diagnoses and manual entries, and the recency window
+    // already bounds tokens. Most-recent window; experimentsBlock re-orders it
+    // concluded-first (same rationale as the campaign engine's query).
+    supabase
+      .from("experiments")
+      .select("title, status, hypothesis, result, conclusion, next_step")
+      .eq("product_id", productId)
+      .order("updated_at", { ascending: false })
+      .limit(EXPERIMENT_BRIEF_LIMIT),
   ]);
-  if (!row) return { ok: false, error: "Produto não encontrado." };
+  if (!row) return failure("product_not_found");
   const product = mapProductRow(row, {
     objections: objections ?? [],
     proofs: proofs ?? [],
     plans: planRows ?? [],
   });
+
+  // Creative evidence for the `midia` dimension (S3) — two dependent queries,
+  // so it cannot join the Promise.all above. Presence, never performance.
+  const creatives = await loadCreativeEvidence(supabase, productId);
 
   const profile = toReadinessProfile(readinessRow as Record<string, unknown> | null);
   const scanRecord: ScanRecord | null = scanRow
@@ -636,22 +721,15 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     signals: scanRecord?.ok ? scanRecord.signals : null,
   });
 
-  // Subscription gate. Credits are only DEBITED after a valid verdict (step 6)
-  // — a failed RAG/LLM call must never charge the user.
+  // Subscription gate. Credits are only DEBITED after a valid verdict — the
+  // record RPC below makes "persist + charge" one transaction, so a failed
+  // RAG/LLM call or a failed insert can never cost the user anything.
   const { data: entitlements, error: entitlementsError } = await supabase.rpc("org_entitlements", {
     target_org: product.orgId,
   });
-  if (entitlementsError) return { ok: false, error: entitlementsError.message };
+  if (entitlementsError) return failure("load_failed", { detail: entitlementsError.message });
   const ent = entitlements as { active?: boolean; suspended?: boolean; credit_balance?: number } | null;
-  if (!ent?.active) {
-    return {
-      ok: false,
-      code: "no_subscription",
-      error: ent?.suspended
-        ? "Assinatura suspensa — fale com o suporte."
-        : "Nenhuma assinatura ativa para esta organização.",
-    };
-  }
+  if (!ent?.active) return failure(ent?.suspended ? "subscription_suspended" : "no_subscription");
 
   const { data: assistant } = await supabase
     .from("assistants")
@@ -659,142 +737,172 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     .eq("slug", ASSISTANT_SLUG)
     .eq("is_active", true)
     .maybeSingle();
-  if (!assistant) return { ok: false, error: `Assistente "${ASSISTANT_SLUG}" não encontrado ou inativo.` };
+  if (!assistant) return failure("assistant_unavailable");
 
+  // Pre-check so a clearly-short balance never pays for RAG + a doomed LLM
+  // call; the record RPC remains the authoritative, race-proof gate.
   if (assistant.credits_per_message > 0 && (ent.credit_balance ?? 0) < assistant.credits_per_message) {
-    return {
-      ok: false,
-      code: "insufficient_credits",
+    return failure("insufficient_credits", {
       balance: ent.credit_balance ?? 0,
       cost: assistant.credits_per_message,
-      error: "Créditos insuficientes para verificar a prontidão.",
-    };
-  }
-
-  // Ground in the knowledge base. Per collection (same reason as the diagnosis
-  // engine): the large trust-1 Meta corpus would otherwise crowd out the
-  // growth playbook, which carries most of the pre-spend structure knowledge.
-  const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
-    ?.knowledge;
-  const collectionSlugs = knowledgeConfig?.collections ?? ["growth-playbook", "meta-ads-docs"];
-  const matchCount = knowledgeConfig?.matchCount ?? 8;
-  const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
-  const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
-  try {
-    const query = readinessRetrievalQuery(Boolean(product.landingPageUrl));
-    for (const slug of collectionSlugs) {
-      const collectionIds = await resolveCollectionIds(supabase, [slug]);
-      if (collectionIds.length === 0) continue;
-      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
-    }
-  } catch (error) {
-    return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
-  }
-
-  const brief = [
-    "## Contexto do produto",
-    productContextBlock(product),
-    "",
-    // Comes BEFORE the checklist on purpose: it decides which surface each
-    // dimension is about, so the engine must read it first.
-    "## Modelo de aquisição (define QUAL superfície cada dimensão audita)",
-    readinessFunnelModelBlock(profile),
-    "",
-    "## Checklist de prontidão declarado pelo usuário",
-    readinessChecklistBlock(profile, evaluation),
-    "",
-    "## Sinais locais (verificação determinística já exibida ao usuário)",
-    readinessSignalsBlock(evaluation),
-    "",
-    "## Scan técnico da página (observado, não declarado)",
-    readinessScanBlock(scanRecord, profile.funnelModel),
-    "",
-    "## Presença orgânica deste produto",
-    readinessOrganicBlock(organic),
-    buildKnowledgeContext(excerpts),
-    "",
-    "## Tarefa",
-    "Audite a prontidão desta estrutura para receber tráfego pago e devolva o veredito.",
-    "Ordene as findings por alavancagem real: o que devolve mais dinheiro se for consertado primeiro.",
-    "Item não marcado significa NÃO CONFIRMADO, nunca inexistente — quando confirmar for barato, a ação é confirmar.",
-    "Quando o scan contradisser o checklist, trate a divergência como achado de primeira classe e prefira o observado.",
-    "Ancore cada evidência em product_context, growth_playbook ou meta_docs. Nunca invente números.",
-  ].join("\n");
-
-  const config: AssistantConfig = {
-    provider: assistant.provider as AiProviderName,
-    model: assistant.model,
-    systemPrompt: assistant.system_prompt,
-    temperature: Number(assistant.temperature),
-    maxTokens: assistant.max_tokens,
-  };
-
-  let output: unknown;
-  try {
-    output = await getChatProvider(config.provider).generateStructured(config, [{ role: "user", content: brief }], {
-      name: READINESS_SCHEMA_NAME,
-      description: "Veredito de prontidão estruturado do Seenaly.",
-      schema: READINESS_JSON_SCHEMA,
     });
-  } catch (error) {
-    return { ok: false, error: `O motor falhou ao verificar a prontidão: ${(error as Error).message}` };
   }
 
-  if (!isReadinessOutput(output)) {
-    return { ok: false, error: "O motor devolveu um veredito fora do formato exigido." };
-  }
-  const verdict = reconcileVerdict(output);
+  // In-flight lock (migration 0040): two tabs must not pay for two verdicts.
+  // FAIL OPEN on RPC errors (e.g. migration not applied yet): the lock is cost
+  // control, and lock infrastructure must never gate the product's value —
+  // an error here degrades to exactly the pre-lock behavior.
+  const { data: claimed, error: claimError } = await supabase.rpc("claim_readiness_run", {
+    target_product: productId,
+  });
+  if (!claimError && claimed === false) return failure("generation_in_progress");
 
-  // Charge now — only a valid verdict costs credits.
-  if (assistant.credits_per_message > 0) {
-    const { error: creditError } = await supabase.rpc("consume_credits", {
-      target_org: product.orgId,
-      amount: assistant.credits_per_message,
-      reason: `Prontidão — ${product.name}`,
-    });
-    if (creditError) {
-      return {
-        ok: false,
-        code: "insufficient_credits",
-        balance: ent.credit_balance ?? 0,
-        cost: assistant.credits_per_message,
-        error: "Créditos insuficientes para verificar a prontidão.",
-      };
+  try {
+    // Ground in the knowledge base. Per collection (same reason as the diagnosis
+    // engine): the large trust-1 Meta corpus would otherwise crowd out the
+    // growth playbook, which carries most of the pre-spend structure knowledge.
+    const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
+      ?.knowledge;
+    const collectionSlugs = knowledgeConfig?.collections ?? ["growth-playbook", "meta-ads-docs"];
+    const matchCount = knowledgeConfig?.matchCount ?? 8;
+    const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
+    const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+    try {
+      const query = readinessRetrievalQuery(Boolean(product.landingPageUrl));
+      for (const slug of collectionSlugs) {
+        const collectionIds = await resolveCollectionIds(supabase, [slug]);
+        if (collectionIds.length === 0) continue;
+        excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+      }
+    } catch (error) {
+      return failure("knowledge_failed", { detail: (error as Error).message });
     }
-  }
 
-  const { data: user } = await supabase.auth.getUser();
-  const { data: created, error: insertError } = await supabase
-    .from("diagnoses")
-    .insert({
-      org_id: product.orgId,
-      product_id: product.id,
-      scope: "readiness",
-      assistant_slug: assistant.slug,
+    const brief = [
+      "## Contexto do produto",
+      productContextBlock(product),
+      "",
+      // Comes BEFORE the checklist on purpose: it decides which surface each
+      // dimension is about, so the engine must read it first.
+      "## Modelo de aquisição (define QUAL superfície cada dimensão audita)",
+      readinessFunnelModelBlock(profile),
+      "",
+      "## Checklist de prontidão declarado pelo usuário",
+      readinessChecklistBlock(profile, evaluation),
+      "",
+      "## Sinais locais (verificação determinística já exibida ao usuário)",
+      readinessSignalsBlock(evaluation),
+      "",
+      "## Scan técnico da página (observado, não declarado)",
+      readinessScanBlock(scanRecord, profile.funnelModel),
+      "",
+      "## Presença orgânica deste produto",
+      readinessOrganicBlock(organic),
+      "",
+      "## Evidência criativa deste produto (presença, não desempenho)",
+      readinessCreativesBlock(creatives),
+      "",
+      "## Memória de experimentos",
+      experimentsBlock((experimentRows as ExperimentSummaryRow[]) ?? []),
+      buildKnowledgeContext(excerpts),
+      "",
+      "## Tarefa",
+      "Audite a prontidão desta estrutura para receber tráfego pago e devolva o veredito.",
+      "Ordene as findings por alavancagem real: o que devolve mais dinheiro se for consertado primeiro.",
+      "Item não marcado significa NÃO CONFIRMADO, nunca inexistente — quando confirmar for barato, a ação é confirmar.",
+      "Quando o scan contradisser o checklist, trate a divergência como achado de primeira classe e prefira o observado.",
+      "Construa sobre a memória de experimentos: NÃO recomende de novo uma correção cujo experimento já está CONCLUÍDO — parta da conclusão registrada. Se uma conclusão contradisser o checklist declarado, aponte a divergência em vez de escolher um lado em silêncio.",
+      "Ancore cada evidência em product_context, growth_playbook ou meta_docs. Nunca invente números.",
+    ].join("\n");
+
+    const config: AssistantConfig = {
+      provider: assistant.provider as AiProviderName,
       model: assistant.model,
-      output: verdict,
-      confidence: verdict.confidence,
-      insufficient_data: verdict.insufficient_data,
+      systemPrompt: assistant.system_prompt,
+      temperature: Number(assistant.temperature),
+      maxTokens: assistant.max_tokens,
+    };
+
+    let output: unknown;
+    try {
+      output = await getChatProvider(config.provider).generateStructured(config, [{ role: "user", content: brief }], {
+        name: READINESS_SCHEMA_NAME,
+        description: "Veredito de prontidão estruturado do Seenaly.",
+        schema: READINESS_JSON_SCHEMA,
+      });
+    } catch (error) {
+      return failure("engine_failed", { detail: (error as Error).message });
+    }
+
+    if (!isReadinessOutput(output)) return failure("engine_malformed");
+    const verdict = reconcileVerdict(output);
+
+    // Re-audit cadence (R1): unlike the campaign diagnosis, readiness ALWAYS
+    // sets next_review_at — the reminder is the loop's engine, so a model
+    // omission must never silently disable it. The LLM proposes, the server
+    // guarantees (clamp + verdict-based fallback).
+    const reviewDays = readinessNextReviewDays(verdict);
+    const nextReviewAt = new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString();
+
+    // Persist + charge in ONE transaction (migration 0038): the user pays if
+    // and only if the verdict row exists. A failed debit rolls the insert
+    // back; a failed insert charges nothing.
+    const { data: recorded, error: recordError } = await supabase.rpc("record_diagnosis_and_charge", {
+      target_org: product.orgId,
+      target_product: product.id,
+      p_scope: "readiness",
+      p_assistant_slug: assistant.slug,
+      p_model: assistant.model,
+      p_output: verdict,
+      p_confidence: verdict.confidence,
+      p_insufficient_data: verdict.insufficient_data,
       // Readiness never reads media data — that is the whole point.
-      had_campaign_data: false,
-      knowledge_refs: excerpts.map((excerpt) => ({
+      p_had_campaign_data: false,
+      p_knowledge_refs: excerpts.map((excerpt) => ({
         title: excerpt.title,
         source: excerpt.source,
         trust_level: excerpt.trust_level,
         similarity: excerpt.similarity,
       })),
-      created_by: user.user?.id ?? null,
-    })
-    .select("id")
-    .single();
-  if (insertError || !created) return { ok: false, error: insertError?.message ?? "Falha ao salvar o veredito." };
+      p_reason: `Prontidão — ${product.name}`,
+      p_next_review_at: nextReviewAt,
+    });
+    if (recordError) return failure("save_failed", { detail: recordError.message });
+    const payload = recorded as {
+      ok?: boolean;
+      code?: string;
+      id?: string;
+      charged?: number;
+      balance?: number;
+      cost?: number;
+    } | null;
+    if (!payload?.ok) {
+      if (payload?.code === "insufficient_credits") {
+        return failure("insufficient_credits", {
+          balance: Number(payload.balance ?? ent.credit_balance ?? 0),
+          cost: Number(payload.cost ?? assistant.credits_per_message ?? 0),
+        });
+      }
+      return failure("save_failed");
+    }
 
-  await recordAudit(supabase, "readiness.verdict_generated", {
-    orgId: product.orgId,
-    entityType: "diagnosis",
-    entityId: created.id,
-    metadata: { verdict: verdict.verdict, blocking: verdict.blocking.length },
-  });
+    await recordAudit(supabase, "readiness.verdict_generated", {
+      orgId: product.orgId,
+      entityType: "diagnosis",
+      entityId: payload.id as string,
+      metadata: {
+        verdict: verdict.verdict,
+        blocking: verdict.blocking.length,
+        credits: Number(payload.charged ?? 0),
+        next_review_days: reviewDays,
+      },
+    });
 
-  return { ok: true, id: created.id };
+    return { ok: true, id: payload.id as string };
+  } finally {
+    // Best-effort release; the TTL is the backstop for a crashed run.
+    if (!claimError) {
+      await supabase.rpc("release_readiness_run", { target_product: productId });
+    }
+  }
 }

@@ -40,6 +40,10 @@ export default function SetupWizard({
   stepLabel = (current, total) => `Step ${current} of ${total}`,
   className,
   bare = false,
+  initialStep = 0,
+  onStepChange,
+  navigableRail = false,
+  jumpLabel,
 }: {
   steps: WizardStep[];
   onComplete: () => void;
@@ -71,18 +75,39 @@ export default function SetupWizard({
    * doubled padding and a floating edge that reads as a broken layout.
    */
   bare?: boolean;
+  /** Mount on this step (clamped) — resume-where-you-left-off for the caller. */
+  initialStep?: number;
+  /** Fired on every advance/back/jump, so the caller can persist the cursor. */
+  onStepChange?: (index: number) => void;
+  /**
+   * Make the rail steps clickable (jump to ANY step). Opt-in ONLY: a rail jump
+   * skips `onBeforeAdvance` (the save hook), so a consumer with per-step
+   * validation must not enable this blindly — the readiness wizard opts in
+   * because it autosaves continuously and every step is order-independent.
+   */
+  navigableRail?: boolean;
+  /** Accessible name for a rail jump, e.g. (title) => `Ir para ${title}`. */
+  jumpLabel?: (title: string) => string;
 }) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.min(Math.max(0, initialStep), Math.max(0, steps.length - 1)));
   const [advancing, setAdvancing] = useState(false);
-  const step = steps[index];
-  const isLast = index === steps.length - 1;
+  // Defensive: a steps array that SHRINKS after mount (the readiness funnel
+  // model removes its activation step) must never render undefined.
+  const safeIndex = Math.min(index, steps.length - 1);
+  const step = steps[safeIndex];
+  const isLast = safeIndex === steps.length - 1;
   const canAdvance = step.canAdvance ?? true;
+  const goTo = (next: number) => {
+    const clamped = Math.min(Math.max(0, next), steps.length - 1);
+    setIndex(clamped);
+    onStepChange?.(clamped);
+  };
   const advance = async () => {
     setAdvancing(true);
     try {
       const result = await onBeforeAdvance?.();
       if (result === false) return;
-      setIndex((current) => Math.min(steps.length - 1, current + 1));
+      goTo(safeIndex + 1);
     } finally {
       setAdvancing(false);
     }
@@ -95,41 +120,60 @@ export default function SetupWizard({
             dialog, equal flex columns squeezed every label into "Mensura...". */}
       <Box
         component="ol"
-        aria-label={stepLabel(index + 1, steps.length)}
+        aria-label={stepLabel(safeIndex + 1, steps.length)}
         className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:flex sm:flex-row sm:flex-wrap"
       >
-        {steps.map((item, i) => (
-          <Box
-            component="li"
-            key={item.shortLabel ?? item.title}
-            aria-current={i === index ? "step" : undefined}
-            className={cn(
-              "border-grey-100 flex min-w-0 items-center gap-2 border-t-2 pt-2 sm:flex-1",
-              i < index && "border-primary text-text-primary",
-              i === index && "border-primary text-primary-dark dark:text-primary-light",
-              i > index && "text-text-secondary",
-            )}
-          >
-            <span
-              aria-hidden
+        {steps.map((item, i) => {
+          const marker = (
+            <>
+              <span
+                aria-hidden
+                className={cn(
+                  "border-grey-100 flex h-5 w-5 flex-none items-center justify-center rounded-full border text-xs",
+                  i <= safeIndex && "border-primary bg-primary text-on-primary",
+                )}
+              >
+                {i < safeIndex ? <NiCheck size="tiny" /> : i + 1}
+              </span>
+              <Typography component="span" variant="body2" className="truncate">
+                {item.shortLabel ?? item.title}
+              </Typography>
+              {i === safeIndex + 1 && <span className="sr-only">{nextStepLabel}</span>}
+            </>
+          );
+          return (
+            <Box
+              component="li"
+              key={item.shortLabel ?? item.title}
+              aria-current={i === safeIndex ? "step" : undefined}
               className={cn(
-                "border-grey-100 flex h-5 w-5 flex-none items-center justify-center rounded-full border text-xs",
-                i <= index && "border-primary bg-primary text-on-primary",
+                "border-grey-100 flex min-w-0 items-center border-t-2 pt-2 sm:flex-1",
+                i < safeIndex && "border-primary text-text-primary",
+                i === safeIndex && "border-primary text-primary-dark dark:text-primary-light",
+                i > safeIndex && "text-text-secondary",
               )}
             >
-              {i < index ? <NiCheck size="tiny" /> : i + 1}
-            </span>
-            <Typography component="span" variant="body2" className="truncate">
-              {item.shortLabel ?? item.title}
-            </Typography>
-            {i === index + 1 && <span className="sr-only">{nextStepLabel}</span>}
-          </Box>
-        ))}
+              {navigableRail ? (
+                // A real button, not a styled li: keyboard-focusable, named.
+                <button
+                  type="button"
+                  aria-label={jumpLabel?.(item.shortLabel ?? item.title)}
+                  className="flex min-w-0 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-inherit"
+                  onClick={() => goTo(i)}
+                >
+                  {marker}
+                </button>
+              ) : (
+                <Box className="flex min-w-0 items-center gap-2">{marker}</Box>
+              )}
+            </Box>
+          );
+        })}
       </Box>
 
       <Box className="flex flex-col gap-1">
         <Typography variant="body2" className="text-text-secondary">
-          {stepLabel(index + 1, steps.length)}
+          {stepLabel(safeIndex + 1, steps.length)}
         </Typography>
         <Typography variant="h4" component="h2" className="text-text-primary">
           {step.title}
@@ -144,7 +188,7 @@ export default function SetupWizard({
       <Box>{step.content}</Box>
 
       <Box className="flex flex-row items-center justify-between gap-2">
-        <Button variant="text" color="grey" disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+        <Button variant="text" color="grey" disabled={safeIndex === 0} onClick={() => goTo(safeIndex - 1)}>
           {backLabel}
         </Button>
         <Box className="flex flex-row items-center gap-2">

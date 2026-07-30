@@ -13,6 +13,7 @@
  * crawlers too, but is NOT the same as "absent". `jsRenderedLikely` flags it so
  * neither the engine nor the UI states absence as fact.
  */
+import type { PsiState } from "./pagespeed-analyze";
 
 export interface ScanSeo {
   title: string | null;
@@ -61,6 +62,12 @@ export interface ScanSignals {
   bytes: number;
   /** Wall-clock of OUR fetch. Not Core Web Vitals — see scanTimingCaveat. */
   fetchMs: number | null;
+  /**
+   * Official PageSpeed measurement, merged into the persisted result by the
+   * WRITER (the scan action / the Inngest job) — analyzeScan never sets it,
+   * keeping this module pure. Absent on legacy rows and key-off installs.
+   */
+  psi?: PsiState;
 }
 
 /* -------------------------------------------------------------------------- */
