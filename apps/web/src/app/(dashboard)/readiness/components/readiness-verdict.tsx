@@ -28,8 +28,11 @@ import NiBook from "@/icons/nexture/ni-book";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronRightSmall from "@/icons/nexture/ni-chevron-right-small";
+import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
+import NiInfoSquare from "@/icons/nexture/ni-info-square";
+import NiPulse from "@/icons/nexture/ni-pulse";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
@@ -65,6 +68,20 @@ const VERDICT_TONE: Record<Verdict, string> = {
   pronto: "bg-success/10 text-success",
   quase: "bg-warning/10 text-warning",
   nao_pronto: "bg-error/10 text-error",
+};
+
+/**
+ * The same tone as a WASH behind the whole answer block (badge + headline +
+ * summary + blockers), so the verdict is read as one panel instead of four
+ * stacked rows that happen to share a card. Second stop is primary so the
+ * panel warms toward the action side — the hero gradient language already used
+ * by the home "next step" card. Literal strings: Tailwind's JIT cannot see
+ * classes assembled at runtime.
+ */
+const VERDICT_WASH: Record<Verdict, string> = {
+  pronto: "from-success/10 to-primary/5 border-success/15",
+  quase: "from-warning/10 to-primary/5 border-warning/15",
+  nao_pronto: "from-error/10 to-primary/5 border-error/15",
 };
 
 /** Colour carries the trust level: only machine-proved earns green. */
@@ -201,7 +218,6 @@ export default function ReadinessVerdict({
     () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }),
     [locale],
   );
-  const tone = VERDICT_TONE[output.verdict];
   /**
    * ONE open at a time. With several findings expanded the plan went back to
    * being a wall — and a fix list is read one item at a time anyway, so opening
@@ -342,10 +358,10 @@ export default function ReadinessVerdict({
         </Box>
       </Box>
     ) : (
-      <Box className="flex flex-col gap-0.5">
+      <Box className="flex flex-col gap-0.5 rounded-2xl bg-yellow-50 p-3">
         <Box className="flex flex-row items-center gap-1.5">
           <span className="text-text-secondary flex-none">{icon}</span>
-          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
+          <Typography variant="subtitle2" className="text-text-secondary mb-0 font-extrabold uppercase">
             {title}
           </Typography>
         </Box>
@@ -457,7 +473,7 @@ export default function ReadinessVerdict({
                   how you'll know it's done. Stacked below md. The middle one
                   is tinted because it is the only ACTIONABLE column — the
                   other two are context and proof. */}
-              <Box className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+              <Box className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
                 <Box className="flex flex-col gap-3">
                   {section(
                     <NiFlag size="small" />,
@@ -777,55 +793,118 @@ export default function ReadinessVerdict({
   return (
     <Card component="section">
       <CardContent className="flex flex-col gap-5">
-        {/* The verdict word IS the answer the user paid credits for — it has to
-            out-weigh everything else on the card, not read as one more line
-            next to a chip. */}
-        <Box className="flex flex-row flex-wrap items-center gap-4">
-          <span className={`flex h-16 w-16 flex-none items-center justify-center rounded-2xl ${tone}`}>
-            {VERDICT_ICON[output.verdict]}
-          </span>
-          <Box className="grow">
-            <Typography variant="h4" component="h2" className="card-title mb-0 font-bold">
+        {/* THE ANSWER PANEL — one tinted block carrying the verdict word, who
+            it is about, how sure we are, the summary and what blocks spend.
+            Before, those were four sibling rows in the card's flow, so the
+            paid-for answer had the same visual weight as the plan headings
+            below it; the wash makes the panel read as the result and
+            everything after it as the work. */}
+        <Box
+          className={cn(
+            "flex flex-col gap-4 rounded-2xl border bg-gradient-to-br p-4 sm:p-5",
+            VERDICT_WASH[output.verdict],
+          )}
+        >
+          <Box className="flex flex-row flex-wrap items-center gap-4">
+            <span
+              className={cn(
+                "flex h-16 w-16 flex-none items-center justify-center rounded-full",
+                VERDICT_TONE[output.verdict],
+              )}
+            >
+              {VERDICT_ICON[output.verdict]}
+            </span>
+            {/* The verdict word IS what the credits bought — it stands alone on
+                the headline line, at the icon's optical center. */}
+            <Typography variant="h4" component="h2" className="card-title mb-0 min-w-0 grow font-bold">
               {t(`verdict-${output.verdict}`)}
             </Typography>
-            <Typography variant="body2" className="text-text-secondary">
-              {t("verdict-meta", {
-                product: productName,
-                when: dateOnly.format(new Date(meta.createdAt)),
-              })}
-            </Typography>
+            {/* Provenance and certainty are the answer's METADATA — which
+                product, read when, how sure — so they travel together on the
+                trailing edge instead of hanging under the headline where they
+                competed with it. Shrinkable and wrapping: pinned `flex-none`,
+                a long product name pushed the confidence chip past the panel's
+                right edge at 390 (clipped, not scrollable). */}
+            <Box className="flex min-w-0 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+              <Typography variant="body2" className="text-text-secondary">
+                {t("verdict-meta", {
+                  product: productName,
+                  when: dateOnly.format(new Date(meta.createdAt)),
+                })}
+              </Typography>
+              <Chip
+                icon={<NiPulse size="small" />}
+                label={`${t("confidence")}: ${t(`confidence-${output.confidence}`)}`}
+                size="small"
+                variant="outlined"
+                color={CONFIDENCE_COLOR[output.confidence]}
+                className="flex-none"
+              />
+            </Box>
           </Box>
-          <Chip
-            label={`${t("confidence")}: ${t(`confidence-${output.confidence}`)}`}
-            size="small"
-            variant="outlined"
-            color={CONFIDENCE_COLOR[output.confidence]}
-            className="flex-none"
-          />
+
+          <Typography variant="body1" className="text-text-secondary leading-6">
+            {output.summary}
+          </Typography>
+
+          {/* Inset on the panel, not an Alert: this is the panel's ACTION, and
+              an error Alert reads as "something went wrong with the app" when
+              what it means is "your structure is not ready". Paper background
+              lifts it back off the wash. */}
+          {output.blocking.length > 0 && (
+            <Box className="border-grey-100 bg-background-paper/70 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center">
+              {/* Self-start, not centered with the row: with several blockers
+                  the icon drifted to the middle of the list and stopped
+                  reading as the label of the heading it belongs to. */}
+              <span className="text-error mt-0.5 flex-none self-start">
+                <NiExclamationHexagon size="medium" aria-hidden />
+              </span>
+              <Box className="min-w-0 grow">
+                <Typography variant="subtitle1" component="h3" className="mb-0.5">
+                  {t("blocking-title")}
+                </Typography>
+                {/* Every blocker, not just the first: the panel claims to name
+                    what stops the spend, and silently dropping the rest of the
+                    list makes a resolved #1 look like the finish line. */}
+                <Box className="flex flex-col gap-0.5">
+                  {output.blocking.map((item, blockingIndex) => (
+                    <Typography key={blockingIndex} variant="body2" className="text-text-secondary leading-6">
+                      {output.blocking.length > 1 ? `${blockingIndex + 1}. ${item}` : item}
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+              {groups.blockers.length > 0 && (
+                <Button
+                  variant="contained"
+                  className="min-h-11! flex-none"
+                  endIcon={<NiArrowRight size="small" aria-hidden />}
+                  onClick={focusPrimaryBlocker}
+                >
+                  {t("fix-blocker")}
+                </Button>
+              )}
+            </Box>
+          )}
+
+          {/* Same inset language — a caveat about the answer belongs INSIDE the
+              answer panel, not floating between it and the plan. */}
+          {output.insufficient_data && (
+            <Box className="border-grey-100 bg-background-paper/70 flex flex-row gap-3 rounded-2xl border p-4">
+              <span className="text-info mt-0.5 flex-none">
+                <NiInfoSquare size="medium" aria-hidden />
+              </span>
+              <Box className="min-w-0">
+                <Typography variant="subtitle1" component="h3" className="mb-0.5">
+                  {t("insufficient-title")}
+                </Typography>
+                <Typography variant="body2" className="text-text-secondary leading-6">
+                  {output.missing_data || t("insufficient-body")}
+                </Typography>
+              </Box>
+            </Box>
+          )}
         </Box>
-
-        <Typography variant="body1" className="leading-6">
-          {output.summary}
-        </Typography>
-
-        {output.blocking.length > 0 && (
-          <Alert severity="error" className="neutral bg-background-paper/60!">
-            <Typography variant="subtitle2">{t("blocking-title")}</Typography>
-            <Typography variant="body2">{output.blocking[0]}</Typography>
-            {groups.blockers.length > 0 && (
-              <Button variant="contained" size="small" className="mt-2" onClick={focusPrimaryBlocker}>
-                {t("fix-blocker")}
-              </Button>
-            )}
-          </Alert>
-        )}
-
-        {output.insufficient_data && (
-          <Alert severity="info" className="neutral bg-background-paper/60!">
-            <Typography variant="subtitle2">{t("insufficient-title")}</Typography>
-            <Typography variant="body2">{output.missing_data || t("insufficient-body")}</Typography>
-          </Alert>
-        )}
 
         <Divider />
 

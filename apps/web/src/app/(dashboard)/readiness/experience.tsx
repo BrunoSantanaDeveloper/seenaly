@@ -17,7 +17,7 @@ import ReadinessHistory, { DeltaChips } from "./components/readiness-history";
 import { type ScanTrendEntry, type ScanView } from "./components/readiness-scan";
 import ReadinessVerdict, { type HowToState, type ReadinessMeta } from "./components/readiness-verdict";
 import ReadinessWizard from "./components/readiness-wizard";
-import VerifiedCelebration from "./components/verified-celebration";
+import VerifiedCelebration, { type CelebrationSurface } from "./components/verified-celebration";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -175,6 +175,13 @@ export function ReadinessExperience({
   // verified, so it cannot be faked (see verified-celebration.tsx).
   const [justVerified, setJustVerified] = useState<ReadinessItemKey[]>([]);
   const [celebrateOpen, setCelebrateOpen] = useState(false);
+  const [celebrateSurface, setCelebrateSurface] = useState<CelebrationSurface>("modal");
+  // Which surface the reward has EARNED. A proof the user asked for and waited
+  // through the overlay for is the result of that action, so it may own the
+  // screen; the delayed PageSpeed refetch lands ~25s later, unannounced, and
+  // background work never seizes the screen (.claude/rules/app-ux.md). Set at
+  // the two call sites that can change `scan`, read when the effect fires.
+  const celebrateSurfaceRef = useRef<CelebrationSurface>("modal");
   // The concierge: catalog price + which items already have an open request, so
   // the same session is never sold twice.
   const [assistOffering, setAssistOffering] = useState<AssistOffering | null>(null);
@@ -264,6 +271,7 @@ export function ReadinessExperience({
     verifiedRef.current = current;
     if (fresh.length > 0) {
       setJustVerified(fresh);
+      setCelebrateSurface(celebrateSurfaceRef.current);
       setCelebrateOpen(true);
       track("readiness_item_verified", { count: fresh.length });
     }
@@ -870,10 +878,22 @@ export function ReadinessExperience({
     }
   };
 
+  /**
+   * "Atualizar resultado" on the pending speed measurement: the user is looking
+   * at the card and pressed it, so this is foreground too — unlike the silent
+   * 25s timer that does the same fetch on its own.
+   */
+  const refreshScanManually = () => {
+    celebrateSurfaceRef.current = "modal";
+    void refreshScan({ countAttempt: false });
+  };
+
   const runScan = async () => {
     if (!selectedProductId) return;
     setError(null);
     setNotice(null);
+    // Foreground, asked-for work: whatever it proves has earned the screen.
+    celebrateSurfaceRef.current = "modal";
     setScanning(true);
     try {
       // Persist first: the user is mid-wizard with unsaved ticks, and a scan
@@ -909,6 +929,8 @@ export function ReadinessExperience({
       if (view?.ok && view.signals?.psi?.status === "pending") {
         if (psiTimerRef.current) window.clearTimeout(psiTimerRef.current);
         psiTimerRef.current = window.setTimeout(async () => {
+          // Nobody is waiting on this one — it may congratulate, never intrude.
+          celebrateSurfaceRef.current = "toast";
           const fresh = await refreshScan({ countAttempt: false });
           await foldProven(fresh ?? null);
         }, 25_000);
@@ -1068,7 +1090,12 @@ export function ReadinessExperience({
         stages={scanStages}
         patienceLabel={t("scan-stage-patience")}
       />
-      <VerifiedCelebration open={celebrateOpen} items={justVerified} onClose={() => setCelebrateOpen(false)} />
+      <VerifiedCelebration
+        open={celebrateOpen}
+        items={justVerified}
+        surface={celebrateSurface}
+        onClose={() => setCelebrateOpen(false)}
+      />
       <Grid size={"grow"} spacing={5} container>
         <Grid size={12} spacing={2.5} container className="items-center">
           <Grid size={{ xs: 12, md: "grow" }}>
@@ -1291,7 +1318,7 @@ export function ReadinessExperience({
                 scan={scan}
                 hasUrl={Boolean(product.landing_page_url)}
                 onScan={runScan}
-                onRefreshScan={() => void refreshScan({ countAttempt: false })}
+                onRefreshScan={refreshScanManually}
                 scanTrend={scanTrend}
                 productId={product.id}
                 canGenerate={canGenerate}
@@ -1472,7 +1499,7 @@ export function ReadinessExperience({
                 scan={scan}
                 hasUrl={Boolean(product.landing_page_url)}
                 onScan={runScan}
-                onRefreshScan={() => void refreshScan({ countAttempt: false })}
+                onRefreshScan={refreshScanManually}
                 scanTrend={scanTrend}
                 productId={product.id}
                 canGenerate={canGenerate}

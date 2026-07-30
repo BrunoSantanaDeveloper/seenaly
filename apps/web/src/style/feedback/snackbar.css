@@ -13,24 +13,31 @@
 
   .notistack-MuiContent-success {
     @apply bg-background-paper! shadow-darker-sm! border-grey-100 font-body rounded-lg! border border-solid text-base;
+
     svg {
       @apply text-success;
     }
   }
+
   .notistack-MuiContent-info {
     @apply bg-background-paper! shadow-darker-sm! border-grey-100 font-body rounded-lg! border border-solid text-base;
+
     svg {
       @apply text-info;
     }
   }
+
   .notistack-MuiContent-error {
     @apply bg-background-paper! shadow-darker-sm! border-grey-100 font-body rounded-lg! border border-solid text-base;
+
     svg {
       @apply text-error;
     }
   }
+
   .notistack-MuiContent-warning {
     @apply bg-background-paper! shadow-darker-sm! border-grey-100 font-body rounded-lg! border border-solid text-base;
+
     svg {
       @apply text-warning;
     }
