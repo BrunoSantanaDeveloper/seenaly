@@ -2498,7 +2498,7 @@
     "scan-stage-settle": "Bestätige, was sich belegen ließ ...",
     "scan-stage-patience": "Wird noch gelesen. Schwere Seiten können ein paar Sekunden länger dauern.",
     "plan-title": "Korrekturplan",
-    "plan-body": "Nach Hebelwirkung sortiert. Öffne einen Punkt für Details und die Schritt-für-Schritt-Anleitung.",
+    "plan-body": "Nach Hebelwirkung sortiert. Klicke auf einen offenen Punkt, um Details und Schritt-für-Schritt zu sehen.",
     "plan-jump-hint": "Offene Punkte — tippe auf einen, um direkt dorthin zu springen:",
     "plan-progress": "{done} von {total} erledigt",
     "plan-blockers": "Zuerst beheben",
@@ -2687,7 +2687,16 @@
     "item-what-upgradePathClear": "Die Person kann abschließen, ohne zu suchen oder mit jemandem zu sprechen: Der Abo-Button ist während der Nutzung sichtbar und der Preis ist vor dem Klick klar.",
     "na-reason-sales-closes-deal": "In Ihrem Modell schließt eine Person aus dem Team den Verkauf ab, es gibt also keinen Selbstbedienungs-Checkout anzupassen.",
     "na-reason-no-trial": "Dieser Punkt ist nur für Geschäfte mit Registrierung/Test vor dem Kauf sinnvoll.",
-    "blocker-trial-conversion-unmeasured": "die Conversion Test → zahlend wird nicht gemessen — da die Anzeige auf Registrierungen optimiert, skaliert der Algorithmus die billigste Registrierung, nicht den zahlenden Kunden"
+    "blocker-trial-conversion-unmeasured": "die Conversion Test → zahlend wird nicht gemessen — da die Anzeige auf Registrierungen optimiert, skaliert der Algorithmus die billigste Registrierung, nicht den zahlenden Kunden",
+    "tile-ok": "Alles gut",
+    "tile-verified": "Verifiziert",
+    "tile-declared": "Von dir markiert",
+    "tile-contradicted": "Stimmt nicht überein",
+    "tile-awaiting": "Noch nicht geprüft",
+    "tile-blocker": "Blocker",
+    "tile-impact-alto": "Hohe Wirkung",
+    "tile-impact-medio": "Mittlere Wirkung",
+    "tile-impact-baixo": "Geringe Wirkung"
   },
   "productCommon": {
     "load-error-title": "Diese Daten konnten nicht geladen werden",

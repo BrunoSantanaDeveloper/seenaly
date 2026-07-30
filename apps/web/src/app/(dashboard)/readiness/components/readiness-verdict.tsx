@@ -19,21 +19,27 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
-  LinearProgress,
   Typography,
 } from "@mui/material";
 
 import NiArrowRight from "@/icons/nexture/ni-arrow-right";
 import NiBook from "@/icons/nexture/ni-book";
 import NiCamera from "@/icons/nexture/ni-camera";
+import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronRightSmall from "@/icons/nexture/ni-chevron-right-small";
+import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
+import NiFaceFrown from "@/icons/nexture/ni-face-frown";
+import NiFaceNeutral from "@/icons/nexture/ni-face-neutral";
+import NiFaceSmile from "@/icons/nexture/ni-face-smile";
+import NiFaceSmileMore from "@/icons/nexture/ni-face-smile-more";
 import NiFlag from "@/icons/nexture/ni-flag";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiInfoSquare from "@/icons/nexture/ni-info-square";
-import NiLock from "@/icons/nexture/ni-lock";
+import NiLayout from "@/icons/nexture/ni-layout";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiRocket from "@/icons/nexture/ni-rocket";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
@@ -43,7 +49,6 @@ import {
   EMPTY_READINESS_PROFILE,
   type FindingResolution,
   findingResolution,
-  isFindingPending,
   type ReadinessEvaluation,
   type ReadinessItemKey,
   type ReadinessProfile,
@@ -51,6 +56,7 @@ import {
 } from "@/lib/readiness/checklist";
 import type { HowToOutput } from "@/lib/readiness/howto";
 import type {
+  ReadinessDimension,
   ReadinessFinding,
   ReadinessLevel,
   ReadinessOutput,
@@ -82,6 +88,44 @@ const VERDICT_WASH: Record<Verdict, string> = {
   pronto: "bg-success-light/10",
   quase: "bg-warning-light/10",
   nao_pronto: "bg-error-light/10",
+};
+
+/** One icon per audited dimension, so a tile is recognisable before it is read. */
+const DIMENSION_ICON: Record<ReadinessDimension, React.ReactNode> = {
+  oferta: <NiTag size="medium" aria-hidden />,
+  pagina: <NiLayout size="medium" aria-hidden />,
+  checkout: <NiCreditCard size="medium" aria-hidden />,
+  mensuracao: <NiPulse size="medium" aria-hidden />,
+  ativacao: <NiRocket size="medium" aria-hidden />,
+  funil: <NiChartFunnel size="medium" aria-hidden />,
+  descoberta: <NiSearch size="medium" aria-hidden />,
+  midia: <NiCamera size="medium" aria-hidden />,
+};
+
+type TileTone = "done" | "urgent" | "open";
+
+/**
+ * Three tones, not one per group: settled, costs-you-now, worth-doing. Colour
+ * carries the binary a glance can actually resolve; the exact reason
+ * (blocker / high impact / medium) is spelled out in the tile's label, where
+ * it can't be misread as a fourth priority level.
+ */
+const TILE_TONE: Record<TileTone, { box: string; icon: string }> = {
+  done: { box: "bg-grey-25", icon: "text-text-disabled" },
+  urgent: { box: "bg-error-light/10", icon: "text-error" },
+  open: { box: "bg-primary-light/10", icon: "text-primary" },
+};
+
+/**
+ * Competence feedback on REAL progress: the face reads the same settled count
+ * the fraction does, so it can never be nudged by ticking a box the scan
+ * disproves (a contradicted item is not settled).
+ */
+const MOOD = {
+  bad: { icon: <NiFaceFrown size="small" aria-hidden />, tone: "text-error" },
+  mid: { icon: <NiFaceNeutral size="small" aria-hidden />, tone: "text-warning" },
+  good: { icon: <NiFaceSmile size="small" aria-hidden />, tone: "text-warning" },
+  great: { icon: <NiFaceSmileMore size="small" aria-hidden />, tone: "text-success" },
 };
 
 /** Colour carries the trust level: only machine-proved earns green. */
@@ -262,49 +306,16 @@ export default function ReadinessVerdict({
     });
 
   /**
-   * The pending map. A finding drops out ONLY when we can actually stand
-   * behind it (proved, or unprovable-by-nature and declared) — the earlier
-   * version listed every non-ok finding regardless, so an item wearing a green
-   * "corrigido" badge still showed as pending and the two flatly contradicted
-   * each other on screen.
-   */
-  const pending = useMemo(() => {
-    const urgency = [
-      ...groups.blockers.map((entry) => ({ ...entry, color: "error" as const })),
-      ...groups.quick.map((entry) => ({ ...entry, color: "primary" as const })),
-      ...groups.later.map((entry) => ({ ...entry, color: "grey" as const })),
-    ];
-    return (
-      urgency
-        .map((entry) => ({
-          ...entry,
-          resolution: resolutionOf(resolvableItems(entry.finding.dimension, entry.finding.related_items)),
-        }))
-        .filter((entry) => isFindingPending(entry.resolution))
-        // Verification state outranks urgency in the chip's colour: "you ticked
-        // this but we could not confirm it" is the more useful warning.
-        .map((entry) => ({
-          ...entry,
-          color: entry.resolution === "open" ? entry.color : RESOLUTION_COLOR[entry.resolution],
-        }))
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, profile, evaluation]);
-
-  /**
    * The plan in reading order (blockers → quick wins → later), which is what
-   * the numbered badges count. Also gives the honest "X de N concluídos":
-   * N is what the plan actually lists, and X only counts findings we can
-   * stand behind — never a box someone merely ticked.
+   * the numbered badges count.
    */
   const planOrder = useMemo(
     () => [...groups.blockers, ...groups.quick, ...groups.later].map((entry) => entry.index),
     [groups],
   );
-  const planDone = planOrder.length - pending.length;
 
-  /** Open one finding and bring it on screen — the "hook" every pending-item
-   *  chip (and the blocker CTA) resolves to. */
+  /** Open one finding and bring it on screen — the "hook" every plan tile
+   *  (and the deep link) resolves to. */
   const focusFinding = (index: number) => {
     setExpanded(index);
     window.setTimeout(() => {
@@ -323,10 +334,6 @@ export default function ReadinessVerdict({
     // Nonce is the trigger; focusFinding is stable in behavior.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest?.nonce]);
-
-  const focusPrimaryBlocker = () => {
-    if (groups.blockers[0]) focusFinding(groups.blockers[0].index);
-  };
 
   const levelChip = (label: string, value: ReadinessLevel) => (
     <Chip
@@ -791,25 +798,77 @@ export default function ReadinessVerdict({
     );
 
   /**
-   * The panel's inset boxes (what blocks spend / why the base is thin). The
-   * template's outlined-paper border with NO fill — a filled box would fight
-   * the card's own wash, and an `Alert severity="error"` read as "the app
-   * broke" when the message is "your structure is not ready".
+   * A caveat about the ANSWER (what blocks spend / why the base is thin). Kept
+   * as plain toned prose rather than a boxed Alert: the doors now live in the
+   * plan tiles below, so this only has to STATE the thing — and an error Alert
+   * read as "the app broke" when the message is "your structure is not ready".
    */
-  const insetBox = (icon: React.ReactNode, title: string, body: React.ReactNode, action?: React.ReactNode) => (
-    <Box className="MuiPaper-outlined MuiPaper-rounded flex w-full flex-col justify-between gap-4 rounded-lg p-5 sm:flex-row sm:items-center sm:p-7">
-      <Box className="flex flex-row items-start gap-4">
-        <span className="mt-0.5 flex-none">{icon}</span>
-        <Box className="min-w-0">
-          <Typography variant="subtitle2" component="h3" className="mb-0.5">
-            {title}
-          </Typography>
-          {body}
-        </Box>
+  const caveat = (icon: React.ReactNode, title: string, body: React.ReactNode) => (
+    <Box className="flex w-full flex-row items-start gap-3">
+      <span className="mt-0.5 flex-none">{icon}</span>
+      <Box className="min-w-0">
+        <Typography variant="subtitle2" component="h3" className="mb-0.5">
+          {title}
+        </Typography>
+        {body}
       </Box>
-      {action}
     </Box>
   );
+
+  /**
+   * The plan as DOORS. Every finding — including the ones already settled — is
+   * one tile that opens its card below, so the answer card is the entry point
+   * to the work instead of a dead summary that ends at "fix the first
+   * blocker". Reading order is the plan's own leverage order; the settled ones
+   * ride along greyed out, which is what makes the X/N count legible at a
+   * glance instead of needing a separate progress sentence.
+   */
+  const tiles = useMemo(() => {
+    const ordered = [...groups.blockers, ...groups.quick, ...groups.later, ...groups.ok];
+    return ordered.map((entry) => {
+      const resolution = findingResolution(
+        resolvableItems(entry.finding.dimension, entry.finding.related_items),
+        profile ?? EMPTY_READINESS_PROFILE,
+        {
+          verified: evaluation?.verified ?? [],
+          contradicted: evaluation?.contradicted ?? [],
+          canVerify: Boolean(onVerifyNow),
+          unprovable: evaluation?.unprovable ?? [],
+        },
+      );
+      const settled = resolution === "verified" || resolution === "declared" || resolution === "declared-unverifiable";
+      const done = settled || entry.finding.status === "ok";
+      // The tone says how urgent, the label says the state — a settled item
+      // never wears an urgency colour, and an urgent one never wears a label
+      // that implies we checked it.
+      const tone: TileTone = done
+        ? "done"
+        : entry.finding.status === "critico" || entry.finding.impact === "alto"
+          ? "urgent"
+          : "open";
+      const label =
+        entry.finding.status === "ok"
+          ? t("tile-ok")
+          : resolution === "verified"
+            ? t("tile-verified")
+            : resolution === "declared" || resolution === "declared-unverifiable"
+              ? t("tile-declared")
+              : resolution === "contradicted"
+                ? t("tile-contradicted")
+                : resolution === "awaiting-proof"
+                  ? t("tile-awaiting")
+                  : entry.finding.status === "critico"
+                    ? t("tile-blocker")
+                    : t(`tile-impact-${entry.finding.impact}`);
+      return { ...entry, tone, label, done };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, profile, evaluation, onVerifyNow]);
+
+  const tilesDone = tiles.filter((tile) => tile.done).length;
+  const tilePercent = tiles.length === 0 ? 0 : Math.round((tilesDone / tiles.length) * 100);
+  const mood: keyof typeof MOOD =
+    tilePercent === 100 ? "great" : tilePercent >= 60 ? "good" : tilePercent >= 25 ? "mid" : "bad";
 
   return (
     <Box className="flex flex-col gap-4">
@@ -880,16 +939,16 @@ export default function ReadinessVerdict({
             </Box>
           </Box>
 
-          <Box className="flex h-full w-full flex-col items-start justify-between gap-5">
+          <Box className="flex w-full flex-col items-start gap-5">
             <Typography variant="body1" component="p" className="text-text-secondary w-full text-start">
               {output.summary}
             </Typography>
 
             {output.blocking.length > 0 &&
-              insetBox(
+              caveat(
                 <NiExclamationHexagon size="medium" className="text-error" aria-hidden />,
                 t("blocking-title"),
-                // Every blocker, not just the first: the panel claims to name
+                // Every blocker, not just the first: the card claims to name
                 // what stops the spend, and silently dropping the rest of the
                 // list makes a resolved #1 look like the finish line.
                 <Box className="flex flex-col gap-0.5">
@@ -899,25 +958,12 @@ export default function ReadinessVerdict({
                     </Typography>
                   ))}
                 </Box>,
-                groups.blockers.length > 0 ? (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="medium"
-                    disableElevation
-                    className="flex-none"
-                    startIcon={<NiLock size="medium" aria-hidden />}
-                    onClick={focusPrimaryBlocker}
-                  >
-                    {t("fix-blocker")}
-                  </Button>
-                ) : undefined,
               )}
 
-            {/* Same language — a caveat about the answer belongs INSIDE the
-                answer, not floating between it and the plan. */}
+            {/* A caveat about the answer belongs INSIDE the answer, not
+                floating between it and the plan. */}
             {output.insufficient_data &&
-              insetBox(
+              caveat(
                 <NiInfoSquare size="medium" className="text-info" aria-hidden />,
                 t("insufficient-title"),
                 <Typography variant="body2" className="text-text-secondary">
@@ -925,87 +971,89 @@ export default function ReadinessVerdict({
                 </Typography>,
               )}
           </Box>
+
+          {/* THE PLAN AS DOORS — the card stops at "here is the answer" and
+              becomes the way IN to the work. Each tile opens its finding
+              below; nothing here is decoration. */}
+          {tiles.length > 0 && (
+            <Box className="MuiPaper-outlined MuiPaper-rounded bg-background-paper/95 mt-10 flex w-full flex-col items-center rounded-lg p-5">
+              <Typography variant="h4" component="h3" className="card-title mb-0">
+                {t("plan-title")}
+              </Typography>
+              <Typography variant="body1" className="text-text-secondary mb-4 text-center">
+                {t("plan-body")}
+              </Typography>
+
+              <Box className="flex w-full flex-row flex-wrap justify-center gap-2.5">
+                {tiles.map(({ finding, index, tone, label }, position) => (
+                  <Box
+                    key={index}
+                    component="button"
+                    type="button"
+                    onClick={() => focusFinding(index)}
+                    // Position in the TILE order, not planOrder — settled `ok`
+                    // findings are absent from planOrder, so indexOf gave them
+                    // "Item 0 do plano".
+                    aria-label={t("finding-summary-aria", {
+                      position: position + 1,
+                      dimension: t(`dimension-${finding.dimension}`),
+                      state: label,
+                    })}
+                    className="border-grey-50 bg-background-paper flex w-48 flex-none cursor-pointer flex-row items-center rounded-3xl border p-1 text-start transition-transform hover:scale-[1.02]"
+                  >
+                    <Box
+                      className={cn(
+                        "flex h-18 w-16 flex-none items-center justify-center rounded-2xl",
+                        TILE_TONE[tone].box,
+                        TILE_TONE[tone].icon,
+                      )}
+                    >
+                      {DIMENSION_ICON[finding.dimension]}
+                    </Box>
+                    <Box className="min-w-0 px-3 py-2">
+                      <Typography variant="body2" component="span" className="text-text-secondary block leading-4">
+                        {label}
+                      </Typography>
+                      <Typography variant="subtitle2" component="span" className="mb-0 block leading-5">
+                        {t(`dimension-${finding.dimension}`)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Completion drive over the plan itself: the count and the face
+                  read the SAME settled set, and only evidence (or an item the
+                  scan structurally cannot see) settles one — so neither can be
+                  inflated by ticking a box the page disproves. */}
+              <Box className="mt-4 flex flex-row items-center gap-2">
+                <Typography variant="h5" component="p" className="mb-0">
+                  {`${tilesDone}/${tiles.length}`}
+                </Typography>
+                <Box className={cn("flex flex-row items-center gap-1", MOOD[mood].tone)}>
+                  {MOOD[mood].icon}
+                  <Typography variant="body2" className={MOOD[mood].tone}>
+                    {`${tilePercent}%`}
+                  </Typography>
+                </Box>
+                <span className="sr-only">{t("plan-progress", { done: tilesDone, total: tiles.length })}</span>
+              </Box>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
-      {/* THE WORK — a second card, so the plan never competes with the answer
-          above it for the same surface. */}
+      {/* THE WORK — a second card holding the detail each tile opens. Its
+          title, the jump chips and the progress bar all moved up into the
+          answer card's plan panel: one plan, stated once. */}
       <Card component="section">
         <CardContent className="flex flex-col gap-5">
-          <Box className="flex flex-row flex-wrap items-end justify-between gap-3">
-            <Box className="flex flex-col gap-0.5">
-              <Typography variant="h5" component="h2" className="card-title mb-0">
-                {t("plan-title")}
-              </Typography>
-              <Typography variant="body2" className="text-text-secondary">
-                {t("plan-body")}
-              </Typography>
-            </Box>
-            {/* Completion drive over the plan itself. It counts only findings
-                we can vouch for (see `pending`), so it can never be inflated by
-                ticking — same rule the readiness rings follow. */}
-            {planOrder.length > 0 && (
-              <Box className="flex min-w-48 flex-col gap-1">
-                <Typography variant="body2" className="text-text-secondary text-right">
-                  {t("plan-progress", { done: planDone, total: planOrder.length })}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.round((planDone / planOrder.length) * 100)}
-                  color={planDone === planOrder.length ? "success" : "primary"}
-                  className="rounded-full"
-                />
-              </Box>
-            )}
-          </Box>
-
-          {/* The pending map: one hook per open finding, colored by urgency
-              (blocker / quick win / later). Same language as the completeness
-              card on the context screen — click → the exact card opens and
-              scrolls into view. */}
-          {pending.length > 0 && (
-            <Box className="flex flex-col gap-1.5">
-              <Typography variant="body2" className="text-text-secondary">
-                {t("plan-jump-hint")}
-              </Typography>
-              <Box className="flex flex-row flex-wrap gap-1.5">
-                {pending.map(({ finding, index, color }) => (
-                  <Chip
-                    key={index}
-                    label={t(`dimension-${finding.dimension}`)}
-                    size="small"
-                    variant="outlined"
-                    color={color}
-                    className="cursor-pointer"
-                    // Plan position + action, not just a dimension name — two
-                    // findings can share a dimension (P4).
-                    aria-label={t("pending-chip-aria", {
-                      position: planOrder.indexOf(index) + 1,
-                      dimension: t(`dimension-${finding.dimension}`),
-                    })}
-                    onClick={() => focusFinding(index)}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
+          {/* No "N already fine" line here any more: every settled dimension
+              is its own greyed tile in the panel above, so this only ever
+              repeated the same list in words. */}
           {group(t("plan-blockers"), t("plan-blockers-hint"), groups.blockers)}
           {group(t("plan-quick"), t("plan-quick-hint"), groups.quick)}
           {group(t("plan-later"), t("plan-later-hint"), groups.later)}
-
-          {/* What is already fine is worth one line of credit, not a section. */}
-          {groups.ok.length > 0 && (
-            <Box className="text-success flex flex-row items-center gap-1.5">
-              <NiCheck size="small" />
-              <Typography variant="body2" className="text-success">
-                {t("plan-ok", {
-                  count: groups.ok.length,
-                  dimensions: groups.ok.map((x) => t(`dimension-${x.finding.dimension}`)).join(", "),
-                })}
-              </Typography>
-            </Box>
-          )}
 
           {meta.knowledgeRefs.length > 0 && (
             <>

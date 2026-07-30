@@ -2498,7 +2498,7 @@
     "scan-stage-settle": "Confirmation de ce que nous avons pu prouver...",
     "scan-stage-patience": "Lecture en cours. Les pages lourdes peuvent prendre quelques secondes de plus.",
     "plan-title": "Plan de correction",
-    "plan-body": "Par ordre de levier. Ouvrez un élément pour le détail et le pas-à-pas.",
+    "plan-body": "Par ordre de levier. Cliquez sur un point en attente pour voir le détail et le pas à pas.",
     "plan-jump-hint": "À traiter — touchez un élément pour y aller directement :",
     "plan-progress": "{done} sur {total} terminés",
     "plan-blockers": "À corriger d'abord",
@@ -2687,7 +2687,16 @@
     "item-what-upgradePathClear": "La personne peut souscrire sans chercher ni parler à quiconque : le bouton d'abonnement est visible pendant l'utilisation et le prix est clair avant le clic.",
     "na-reason-sales-closes-deal": "Dans votre modèle, c'est une personne de l'équipe qui conclut la vente : il n'y a donc pas de paiement en libre-service à ajuster.",
     "na-reason-no-trial": "Cet élément n'a de sens que pour les activités avec inscription/essai avant l'achat.",
-    "blocker-trial-conversion-unmeasured": "la conversion essai → payant n'est pas mesurée — comme la publicité optimise sur l'inscription, l'algorithme développera l'inscription la moins chère, pas le client qui paie"
+    "blocker-trial-conversion-unmeasured": "la conversion essai → payant n'est pas mesurée — comme la publicité optimise sur l'inscription, l'algorithme développera l'inscription la moins chère, pas le client qui paie",
+    "tile-ok": "Tout est bon",
+    "tile-verified": "Vérifié",
+    "tile-declared": "Vous l avez coché",
+    "tile-contradicted": "Ne correspond pas",
+    "tile-awaiting": "Pas encore vérifié",
+    "tile-blocker": "Bloqueur",
+    "tile-impact-alto": "Fort impact",
+    "tile-impact-medio": "Impact moyen",
+    "tile-impact-baixo": "Faible impact"
   },
   "productCommon": {
     "load-error-title": "Impossible de charger ces données",

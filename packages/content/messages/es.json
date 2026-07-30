@@ -2498,7 +2498,7 @@
     "scan-stage-settle": "Confirmando lo que pudimos probar...",
     "scan-stage-patience": "Seguimos leyendo. Las páginas pesadas pueden tardar unos segundos más.",
     "plan-title": "Plan de corrección",
-    "plan-body": "En orden de apalancamiento. Abre un elemento para ver el detalle y el paso a paso.",
+    "plan-body": "En orden de apalancamiento. Haz clic en un pendiente para ver el detalle y el paso a paso.",
     "plan-jump-hint": "Pendientes — toca uno para ir directo al elemento:",
     "plan-progress": "{done} de {total} completados",
     "plan-blockers": "Resuelve primero",
@@ -2687,7 +2687,16 @@
     "item-what-upgradePathClear": "La persona puede contratar sin buscar ni hablar con nadie: el botón de suscribirse está visible durante el uso y el precio es claro antes del clic.",
     "na-reason-sales-closes-deal": "En tu modelo quien cierra la venta es una persona del equipo, así que no existe checkout self-service que ajustar.",
     "na-reason-no-trial": "Este elemento solo tiene sentido en negocios con registro/prueba antes de la compra.",
-    "blocker-trial-conversion-unmeasured": "la conversión prueba → pago no se mide; como el anuncio optimiza por registro, el algoritmo escalará el registro más barato, no el cliente que paga"
+    "blocker-trial-conversion-unmeasured": "la conversión prueba → pago no se mide; como el anuncio optimiza por registro, el algoritmo escalará el registro más barato, no el cliente que paga",
+    "tile-ok": "Todo bien",
+    "tile-verified": "Verificado",
+    "tile-declared": "Lo marcaste",
+    "tile-contradicted": "No coincide",
+    "tile-awaiting": "Falta verificar",
+    "tile-blocker": "Bloqueador",
+    "tile-impact-alto": "Alto impacto",
+    "tile-impact-medio": "Impacto medio",
+    "tile-impact-baixo": "Bajo impacto"
   },
   "productCommon": {
     "load-error-title": "No pudimos cargar estos datos",
