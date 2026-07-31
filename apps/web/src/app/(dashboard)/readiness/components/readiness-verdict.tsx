@@ -18,6 +18,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  FormControl,
   FormControlLabel,
   Typography,
 } from "@mui/material";
@@ -27,6 +28,7 @@ import NiBook from "@/icons/nexture/ni-book";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiChartFunnel from "@/icons/nexture/ni-chart-funnel";
 import NiCheck from "@/icons/nexture/ni-check";
+import NiCheckSquare from "@/icons/nexture/ni-check-square";
 import NiChevronRightSmall from "@/icons/nexture/ni-chevron-right-small";
 import NiCreditCard from "@/icons/nexture/ni-credit-card";
 import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
@@ -43,6 +45,7 @@ import NiRocket from "@/icons/nexture/ni-rocket";
 import NiSearch from "@/icons/nexture/ni-search";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiShieldCross from "@/icons/nexture/ni-shield-cross";
+import NiSquircle from "@/icons/nexture/ni-squircle";
 import NiTag from "@/icons/nexture/ni-tag";
 import type { Confidence, EvidenceSource } from "@/lib/diagnosis/schema";
 import {
@@ -353,28 +356,17 @@ export default function ReadinessVerdict({
    * ACTIONABLE (what to actually do), matching the tinted-box language
    * already used for the checklist's own teaching tips.
    */
-  const section = (icon: React.ReactNode, title: string, body: React.ReactNode, emphasize = false) =>
-    emphasize ? (
-      <Box className="bg-primary/5 flex flex-row items-start gap-2 rounded-2xl p-3">
-        <span className="text-primary mt-0.5 flex-none">{icon}</span>
-        <Box className="flex flex-col gap-0.5">
-          <Typography variant="subtitle2" className="text-text-secondary mb-0 uppercase">
-            {title}
-          </Typography>
-          {body}
-        </Box>
-      </Box>
-    ) : (
-      <Box className="flex flex-col gap-0.5 rounded-2xl bg-yellow-50 p-3">
-        <Box className="flex flex-row items-center gap-1.5">
-          <span className="text-text-secondary flex-none">{icon}</span>
-          <Typography variant="subtitle2" className="text-text-secondary mb-0 font-extrabold uppercase">
-            {title}
-          </Typography>
-        </Box>
+  const section = (icon: React.ReactNode, tone: string, title: string, body: React.ReactNode) => (
+    <Box className="flex flex-row gap-2.5">
+      <span className={cn("mt-0.5 flex-none", tone)}>{icon}</span>
+      <Box className="w-full min-w-0">
+        <Typography variant="subtitle2" component="h5" className="mb-0.5">
+          {title}
+        </Typography>
         {body}
       </Box>
-    );
+    </Box>
+  );
 
   const findingCard = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
     const items = resolvableItems(finding.dimension, finding.related_items);
@@ -391,284 +383,292 @@ export default function ReadinessVerdict({
       finding.effort === "alto" || (typeof howTo === "object" && howTo.howTo.needs_specialist === true);
 
     return (
-      // The template's card-accordion (FAQ pattern): each finding is one
-      // elevated card whose collapsed face carries dimension + verdict chips +
-      // the ACTION preview — the plan scans as a to-do list instead of four
-      // walls of analysis bleeding into each other.
-      <Box key={index} className="mb-2.5 rounded-xl shadow-sm">
-        <Accordion id={`finding-${index}`} expanded={open} onChange={() => toggle(index)}>
-          {/* Explicit accessible name (P4): without it the button's name is
+      // The template's OUTLINED accordion (ui/surfaces/accordion): a bordered
+      // head that opens into a bordered panel, no shadow, no nested card. The
+      // plan scans as a to-do list instead of four walls of analysis.
+      <Accordion
+        key={index}
+        id={`finding-${index}`}
+        elevation={0}
+        className="mb-1.5"
+        expanded={open}
+        onChange={() => toggle(index)}
+      >
+        {/* Explicit accessible name (P4): without it the button's name is
               the concatenation of the whole collapsed card — unusable in a
               rotor list. The state (resolution when settled, status when
               open) restates the one chip a sighted reader sees. */}
-          <AccordionSummary
-            className="group"
-            aria-label={t("finding-summary-aria", {
-              position,
-              dimension: t(`dimension-${finding.dimension}`),
-              state: resolution !== "open" ? t(`resolution-${resolution}`) : t(`status-${finding.status}`),
-            })}
+        <AccordionSummary
+          className="group"
+          aria-label={t("finding-summary-aria", {
+            position,
+            dimension: t(`dimension-${finding.dimension}`),
+            state: resolution !== "open" ? t(`resolution-${resolution}`) : t(`status-${finding.status}`),
+          })}
+        >
+          {/* The template's outlined accordion head (ui/surfaces/accordion):
+                the whole row is one bordered button whose border opens into the
+                detail panel below. The dimension icon replaces the numbered
+                badge — position is the plan tiles' job now. */}
+          <Button
+            component="div"
+            variant="outlined"
+            size="large"
+            color="grey"
+            className="full-width-button border-grey-100 hover:text-primary group-aria-expanded:text-primary items-start group-aria-expanded:rounded-b-none group-aria-expanded:border-b-transparent hover:bg-transparent"
+            startIcon={<span className="flex-none">{DIMENSION_ICON[finding.dimension]}</span>}
+            endIcon={<NiChevronRightSmall size={20} className="accordion-rotate flex-none" />}
           >
-            <Card className="w-full shadow-none! group-aria-expanded:rounded-b-none">
-              <CardContent className="flex flex-col gap-1.5">
-                <Box className="flex flex-row flex-wrap items-center gap-2">
-                  {/* Position badge: the plan is an ordered queue, so say which
-                      one this is — and mark the done ones without needing the
-                      reader to open anything. */}
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex h-7 w-7 flex-none items-center justify-center rounded-full border text-sm font-medium",
-                      resolved
-                        ? "border-success/40 bg-success/10 text-success"
-                        : open
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-grey-100 text-text-secondary",
-                    )}
+            <Box className="flex w-full min-w-0 flex-col gap-2 md:flex-row md:items-center">
+              <Box className="min-w-0 grow">
+                <Typography variant="subtitle2" component="h4" className="mb-0">
+                  {t(`dimension-${finding.dimension}`)}
+                </Typography>
+                {/* The payoff stays visible open OR closed — collapsing it on
+                      expand made the head jump and lost the one line that says
+                      what this item is for. */}
+                <Typography
+                  variant="body2"
+                  className={cn("text-text-secondary whitespace-normal", resolved && "line-through")}
+                >
+                  {finding.recommended_action}
+                </Typography>
+              </Box>
+              {/* One badge, one truth: proved / your word / not checked yet /
+                    the page disagrees — never a green tick for a claim. Open
+                    items wear the same urgency word their plan tile does, so
+                    the two surfaces can't tell different stories. */}
+              <Box className="flex flex-none flex-row flex-wrap items-center gap-1.5">
+                {resolution !== "open" ? (
+                  <Button
+                    component="span"
+                    role="note"
+                    tabIndex={-1}
+                    variant="pastel"
+                    size="tiny"
+                    color={RESOLUTION_COLOR[resolution]}
+                    disableElevation
+                    disableRipple
+                    className="pointer-events-none flex-none self-center"
+                    startIcon={resolution === "verified" ? <NiCheck size="tiny" aria-hidden /> : undefined}
                   >
-                    {resolved ? <NiCheck size="small" /> : position}
-                  </span>
-                  <Typography variant="h6" component="h4" className="mb-0 grow">
-                    {t(`dimension-${finding.dimension}`)}
-                  </Typography>
-                  <Box className="flex flex-none flex-row flex-wrap items-center gap-1">
-                    {/* One chip, one truth: proved / your word / not checked yet
-                        / the page disagrees. Never a green tick for a claim. */}
-                    {resolution !== "open" ? (
-                      <Chip
-                        icon={resolution === "verified" ? <NiCheck size="small" /> : undefined}
-                        label={t(`resolution-${resolution}`)}
-                        size="small"
-                        variant="outlined"
-                        color={RESOLUTION_COLOR[resolution]}
-                        className="flex-none"
-                      />
-                    ) : (
-                      <>
-                        {finding.status === "sem_dados" && (
-                          <Chip
-                            label={t("status-sem_dados")}
-                            size="small"
-                            variant="outlined"
-                            color="grey"
-                            className="flex-none"
-                          />
-                        )}
-                        {levelChip(t("impact"), finding.impact)}
-                        {levelChip(t("effort"), finding.effort)}
-                      </>
+                    {t(`resolution-${resolution}`)}
+                  </Button>
+                ) : (
+                  <>
+                    {finding.status === "sem_dados" && (
+                      <Chip label={t("status-sem_dados")} size="small" variant="outlined" color="grey" />
                     )}
-                    <NiChevronRightSmall size={20} className="accordion-rotate" />
-                  </Box>
-                </Box>
-                {/* Collapsed, the card leads with its payoff — what to DO.
-                    Open, the full tinted AÇÃO section below takes over. */}
-                {!open && (
-                  <Typography
-                    variant="body2"
-                    className={cn("text-text-secondary line-clamp-2 leading-6", resolved && "line-through")}
-                  >
-                    {finding.recommended_action}
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </AccordionSummary>
-          <AccordionDetails className="bg-background-paper rounded-b-xl px-7 py-6 pt-0">
-            <Box className="flex flex-col gap-3">
-              {/* Three columns on wide screens: what blocks / what to do /
-                  how you'll know it's done. Stacked below md. The middle one
-                  is tinted because it is the only ACTIONABLE column — the
-                  other two are context and proof. */}
-              <Box className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-                <Box className="flex flex-col gap-3">
-                  {section(
-                    <NiFlag size="small" />,
-                    t("section-problem"),
-                    <Typography variant="body2" className="leading-6">
-                      {finding.finding}
-                    </Typography>,
-                  )}
-
-                  {finding.evidence.length > 0 &&
-                    section(
-                      <NiSearch size="small" />,
-                      t("section-evidence"),
-                      <Box className="flex flex-col gap-1.5">
-                        {finding.evidence.map((evidence, evidenceIndex) => (
-                          <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
-                            <Chip
-                              label={t(`source-${evidence.source}`)}
-                              size="small"
-                              variant="outlined"
-                              color={SOURCE_COLOR[evidence.source] ?? "default"}
-                              className="mt-0.5 flex-none"
-                            />
-                            <Typography variant="body2" className="leading-6">
-                              {evidence.statement}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>,
-                    )}
-                </Box>
-
-                {/* The one line the whole card exists to deliver — boxed and tinted
-            so it visually wins against the descriptive sections around it. */}
-                {section(
-                  <NiArrowRight size="small" />,
-                  t("section-action"),
-                  <Box className="flex flex-col gap-2">
-                    <Typography
-                      variant="body1"
-                      className={cn("leading-6 font-medium", resolved && "text-text-secondary line-through")}
-                    >
-                      {finding.recommended_action}
-                    </Typography>
-                    {/* Once the step-by-step has been paid for, it belongs HERE —
-                      numbered, in the action column — not in a separate block
-                      further down that repeats the same job. */}
-                    {typeof howTo === "object" && howTo.howTo.steps.length > 0 && (
-                      <Box component="ol" className="m-0 flex list-decimal flex-col gap-1 pl-5">
-                        {howTo.howTo.steps.map((step, stepIndex) => (
-                          <Typography key={stepIndex} component="li" variant="body2" className="leading-6">
-                            {step}
-                          </Typography>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>,
-                  true,
-                )}
-
-                {/* Completion criteria — the checklist items this finding is
-                  actually about, each its own box. One "marcar como resolvido"
-                  used to tick them all at once, which is a lie whenever a
-                  finding spans several (you fixed the Pixel, not the CAPI).
-                  `success_criterion` stays as the sentence that says what
-                  "done" looks like. */}
-                {section(
-                  <NiCheck size="small" />,
-                  t("section-success"),
-                  <Box className="flex flex-col gap-1">
-                    {items.length > 0 && onResolve && profile
-                      ? items.map((key) => (
-                          <FormControlLabel
-                            key={key}
-                            className="m-0"
-                            control={
-                              <Checkbox
-                                size="small"
-                                checked={profile[key] === true}
-                                onChange={(event) => onResolve([key], event.target.checked)}
-                              />
-                            }
-                            label={
-                              <Typography variant="body2" className={profile[key] ? "text-text-secondary" : undefined}>
-                                {t(`item-${key}`)}
-                              </Typography>
-                            }
-                          />
-                        ))
-                      : null}
-                    <Typography variant="body2" className="text-text-secondary leading-6">
-                      {finding.success_criterion}
-                    </Typography>
-                  </Box>,
+                    {levelChip(t("impact"), finding.impact)}
+                    {levelChip(t("effort"), finding.effort)}
+                  </>
                 )}
               </Box>
+            </Box>
+          </Button>
+        </AccordionSummary>
+        {/* The head's border continues into the panel (border-t-transparent):
+              one object, not a card floating under a button. */}
+        <AccordionDetails className="border-grey-100 rounded-b-lg border border-solid border-t-transparent px-6 py-4">
+          <Box className="flex flex-col gap-4">
+            {/* One reading line per section: coloured icon, name, then the
+                  prose in secondary text. No tinted boxes competing for
+                  attention — the sections are peers, read top to bottom. */}
+            {section(
+              <NiFlag size="small" />,
+              "text-accent-2",
+              t("section-problem"),
+              <Typography variant="body2" className="text-text-secondary">
+                {finding.finding}
+              </Typography>,
+            )}
 
-              {/* `midia` has no checklist items to tick — its concrete door is
+            {finding.evidence.length > 0 &&
+              section(
+                <NiSearch size="small" />,
+                "text-accent-3",
+                t("section-evidence"),
+                <Box className="flex flex-col gap-1.5">
+                  {finding.evidence.map((evidence, evidenceIndex) => (
+                    <Box key={evidenceIndex} className="flex flex-row items-start gap-2">
+                      <Chip
+                        label={t(`source-${evidence.source}`)}
+                        size="small"
+                        variant="outlined"
+                        color={SOURCE_COLOR[evidence.source] ?? "default"}
+                        className="mt-0.5 flex-none"
+                      />
+                      <Typography variant="body2" className="text-text-secondary">
+                        {evidence.statement}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>,
+              )}
+
+            {section(
+              <NiArrowRight size="small" />,
+              "text-secondary",
+              t("section-action"),
+              <Box className="flex flex-col gap-2">
+                <Typography variant="body2" className={cn("text-text-secondary", resolved && "line-through")}>
+                  {finding.recommended_action}
+                </Typography>
+                {/* Once the step-by-step has been paid for, it belongs HERE —
+                      numbered, under the action — not in a separate block
+                      further down that repeats the same job. */}
+                {typeof howTo === "object" && howTo.howTo.steps.length > 0 && (
+                  <Box component="ol" className="m-0 flex list-decimal flex-col gap-1 pl-5">
+                    {howTo.howTo.steps.map((step, stepIndex) => (
+                      <Typography key={stepIndex} component="li" variant="body2" className="text-text-secondary">
+                        {step}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+              </Box>,
+            )}
+
+            {/* Completion criteria — the checklist items this finding is
+                  actually about, each its own checkbox. One "marcar como
+                  resolvido" used to tick them all at once, which is a lie
+                  whenever a finding spans several (you fixed the Pixel, not the
+                  CAPI). `success_criterion` stays as the sentence that says
+                  what "done" looks like. */}
+            {section(
+              <NiCheck size="small" />,
+              "text-accent-1",
+              t("section-success"),
+              <>
+                <Typography variant="body2" className="text-text-secondary">
+                  {finding.success_criterion}
+                </Typography>
+                {items.length > 0 && onResolve && profile && (
+                  <Box className="bg-grey-20 mt-3 flex flex-col items-start rounded-lg p-4">
+                    {items.map((key) => (
+                      // The template's task-list checkbox (dashboards/visual):
+                      // squircle icons, `group` for the hover tint, struck
+                      // through once ticked.
+                      <FormControl key={key} className="group">
+                        <FormControlLabel
+                          className="items-start"
+                          checked={profile[key] === true}
+                          control={
+                            <Checkbox
+                              icon={
+                                <NiSquircle size="large" className="text-text-disabled! group-hover:text-primary!" />
+                              }
+                              checkedIcon={<NiCheckSquare size="large" />}
+                              onChange={(event) => onResolve([key], event.target.checked)}
+                            />
+                          }
+                          label={
+                            <Typography
+                              variant="body2"
+                              className={cn(profile[key] && "text-text-secondary line-through")}
+                            >
+                              {t(`item-${key}`)}
+                            </Typography>
+                          }
+                        />
+                      </FormControl>
+                    ))}
+                  </Box>
+                )}
+              </>,
+            )}
+
+            {/* `midia` has no checklist items to tick — its concrete door is
                   the Creative Test Plan on the creatives surface. */}
-              {finding.dimension === "midia" && creativePlanHref && (
-                <Box className="flex flex-col items-start gap-1">
-                  <Button
-                    component={Link}
-                    href={creativePlanHref}
-                    size="small"
-                    variant="contained"
-                    startIcon={<NiCamera size="small" />}
-                  >
-                    {t("creative-plan-cta")}
-                  </Button>
-                  <Typography variant="body2" className="text-text-secondary">
-                    {t("creative-plan-hint")}
-                  </Typography>
-                </Box>
-              )}
+            {finding.dimension === "midia" && creativePlanHref && (
+              <Box className="flex flex-col items-start gap-1">
+                <Button
+                  component={Link}
+                  href={creativePlanHref}
+                  size="small"
+                  variant="contained"
+                  startIcon={<NiCamera size="small" />}
+                >
+                  {t("creative-plan-cta")}
+                </Button>
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("creative-plan-hint")}
+                </Typography>
+              </Box>
+            )}
 
-              {/* `oferta` is context-driven by design: the fix happens on the
+            {/* `oferta` is context-driven by design: the fix happens on the
                   product context screen, and the next verdict re-reads it. */}
-              {finding.dimension === "oferta" && productContextHref && (
-                <Box className="flex flex-col items-start gap-1">
-                  <Button
-                    component={Link}
-                    href={productContextHref}
-                    size="small"
-                    variant="contained"
-                    startIcon={<NiTag size="small" />}
-                  >
-                    {t("offer-context-cta")}
-                  </Button>
-                  <Typography variant="body2" className="text-text-secondary">
-                    {t("offer-context-hint")}
-                  </Typography>
-                </Box>
-              )}
+            {finding.dimension === "oferta" && productContextHref && (
+              <Box className="flex flex-col items-start gap-1">
+                <Button
+                  component={Link}
+                  href={productContextHref}
+                  size="small"
+                  variant="contained"
+                  startIcon={<NiTag size="small" />}
+                >
+                  {t("offer-context-cta")}
+                </Button>
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("offer-context-hint")}
+                </Typography>
+              </Box>
+            )}
 
-              {/* The honest middle state, spelled out: they said it is done and
+            {/* The honest middle state, spelled out: they said it is done and
                   we CAN check — so say we haven't yet, and hand them the
                   one-click way to settle it instead of a vague warning. */}
-              {resolution === "awaiting-proof" && (
-                <Alert severity="warning" className="neutral bg-background-paper/60!">
-                  <Typography variant="body2">{t("resolution-awaiting-proof-body")}</Typography>
-                  {onVerifyNow && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="grey"
-                      className="mt-2"
-                      startIcon={<NiShieldCheck size="small" />}
-                      disabled={verifying}
-                      onClick={onVerifyNow}
-                    >
-                      {verifying ? t("verifying-now") : t("verify-now")}
-                    </Button>
-                  )}
-                </Alert>
-              )}
+            {resolution === "awaiting-proof" && (
+              <Alert severity="warning" className="neutral bg-background-paper/60!">
+                <Typography variant="body2">{t("resolution-awaiting-proof-body")}</Typography>
+                {onVerifyNow && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="grey"
+                    className="mt-2"
+                    startIcon={<NiShieldCheck size="small" />}
+                    disabled={verifying}
+                    onClick={onVerifyNow}
+                  >
+                    {verifying ? t("verifying-now") : t("verify-now")}
+                  </Button>
+                )}
+              </Alert>
+            )}
 
-              {/* The user's word is all there is here — never pretend otherwise. */}
-              {resolution === "declared" && (
-                <Typography variant="body2" className="text-text-secondary">
-                  {t("resolution-declared-body")}
-                </Typography>
-              )}
+            {/* The user's word is all there is here — never pretend otherwise. */}
+            {resolution === "declared" && (
+              <Typography variant="body2" className="text-text-secondary">
+                {t("resolution-declared-body")}
+              </Typography>
+            )}
 
-              {/* Settled by trust, with the WHY: our page read structurally
+            {/* Settled by trust, with the WHY: our page read structurally
                   cannot see these tags (client-side rendering / GTM), so the
                   user's word is the best data obtainable. Plain text, not a
                   warning — it is settled, not pending. */}
-              {resolution === "declared-unverifiable" && (
-                <Typography variant="body2" className="text-text-secondary">
-                  {t("resolution-declared-unverifiable-body")}
-                </Typography>
-              )}
+            {resolution === "declared-unverifiable" && (
+              <Typography variant="body2" className="text-text-secondary">
+                {t("resolution-declared-unverifiable-body")}
+              </Typography>
+            )}
 
-              {/* Ticked, but the page says no. Loudest state on the card. */}
-              {resolution === "contradicted" && (
-                <Alert severity="error" className="neutral bg-background-paper/60!">
-                  <Typography variant="body2">{t("resolution-contradicted-body")}</Typography>
-                </Alert>
-              )}
+            {/* Ticked, but the page says no. Loudest state on the card. */}
+            {resolution === "contradicted" && (
+              <Alert severity="error" className="neutral bg-background-paper/60!">
+                <Typography variant="body2">{t("resolution-contradicted-body")}</Typography>
+              </Alert>
+            )}
 
-              <Box className="border-grey-50 flex flex-col gap-3 border-t pt-3">
-                {/* HOW to do it — the gap between knowing and doing, on demand. */}
-                <Box className="bg-grey-25/60 flex flex-col gap-2 rounded-2xl p-4">
-                  <Typography variant="subtitle2" className="text-text-secondary uppercase">
-                    {t("howto-title")}
-                  </Typography>
-
+            <Box className="border-grey-50 flex flex-col gap-4 border-t pt-4">
+              {/* HOW to do it — the gap between knowing and doing, on demand. */}
+              {section(
+                <NiBook size="small" />,
+                "text-primary",
+                t("howto-title"),
+                <Box className="flex flex-col gap-2">
                   {howTo === undefined && onHowTo && (
                     <Box className="flex flex-col items-start gap-1">
                       <Typography variant="body2" className="text-text-secondary">
@@ -724,9 +724,9 @@ export default function ReadinessVerdict({
                         {t("howto-specialist")}
                       </Typography>
                       {/* The door to the item's TEACHING panel — where the
-                          earned concierge appears only if assistReason says
-                          so. oferta/midia map to no items: plain text, no
-                          fake door. */}
+                            earned concierge appears only if assistReason says
+                            so. oferta/midia map to no items: plain text, no
+                            fake door. */}
                       {items.length > 0 && onOpenItemHelp && (
                         <Button size="small" variant="text" color="primary" onClick={() => onOpenItemHelp(items[0])}>
                           {t("howto-specialist-cta")}
@@ -734,50 +734,51 @@ export default function ReadinessVerdict({
                       )}
                     </Box>
                   )}
+                </Box>,
+              )}
+
+              {finding.technical_basis.length > 0 &&
+                section(
+                  <NiBook size="small" />,
+                  "text-accent-4",
+                  t("section-technical-basis"),
+                  <Box className="flex flex-col gap-0.5">
+                    {finding.technical_basis.map((basis, basisIndex) => (
+                      <Typography key={basisIndex} variant="body2" className="text-text-secondary">
+                        {basis.rule} <span className="text-text-disabled">{basis.citation}</span>
+                      </Typography>
+                    ))}
+                  </Box>,
+                )}
+
+              {registeredByIndex[index] && experimentHref ? (
+                <Alert severity="success" className="neutral bg-background-paper/60!">
+                  <Typography variant="body2">
+                    {t("experiment-planned")}{" "}
+                    <Link href={experimentHref(registeredByIndex[index])}>{t("open-experiment")}</Link>
+                  </Typography>
+                </Alert>
+              ) : onRegisterFinding ? (
+                <Box className="flex flex-col items-start gap-1">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="grey"
+                    startIcon={<NiFlask size="small" />}
+                    disabled={registeringIndex != null}
+                    onClick={() => onRegisterFinding(index)}
+                  >
+                    {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
+                  </Button>
+                  <Typography variant="body2" className="text-text-secondary">
+                    {t("register-experiment-hint")}
+                  </Typography>
                 </Box>
-
-                {finding.technical_basis.length > 0 &&
-                  section(
-                    <NiBook size="small" />,
-                    t("section-technical-basis"),
-                    <Box className="flex flex-col gap-0.5">
-                      {finding.technical_basis.map((basis, basisIndex) => (
-                        <Typography key={basisIndex} variant="body2" className="leading-6">
-                          {basis.rule} <span className="text-text-secondary">{basis.citation}</span>
-                        </Typography>
-                      ))}
-                    </Box>,
-                  )}
-
-                {registeredByIndex[index] && experimentHref ? (
-                  <Alert severity="success" className="neutral bg-background-paper/60!">
-                    <Typography variant="body2">
-                      {t("experiment-planned")}{" "}
-                      <Link href={experimentHref(registeredByIndex[index])}>{t("open-experiment")}</Link>
-                    </Typography>
-                  </Alert>
-                ) : onRegisterFinding ? (
-                  <Box className="flex flex-col items-start gap-1">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="grey"
-                      startIcon={<NiFlask size="small" />}
-                      disabled={registeringIndex != null}
-                      onClick={() => onRegisterFinding(index)}
-                    >
-                      {registeringIndex === index ? t("registering-experiment") : t("register-experiment")}
-                    </Button>
-                    <Typography variant="body2" className="text-text-secondary">
-                      {t("register-experiment-hint")}
-                    </Typography>
-                  </Box>
-                ) : null}
-              </Box>
+              ) : null}
             </Box>
-          </AccordionDetails>
-        </Accordion>
-      </Box>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
     );
   };
 
@@ -785,7 +786,7 @@ export default function ReadinessVerdict({
     entries.length === 0 ? null : (
       <Box className="flex flex-col gap-2">
         <Box className="flex flex-col gap-0.5">
-          <Typography variant="subtitle1" component="h3" className="mb-0">
+          <Typography variant="h6" component="h3" className="card-title mb-0">
             {title} <span className="text-text-secondary">({entries.length})</span>
           </Typography>
           <Typography variant="body2" className="text-text-secondary">
