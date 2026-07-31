@@ -2516,6 +2516,8 @@
     "howto-cta": "Show the step-by-step",
     "howto-loading": "Writing the step-by-step...",
     "howto-unsupported": "The knowledge base does not cover this recommendation yet, so we will not invent a tutorial. You were not charged.",
+    "howto-retry": "Try again",
+    "howto-retry-hint": "The knowledge base grows over time. You can try again later — no charge while there is no step-by-step.",
     "howto-specialist": "This usually needs a developer or specialist. If you do not do this kind of setup, consider delegating it.",
     "firm-run-scan": "Run the page scan",
     "firm-review-checklist": "Review checklist ({remaining} unconfirmed)",

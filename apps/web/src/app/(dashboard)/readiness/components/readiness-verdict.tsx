@@ -699,9 +699,23 @@ export default function ReadinessVerdict({
                       {howTo.howTo.steps.length === 0 && (
                         // An honest empty answer: the knowledge base did not cover
                         // it, so no tutorial was invented (and nothing was charged).
-                        <Alert severity="info" className="neutral bg-background-paper/60!">
-                          <Typography variant="body2">{howTo.howTo.note || t("howto-unsupported")}</Typography>
-                        </Alert>
+                        // It must still offer a way forward — an empty answer with
+                        // no next action is the dead end this screen exists to avoid.
+                        // Nothing was persisted or charged, so retrying is free and
+                        // succeeds once the corpus covers the topic.
+                        <Box className="flex flex-col items-start gap-2">
+                          <Alert severity="info" className="neutral bg-background-paper/60!">
+                            <Typography variant="body2">{howTo.howTo.note || t("howto-unsupported")}</Typography>
+                          </Alert>
+                          <Typography variant="body2" className="text-text-secondary">
+                            {t("howto-retry-hint")}
+                          </Typography>
+                          {onHowTo && (
+                            <Button size="small" variant="outlined" color="grey" onClick={() => onHowTo(index)}>
+                              {t("howto-retry")}
+                            </Button>
+                          )}
+                        </Box>
                       )}
                       {howTo.howTo.steps.length > 0 && howTo.howTo.note && (
                         <Typography variant="body2" className="text-text-secondary">

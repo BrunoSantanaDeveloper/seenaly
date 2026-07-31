@@ -41,6 +41,17 @@ que acontece **depois do clique** e **antes da campanha** (página, checkout, of
 - [Escada de valor e backend: diagnosticando o platô de faturamento](escada-valor-backend-ltv.md) (trust 5): Quando a conta empaca com front-end saudável, a causa relatada é arquitetura de produto — falta backend (ticket maior para quem já comprou) e falta audiência própria — não mídia. Como diferenciar isso de teto de nicho e de esteira de sessão única.
 - [Teste, validação e escala de campanhas: heurísticas de operação](teste-escala-orcamento.md) (trust 5): O ciclo testar→validar→escalar com papéis separados — régua de validação por criativo, degraus de orçamento lendo o pós-aumento, campanha de escala intocável, duplicação com limite de custo — e os anti-padrões day trade e "esperar otimizar".
 
+## SaaS, trial e recorrência
+
+> Modelo estruturalmente diferente do resto do corpus: aqui o "checkout" é um cadastro
+> grátis e a venda acontece **depois do uso**, dentro do produto. Diagnósticos de
+> página/oferta/checkout continuam valendo, mas a alavanca principal muda para ativação.
+
+- [SaaS trial-first: ativação, aha moment e time-to-value](saas-trial-ativacao.md) (trust 4): No modelo trial-first a venda acontece dentro do produto — o que converte é o usuário alcançar o primeiro valor real dentro da janela do trial. Como diagnosticar um funil que capta bem e converte mal, e por que "melhorar a página" costuma ser a alavanca errada.
+- [Régua de e-mail do trial: ativação, expiração e upgrade](email-ciclo-de-vida-trial.md) (trust 4): A sequência que converte trial em pagante é disparada por comportamento, não por data. Estrutura concreta das quatro fases (boas-vindas/ativação, engajamento, expiração, recuperação pós-trial), o que cada e-mail faz, e por que segmentar por ativou/não ativou importa mais que segmentar por dia.
+- [Remarketing por estado do ciclo de vida e disciplina de exclusão](remarketing-estado-ciclo-vida.md) (trust 4): O público não se divide em "visitou / não visitou" e sim pelo estado no funil (cadastrou-não-ativou, ativou-não-contratou, trial expirando, pagante, cancelado) — cada um pede outra mensagem, e excluir quem já paga é a correção mais barata. A mecânica de Públicos Personalizados fica em `meta-ads-docs`.
+- [Métricas de SaaS por assinatura: ativação, trial→pagante, churn e payback](metricas-saas-conversao.md) (trust 4): Em assinatura o CPA não fecha a conta sozinho — quem paga a aquisição é o LTV, que depende de churn. As métricas mínimas e qual delas separa ativação de oferta de produto, mais por que payback costuma ser a restrição real de quem começa.
+
 ## Mensuração e funil
 
-- [Mensuração de funil: o que medir para o diagnóstico fechar](mensuracao-funil-metricas.md) (trust 4): As métricas mínimas do funil (visitas, checkout iniciado, compra, pagamento pendente, reembolso, receita líquida, margem) e qual taxa separa cada hipótese concorrente — página vs. checkout vs. preço. É o mapa do que o motor pede em `missing_data`.
+- [Mensuração de funil: o que medir para o diagnóstico fechar](mensuracao-funil-metricas.md) (trust 4): As métricas mínimas do funil (visitas, checkout iniciado, compra, pagamento pendente, reembolso, receita líquida, margem) e qual taxa separa cada hipótese concorrente — página vs. checkout vs. preço. É o mapa do que o motor pede em `missing_data`. Para produtos de assinatura, ver [metricas-saas-conversao](metricas-saas-conversao.md).

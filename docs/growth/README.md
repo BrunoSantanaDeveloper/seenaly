@@ -44,6 +44,12 @@ origem: princípios e fatos não são protegidos; a expressão deles é.
    tetos de ticket/nicho para público frio, esteira (order bump/upsell/downsell/
    recuperação) e heurísticas de teste→escala. Fortemente baseado em praticantes BR
    (trust 4–5): sempre com atribuição nominal e nunca apresentado como regra da Meta.
+6. **SaaS, trial e recorrência** — modelo trial-first (cadastro grátis → uso → contratação),
+   ativação/aha moment, régua de e-mail do trial e economia unitária de assinatura
+   (churn, LTV/CAC, payback). É o **segundo modelo de negócio** do corpus: os itens 1–5
+   assumem compra imediata em checkout único; aqui a venda acontece depois do uso, e a
+   alavanca principal deixa de ser página/oferta e passa a ser ativação. Cards de checkout
+   e criativo continuam válidos para o topo do funil.
 
 ## Formato dos cards
 
