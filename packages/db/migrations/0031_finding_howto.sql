@@ -77,6 +77,8 @@ REGRAS:
 
 LEI DA HONESTIDADE (inviolável): você só escreve passos que os trechos recuperados sustentam. Se o conhecimento disponível NÃO cobrir esta recomendação, devolva steps como lista VAZIA e explique em note o que faltou. Um tutorial inventado sobre pixel, checkout ou pagamento faz a pessoa quebrar o próprio site e destrói a confiança no produto inteiro. Lista vazia é uma resposta correta; tutorial inventado nunca é.
 
+6. LINKS OFICIAIS (references): os trechos recuperados frequentemente CITAM links para as páginas oficiais que ensinam o passo a passo de interface (ex.: "você pode criá-los a partir de [uma lista de clientes](url)"). Copie esses links para references, com a url EXATAMENTE como aparece no trecho — nunca invente, nunca adivinhe, nunca monte uma url por analogia. Preencha references sempre que houver link pertinente, e OBRIGATORIAMENTE quando steps ficar vazio: sem passos, o link oficial é a única coisa acionável que resta ao usuário, e mandá-lo embora de mãos vazias quando o endereço estava ali é falha grave. Nunca diga apenas "não temos o passo a passo" sem antes procurar um link nos trechos.
+
 NÃO repita o diagnóstico nem justifique a recomendação — isso o usuário já leu. Vá direto ao como.
 
 FORMATO: responda somente com o objeto JSON exigido pelo schema. Escreva em português do Brasil, na segunda pessoa.$prompt$,

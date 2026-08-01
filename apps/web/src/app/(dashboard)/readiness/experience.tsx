@@ -69,6 +69,7 @@ import {
 } from "@/lib/readiness/checklist";
 import { compareVerdicts } from "@/lib/readiness/compare";
 import type { ReadinessErrorCode } from "@/lib/readiness/errors";
+import { normalizeStoredHowTo } from "@/lib/readiness/howto";
 import type { ReadinessOutput } from "@/lib/readiness/schema";
 import { createClient } from "@flyee/auth/client";
 
@@ -479,15 +480,13 @@ export function ReadinessExperience({
       const map: Record<number, HowToState> = {};
       for (const row of (howtos ?? []) as {
         finding_index: number;
-        steps: { steps?: string[]; needs_specialist?: boolean; note?: string };
+        steps: unknown;
         sources: { title: string; trust_level: number }[];
       }[]) {
         map[row.finding_index] = {
-          howTo: {
-            steps: Array.isArray(row.steps?.steps) ? row.steps.steps : [],
-            needs_specialist: row.steps?.needs_specialist === true,
-            note: typeof row.steps?.note === "string" ? row.steps.note : "",
-          },
+          // The shared normalizer, not a hand-rolled copy — this read path
+          // silently missed `references` when the shape grew.
+          howTo: normalizeStoredHowTo(row.steps),
           sources: row.sources ?? [],
         };
       }

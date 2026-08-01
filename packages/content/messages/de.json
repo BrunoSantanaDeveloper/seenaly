@@ -2516,6 +2516,7 @@
     "howto-cta": "Anleitung anzeigen",
     "howto-loading": "Schreibe die Anleitung...",
     "howto-unsupported": "Die Wissensbasis deckt diese Empfehlung noch nicht ab, deshalb erfinden wir keine Anleitung. Es wurde nichts berechnet.",
+    "howto-references": "Offizielle Anleitungen mit den Schritten",
     "howto-retry": "Erneut versuchen",
     "howto-retry-hint": "Die Wissensbasis wächst mit der Zeit. Sie können es später erneut versuchen — kostenlos, solange es keine Anleitung gibt.",
     "howto-specialist": "Dafür braucht es meist eine Entwicklerin oder einen Spezialisten. Wenn du solche Einrichtungen nicht machst, denk übers Delegieren nach.",

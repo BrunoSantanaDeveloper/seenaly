@@ -20,6 +20,9 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  // Aliased: `Link` in this file is next/link, for in-app navigation. These
+  // references point OFF-site, so they are plain anchors, MUI-styled.
+  Link as MuiLink,
   Typography,
 } from "@mui/material";
 
@@ -368,6 +371,37 @@ export default function ReadinessVerdict({
     </Box>
   );
 
+  /**
+   * The official pages that carry the click-by-click detail, lifted from the
+   * retrieved excerpts. They matter most exactly when `steps` is empty: our
+   * corpus captured the platforms' OVERVIEW pages, which link out to the
+   * interface tutorials — so we can still hand over the address even when we
+   * cannot write the walkthrough. `rel=noopener` because these open off-site.
+   */
+  const referenceList = (references: HowToOutput["references"]) => {
+    if (references.length === 0) return null;
+    return (
+      <Box className="flex w-full flex-col gap-1">
+        <Typography variant="subtitle2" component="h5">
+          {t("howto-references")}
+        </Typography>
+        {references.map((reference, referenceIndex) => (
+          <MuiLink
+            key={referenceIndex}
+            href={reference.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="body2"
+            className="inline-flex flex-row items-center gap-1"
+          >
+            <NiArrowRight size="tiny" className="flex-none" />
+            {reference.label}
+          </MuiLink>
+        ))}
+      </Box>
+    );
+  };
+
   const findingCard = ({ finding, index }: { finding: ReadinessFinding; index: number }) => {
     const items = resolvableItems(finding.dimension, finding.related_items);
     // NOT "did they tick it" but "how much can we vouch for it" — a tick alone
@@ -707,6 +741,10 @@ export default function ReadinessVerdict({
                           <Alert severity="info" className="neutral bg-background-paper/60!">
                             <Typography variant="body2">{howTo.howTo.note || t("howto-unsupported")}</Typography>
                           </Alert>
+                          {/* The official page IS the next action when the steps
+                              are missing — sending the reader away empty-handed
+                              while we hold the address is the dead end. */}
+                          {referenceList(howTo.howTo.references)}
                           <Typography variant="body2" className="text-text-secondary">
                             {t("howto-retry-hint")}
                           </Typography>
@@ -717,6 +755,7 @@ export default function ReadinessVerdict({
                           )}
                         </Box>
                       )}
+                      {howTo.howTo.steps.length > 0 && referenceList(howTo.howTo.references)}
                       {howTo.howTo.steps.length > 0 && howTo.howTo.note && (
                         <Typography variant="body2" className="text-text-secondary">
                           {howTo.howTo.note}

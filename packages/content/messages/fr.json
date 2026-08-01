@@ -2516,6 +2516,7 @@
     "howto-cta": "Voir le pas-à-pas",
     "howto-loading": "Rédaction du pas-à-pas...",
     "howto-unsupported": "La base de connaissances ne couvre pas encore cette recommandation, nous n'inventerons donc pas de tutoriel. Rien ne vous a été facturé.",
+    "howto-references": "Guides officiels avec la marche à suivre",
     "howto-retry": "Réessayer",
     "howto-retry-hint": "La base de connaissances s'enrichit avec le temps. Vous pouvez réessayer plus tard — sans frais tant qu'il n'y a pas de guide.",
     "howto-specialist": "Cela demande généralement un développeur ou un spécialiste. Si ce type de configuration n'est pas votre métier, envisagez de déléguer.",

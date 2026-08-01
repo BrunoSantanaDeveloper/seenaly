@@ -79,12 +79,18 @@ Duas fontes de público, com naturezas diferentes:
 Em ordem de retorno por esforço:
 
 1. **Exclua clientes pagantes de toda campanha de aquisição** — primeiro movimento, maior
-   retorno imediato, funciona até com lista manual.
+   retorno imediato, funciona até com lista manual. Para montar essa lista como Público
+   Personalizado, o passo a passo oficial da Meta está em
+   https://www.facebook.com/help/341425252616329 (a partir de lista de clientes).
 2. **Instrumente os três marcos** (cadastro, ativação, assinatura) como eventos, para que
    os públicos se atualizem sozinhos — é o mesmo trabalho que a mensuração de funil exige.
+   Criar público a partir de eventos do site é o guia
+   https://www.facebook.com/help/742478679120153 (dados do Pixel da Meta).
 3. **Separe pelo menos dois públicos de remarketing**: *cadastrou-não-ativou* (mensagem de
    ajuda) e *ativou-não-contratou* (mensagem comercial). Essa única divisão já captura a
-   maior parte do ganho.
+   maior parte do ganho. Se quiser também prospectar semelhantes aos seus melhores
+   clientes, o guia de Públicos Semelhantes está em
+   https://www.facebook.com/help/164749007013531 (lookalike a partir de um personalizado).
 4. **Trate trial expirando como público próprio** enquanto a janela está aberta — é onde a
    urgência é real e legítima; combine com a régua de e-mail (ver
    [email-ciclo-de-vida-trial](email-ciclo-de-vida-trial.md)), não em vez dela.
@@ -93,12 +99,25 @@ Em ordem de retorno por esforço:
 6. Cada público entra como experimento com critério de sucesso próprio (custo por ativação
    para o primeiro grupo, custo por assinatura para o segundo) na memória de experimentos.
 
+## Onde está o passo a passo oficial
+
+Este card traz a **estratégia**; o clique-a-clique é da Meta. Endereços oficiais (extraídos
+da própria documentação capturada em `docs/meta_ads/`) para quem precisa executar:
+
+- Público Personalizado a partir de **lista de clientes** — https://www.facebook.com/help/341425252616329
+- Público Personalizado a partir de **dados do Pixel** — https://www.facebook.com/help/742478679120153
+- Público Personalizado por **engajamento** nas tecnologias Meta — https://www.facebook.com/help/1090330204367211
+- Público Personalizado por eventos do **SDK** (apps) — https://www.facebook.com/help/1471413626484885
+- **Públicos Semelhantes** (lookalike, a partir de um personalizado) — https://www.facebook.com/help/164749007013531
+- Reutilizar um **público salvo** — https://www.facebook.com/help/570332443495822
+- **Direcionamento** de anúncios (visão geral) — https://www.facebook.com/business/help/717368264947302
+
 ## Riscos e limites
 
 - **A mecânica é da plataforma, não deste card**: como criar Público Personalizado a
   partir de lista ou de evento, tamanhos mínimos, janelas de retenção e onde aplicar
-  exclusões são regras oficiais da Meta — busque em `meta-ads-docs` e nunca afirme
-  mecânica de plataforma a partir daqui.
+  exclusões são regras oficiais da Meta — busque em `meta-ads-docs`, siga os links acima e
+  nunca afirme mecânica de plataforma a partir daqui.
 - **Privacidade e dado sensível**: subir lista de clientes envolve dado pessoal (LGPD:
   base legal, finalidade, retenção). Em produtos de saúde/financeiro o cuidado é maior — a
   Meta tem restrições explícitas sobre conversões e públicos que sugiram dado sensível

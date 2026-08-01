@@ -528,6 +528,8 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     "## Tarefa",
     "Escreva o passo a passo dessa recomendação para um iniciante.",
     "Se os trechos acima não sustentarem os passos, devolva steps vazio e explique em note. Não invente tutorial.",
+    "Em references, copie os links OFICIAIS pertinentes que aparecerem nos trechos (url exatamente como está lá).",
+    "Isso é obrigatório quando steps ficar vazio: sem passos, o link oficial é a única saída acionável do usuário.",
   ].join("\n");
 
   const config: AssistantConfig = {
