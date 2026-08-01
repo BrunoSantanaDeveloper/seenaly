@@ -32,6 +32,13 @@ export interface KnowledgeSearchOptions {
   /** Only return documents at this trust level or better (lower number). */
   maxTrust?: TrustLevel;
   minSimilarity?: number;
+  /**
+   * Cap how many chunks may come from the SAME document. Without it, one long
+   * on-topic document routinely fills the whole window with near-duplicate
+   * neighbours, and a second document that answers a different half of the
+   * question never appears. Costs one wider query, then filters locally.
+   */
+  maxPerDocument?: number;
 }
 
 /**

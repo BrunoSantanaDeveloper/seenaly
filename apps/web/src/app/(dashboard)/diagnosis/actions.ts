@@ -288,7 +288,9 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
-      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+      excerpts.push(
+        ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
+      );
     }
   } catch (error) {
     return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };

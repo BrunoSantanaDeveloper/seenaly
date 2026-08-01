@@ -507,7 +507,9 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
-      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+      excerpts.push(
+        ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
+      );
     }
   } catch (error) {
     return failure("knowledge_failed", { detail: (error as Error).message });
@@ -774,7 +776,9 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       for (const slug of collectionSlugs) {
         const collectionIds = await resolveCollectionIds(supabase, [slug]);
         if (collectionIds.length === 0) continue;
-        excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+        excerpts.push(
+          ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
+        );
       }
     } catch (error) {
       return failure("knowledge_failed", { detail: (error as Error).message });

@@ -17,16 +17,35 @@ export async function searchKnowledge(
   options: KnowledgeSearchOptions,
 ): Promise<KnowledgeSearchResult[]> {
   if (options.collectionIds.length === 0) return [];
+  const matchCount = options.matchCount ?? 8;
+  const perDocument = options.maxPerDocument;
   const embedding = await embedQuery(query);
   const { data, error } = await supabase.rpc("knowledge_search", {
     query_embedding: JSON.stringify(embedding),
     collections: options.collectionIds,
-    match_count: options.matchCount ?? 8,
+    // Over-fetch when diversifying: the cap discards chunks, so asking for the
+    // final count would return fewer than requested.
+    match_count: perDocument ? matchCount * 4 : matchCount,
     max_trust: options.maxTrust ?? 5,
     min_similarity: options.minSimilarity ?? 0.25,
   });
   if (error) throw new Error(`knowledge_search failed: ${error.message}`);
-  return (data ?? []) as KnowledgeSearchResult[];
+
+  const results = (data ?? []) as KnowledgeSearchResult[];
+  if (!perDocument) return results;
+
+  // Results arrive already ranked, so a single pass keeps the best chunks of
+  // each document and drops that document's tail once the cap is reached.
+  const seen = new Map<string, number>();
+  const diversified: KnowledgeSearchResult[] = [];
+  for (const result of results) {
+    if (diversified.length >= matchCount) break;
+    const used = seen.get(result.document_id) ?? 0;
+    if (used >= perDocument) continue;
+    seen.set(result.document_id, used + 1);
+    diversified.push(result);
+  }
+  return diversified;
 }
 
 /**
