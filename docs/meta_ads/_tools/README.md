@@ -1,5 +1,10 @@
 # Pipeline da base de conhecimento Meta Ads
 
+> **Lacuna conhecida:** a captura pegou as páginas panorâmicas ("Sobre X"); o **passo a
+> passo de interface** mora em artigos linkados que nunca foram capturados (~66 URLs). Isso
+> é o que faz o `Como fazer` do Diagnóstico de Prontidão dizer "não fornecem o passo a
+> passo técnico". Lista priorizada em **`CAPTURA-PENDENTE.md`**.
+
 ## Como adicionar conteúdo novo
 
 1. **Formato:** um arquivo **`.html`** por artigo/assunto, salvo em **`docs/meta_ads/`**

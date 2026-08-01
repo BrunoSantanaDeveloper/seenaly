@@ -2462,7 +2462,7 @@
     "error-generation_in_progress": "Já existe uma verificação em andamento para este produto.",
     "scan-observed": "observado",
     "scan-generated-at": "{url} · escaneado em {when}",
-    "register-experiment": "Vou fazer isso",
+    "register-experiment": "Vou fazer isso depois",
     "registering-experiment": "Adicionando...",
     "welcome-title": "Produto cadastrado!",
     "welcome-body": "Antes de gastar com anúncio, vamos ver em cerca de 1 minuto se sua estrutura está pronta para converter. Marque só o que você já tem; o resto é opcional.",
