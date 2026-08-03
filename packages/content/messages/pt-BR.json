@@ -2607,6 +2607,7 @@
     "celebrate-headline": "{count, plural, =1 {# item confirmado na leitura da sua página} other {# itens confirmados na leitura da sua página}}",
     "celebrate-note": "Só entra nesta lista o que a leitura da sua página enxergou de verdade. Esse progresso não dá pra falsificar.",
     "celebrate-continue": "Continuar",
+    "celebrate-badge": "Provado",
     "celebrate-close": "Fechar",
     "celebrate-proof-pixelInstalled": "Tag do Pixel da Meta encontrada no HTML da sua página.",
     "celebrate-proof-analyticsInstalled": "Tag do GA4 ou do Google Tag Manager encontrada na página.",
@@ -2696,7 +2697,12 @@
     "tile-blocker": "Bloqueador",
     "tile-impact-alto": "Alto impacto",
     "tile-impact-medio": "Médio impacto",
-    "tile-impact-baixo": "Baixo impacto"
+    "tile-impact-baixo": "Baixo impacto",
+    "funnel-model-unsure": "Não sei qual é o meu caso",
+    "funnel-model-unsure-hint": "Sem problema. Vamos auditar como venda direta (checkout público) — você pode mudar isto a qualquer momento e o próximo veredito relê a resposta.",
+    "group-why-checkout-trial_first": "No seu modelo o pagamento acontece DEPOIS do login, no upgrade. Responda pensando nesse fluxo — não numa página de compra pública.",
+    "group-why-checkout-lead_first": "No seu modelo quem fecha a venda é uma pessoa, não uma página. Se não existe cobrança self-service, deixe em branco: itens que não se aplicam não contam contra você.",
+    "blockers-live-hint": "Estes já apareceram com o que você respondeu até aqui. O detalhe e as portas ficam na Revisão."
   },
   "productCommon": {
     "load-error-title": "Não foi possível carregar estes dados",

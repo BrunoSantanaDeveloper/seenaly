@@ -2607,6 +2607,7 @@
     "celebrate-headline": "{count, plural, =1 {# Punkt bei der Prüfung deiner Seite bestätigt} other {# Punkte bei der Prüfung deiner Seite bestätigt}}",
     "celebrate-note": "In diese Liste kommt nur, was die Prüfung deiner Seite wirklich gesehen hat. Dieser Fortschritt lässt sich nicht fälschen.",
     "celebrate-continue": "Weiter",
+    "celebrate-badge": "Belegt",
     "celebrate-close": "Schließen",
     "celebrate-proof-pixelInstalled": "Meta-Pixel-Tag im HTML deiner Seite gefunden.",
     "celebrate-proof-analyticsInstalled": "GA4- oder Google-Tag-Manager-Tag auf der Seite gefunden.",
@@ -2696,7 +2697,12 @@
     "tile-blocker": "Blocker",
     "tile-impact-alto": "Hohe Wirkung",
     "tile-impact-medio": "Mittlere Wirkung",
-    "tile-impact-baixo": "Geringe Wirkung"
+    "tile-impact-baixo": "Geringe Wirkung",
+    "funnel-model-unsure": "Ich weiß nicht, welcher Fall meiner ist",
+    "funnel-model-unsure-hint": "Kein Problem. Wir prüfen als Direktverkauf (öffentlicher Checkout) — du kannst das jederzeit ändern, und das nächste Urteil liest die Antwort neu.",
+    "group-why-checkout-trial_first": "In deinem Modell wird NACH dem Login bezahlt, beim Upgrade. Antworte mit diesem Ablauf im Kopf — nicht mit einer öffentlichen Kaufseite.",
+    "group-why-checkout-lead_first": "In deinem Modell schließt ein Mensch den Verkauf ab, keine Seite. Ohne Self-Service-Zahlung lass es leer: Was nicht zutrifft, zählt nie gegen dich.",
+    "blockers-live-hint": "Diese ergaben sich schon aus deinen bisherigen Antworten. Details und Wege stehen in der Übersicht."
   },
   "productCommon": {
     "load-error-title": "Diese Daten konnten nicht geladen werden",

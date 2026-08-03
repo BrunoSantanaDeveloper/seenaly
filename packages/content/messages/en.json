@@ -2607,6 +2607,7 @@
     "celebrate-headline": "{count, plural, =1 {# item confirmed by the read of your page} other {# items confirmed by the read of your page}}",
     "celebrate-note": "Only what the read of your page actually saw makes this list. This progress can't be faked.",
     "celebrate-continue": "Continue",
+    "celebrate-badge": "Proved",
     "celebrate-close": "Close",
     "celebrate-proof-pixelInstalled": "Meta Pixel tag found in your page's HTML.",
     "celebrate-proof-analyticsInstalled": "GA4 or Google Tag Manager tag found on the page.",
@@ -2696,7 +2697,12 @@
     "tile-blocker": "Blocker",
     "tile-impact-alto": "High impact",
     "tile-impact-medio": "Medium impact",
-    "tile-impact-baixo": "Low impact"
+    "tile-impact-baixo": "Low impact",
+    "funnel-model-unsure": "I'm not sure which one I am",
+    "funnel-model-unsure-hint": "No problem. We'll audit as a direct sale (public checkout) — you can change this any time and the next verdict re-reads the answer.",
+    "group-why-checkout-trial_first": "In your model payment happens AFTER login, at the upgrade. Answer with that flow in mind — not a public purchase page.",
+    "group-why-checkout-lead_first": "In your model a person closes the sale, not a page. If there is no self-service payment, leave it blank: items that don't apply never count against you.",
+    "blockers-live-hint": "These already showed up from what you answered so far. The detail and the fixes live in Review."
   },
   "productCommon": {
     "load-error-title": "We couldn't load this data",

@@ -1,13 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Dialog,
+  DialogActions,
   DialogContent,
   Fade,
   Grow,
@@ -43,6 +45,13 @@ import type { ReadinessItemKey } from "@/lib/readiness/checklist";
 export type CelebrationSurface = "modal" | "toast";
 
 /**
+ * The COMPONENT, not a rendered element: the modal wants the template's large
+ * tile icon and the toast wants a compact inline one, so the size belongs to
+ * the surface rather than to the map.
+ */
+type IconComponent = typeof NiPulse;
+
+/**
  * One icon per PROVED claim, so the list reads as evidence rather than as a
  * uniform wall of green ticks.
  *
@@ -51,17 +60,17 @@ export type CelebrationSurface = "modal" | "toast";
  * exactly this key set. The `NiCheck` fallback exists for the day a new provable
  * item is added and this map is not yet updated: an unmapped item still renders.
  */
-const ITEM_ICON: Partial<Record<ReadinessItemKey, ReactNode>> = {
-  pixelInstalled: <NiPulse size="small" />,
-  analyticsInstalled: <NiChartLine size="small" />,
-  pageFast: <NiFlash size="small" />,
+const ITEM_ICON: Partial<Record<ReadinessItemKey, IconComponent>> = {
+  pixelInstalled: NiPulse,
+  analyticsInstalled: NiChartLine,
+  pageFast: NiFlash,
   // The page's own metadata — literally meta TAGS.
-  seoBasics: <NiTag size="small" />,
+  seoBasics: NiTag,
   // Nothing blocks Google from seeing it.
-  indexable: <NiEyeOpen size="small" />,
-  sitemapRobots: <NiMap size="small" />,
+  indexable: NiEyeOpen,
+  sitemapRobots: NiMap,
   // schema.org ships as JSON-LD.
-  structuredData: <NiBraces size="small" />,
+  structuredData: NiBraces,
 };
 
 /**
@@ -101,7 +110,7 @@ export default function VerifiedCelebration({
 
   const rows = items.map((key) => ({
     key,
-    icon: ITEM_ICON[key] ?? <NiCheck size="small" />,
+    Icon: ITEM_ICON[key] ?? NiCheck,
     label: t(`item-${key}`),
     // What the reader actually observed for this claim. Guarded because a newly
     // added provable item must degrade to "no proof line", never to a thrown
@@ -151,7 +160,7 @@ export default function VerifiedCelebration({
                 style={{ transitionDelay: delayFor(index) }}
               >
                 <Box className="flex flex-row items-center gap-2">
-                  <span className="text-success flex-none">{row.icon}</span>
+                  <row.Icon size="small" className="text-success flex-none" />
                   <Typography variant="body2">{row.label}</Typography>
                 </Box>
               </Fade>
@@ -202,26 +211,49 @@ export default function VerifiedCelebration({
               timeout={reduceMotion ? 0 : 420}
               style={{ transitionDelay: delayFor(index), transformOrigin: "0 50%" }}
             >
-              <Box className="border-grey-100 flex flex-row items-start gap-3 rounded-2xl border border-solid p-3">
-                <span className="bg-success/10 text-success flex h-9 w-9 flex-none items-center justify-center rounded-xl">
-                  {row.icon}
-                </span>
-                <Box className="min-w-0 grow">
-                  <Typography variant="subtitle2" className="mb-0">
-                    {row.label}
-                  </Typography>
-                  {row.proof && (
-                    <Typography variant="caption" className="text-text-secondary block">
-                      {row.proof}
-                    </Typography>
-                  )}
+              {/* The template's action-card row (dashboards/default/sections/
+                  dashboard-default-actions.tsx): tinted w-16 icon tile, title
+                  over a one-line secondary, pastel badge on the right. */}
+              <Card className="flex flex-row p-1">
+                <Box className="bg-success-light/10 flex w-16 flex-none items-center justify-center rounded-2xl">
+                  <row.Icon size="large" className="text-success" />
                 </Box>
-                <NiCheck size="small" className="text-success mt-0.5 flex-none" />
-              </Box>
+                <CardContent className="flex w-full flex-row items-center justify-between gap-2">
+                  <Box className="min-w-0">
+                    <Typography variant="subtitle2" className="leading-5">
+                      {row.label}
+                    </Typography>
+                    {row.proof && (
+                      <Typography variant="body1" className="text-text-secondary line-clamp-1 leading-5">
+                        {row.proof}
+                      </Typography>
+                    )}
+                  </Box>
+                  {/* Decorative: the badge restates the row's state, which the
+                      list heading already announces — so keep it out of the
+                      tab order and out of the accessibility tree. */}
+                  <Button
+                    className="pointer-events-none flex-none self-center"
+                    size="tiny"
+                    color="success"
+                    variant="pastel"
+                    tabIndex={-1}
+                    aria-hidden
+                  >
+                    {t("celebrate-badge")}
+                  </Button>
+                </CardContent>
+              </Card>
             </Grow>
           ))}
         </Box>
+      </DialogContent>
 
+      {/* Fixed footer. With `scroll="paper"` the list scrolls and this stays
+          pinned, so the CTA is always reachable — and it no longer sits flush
+          against the dialog's bottom edge (DialogActions carries the theme's
+          own p-7/pt-4 padding). */}
+      <DialogActions className="flex flex-col items-stretch gap-3">
         <Fade in appear timeout={reduceMotion ? 0 : 320} style={{ transitionDelay: delayFor(rows.length) }}>
           <Box className="flex flex-col gap-3">
             <Box className="flex flex-row items-start gap-2">
@@ -235,7 +267,7 @@ export default function VerifiedCelebration({
             </Button>
           </Box>
         </Fade>
-      </DialogContent>
+      </DialogActions>
     </Dialog>
   );
 }

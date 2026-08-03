@@ -2607,6 +2607,7 @@
     "celebrate-headline": "{count, plural, =1 {# elemento confirmado en la lectura de tu página} other {# elementos confirmados en la lectura de tu página}}",
     "celebrate-note": "En esta lista solo entra lo que la lectura de tu página vio de verdad. Este progreso no se puede falsear.",
     "celebrate-continue": "Continuar",
+    "celebrate-badge": "Probado",
     "celebrate-close": "Cerrar",
     "celebrate-proof-pixelInstalled": "Etiqueta del Píxel de Meta encontrada en el HTML de tu página.",
     "celebrate-proof-analyticsInstalled": "Etiqueta de GA4 o Google Tag Manager encontrada en la página.",
@@ -2696,7 +2697,12 @@
     "tile-blocker": "Bloqueador",
     "tile-impact-alto": "Alto impacto",
     "tile-impact-medio": "Impacto medio",
-    "tile-impact-baixo": "Bajo impacto"
+    "tile-impact-baixo": "Bajo impacto",
+    "funnel-model-unsure": "No sé cuál es mi caso",
+    "funnel-model-unsure-hint": "Sin problema. Vamos a auditar como venta directa (checkout público) — puedes cambiarlo cuando quieras y el próximo veredicto relee la respuesta.",
+    "group-why-checkout-trial_first": "En tu modelo el pago ocurre DESPUÉS del login, en la mejora de plan. Responde pensando en ese flujo — no en una página de compra pública.",
+    "group-why-checkout-lead_first": "En tu modelo quien cierra la venta es una persona, no una página. Si no hay cobro self-service, déjalo en blanco: lo que no aplica nunca cuenta en tu contra.",
+    "blockers-live-hint": "Estos ya aparecieron con lo que respondiste hasta aquí. El detalle y las puertas están en Revisión."
   },
   "productCommon": {
     "load-error-title": "No pudimos cargar estos datos",

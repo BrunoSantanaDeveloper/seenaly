@@ -2607,6 +2607,7 @@
     "celebrate-headline": "{count, plural, =1 {# élément confirmé par la lecture de votre page} other {# éléments confirmés par la lecture de votre page}}",
     "celebrate-note": "Seul ce que la lecture de votre page a réellement vu entre dans cette liste. Cette progression ne se truque pas.",
     "celebrate-continue": "Continuer",
+    "celebrate-badge": "Prouvé",
     "celebrate-close": "Fermer",
     "celebrate-proof-pixelInstalled": "Balise du Pixel Meta trouvée dans le HTML de votre page.",
     "celebrate-proof-analyticsInstalled": "Balise GA4 ou Google Tag Manager trouvée sur la page.",
@@ -2696,7 +2697,12 @@
     "tile-blocker": "Bloqueur",
     "tile-impact-alto": "Fort impact",
     "tile-impact-medio": "Impact moyen",
-    "tile-impact-baixo": "Faible impact"
+    "tile-impact-baixo": "Faible impact",
+    "funnel-model-unsure": "Je ne sais pas lequel me correspond",
+    "funnel-model-unsure-hint": "Pas de souci. Nous auditons comme une vente directe (paiement public) — vous pouvez changer à tout moment et le prochain verdict relit la réponse.",
+    "group-why-checkout-trial_first": "Dans votre modèle, le paiement a lieu APRÈS la connexion, au moment de l'upgrade. Répondez en pensant à ce flux — pas à une page d'achat publique.",
+    "group-why-checkout-lead_first": "Dans votre modèle, c'est une personne qui conclut la vente, pas une page. Sans paiement en self-service, laissez vide : ce qui ne s'applique pas ne compte jamais contre vous.",
+    "blockers-live-hint": "Ils sont déjà apparus d'après vos réponses jusqu'ici. Le détail et les portes sont dans la Revue."
   },
   "productCommon": {
     "load-error-title": "Impossible de charger ces données",
