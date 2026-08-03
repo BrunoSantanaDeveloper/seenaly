@@ -142,6 +142,15 @@ export default function ReadinessWizard({
   // review step's full one for anyone resuming at the end.
   const [stepIndex, setStepIndex] = useState<number>(focusStep ?? storedStep);
   const liveBlockers = evaluation.blockers;
+  // A blocker named on the review step whose fix is a checklist answer needs a
+  // door back to the step that owns it. Nonce so the same target can be asked
+  // for twice (fix it, come back, name it again).
+  const [stepRequest, setStepRequest] = useState<{ index: number; nonce: number } | null>(null);
+  const goToItem = (key: ReadinessItemKey) => {
+    const position = groupsForModel(profile.funnelModel).findIndex((group) => group.key === groupForItem(key));
+    // steps = [funnel model, scan, ...groups, review] ⇒ group N is step 2 + N.
+    if (position >= 0) setStepRequest({ index: 2 + position, nonce: Date.now() });
+  };
 
   const steps: WizardStep[] = [
     // Leads the wizard because it reframes every step after it: a trial-first
@@ -187,6 +196,10 @@ export default function ReadinessWizard({
           onRefresh={onRefreshScan}
           productId={productId}
           trend={scanTrend}
+          // The payoff of the only action on this step: a read that confirmed
+          // items is questions the user does not have to answer later. Without
+          // this the work landed silently three steps away.
+          provedCount={evaluation.verified.length}
         />
       ),
       canAdvance: !busy,
@@ -245,7 +258,16 @@ export default function ReadinessWizard({
       hint: t("wizard-review-hint"),
       content: (
         <Box className="flex flex-col gap-3">
-          <ReadinessSignals evaluation={evaluation} productId={productId} />
+          <ReadinessSignals evaluation={evaluation} productId={productId} onGoToItem={goToItem} />
+          {/* The gap count belongs HERE, next to the decision to spend — not in
+              a permanent header. A number a beginner cannot zero out reads as
+              failure when it follows them through every step; at the moment of
+              paying it is the honest caveat it was always meant to be. */}
+          {missing > 0 && (
+            <Typography variant="body2" className="text-text-secondary">
+              {t("wizard-gaps-note", { missing })}
+            </Typography>
+          )}
           <Typography variant="body2" className={!canGenerate ? "text-warning" : "text-text-secondary"}>
             {!credit
               ? t("wizard-review-note")
@@ -270,8 +292,13 @@ export default function ReadinessWizard({
   return (
     <Box className="flex flex-col gap-2">
       <Box className="flex min-h-6 flex-wrap items-center justify-between gap-2" aria-live="polite">
+        {/* Progress, not deficit. This line follows the user through all nine
+            steps, and "22 lacunas podem reduzir a confiança" as a permanent
+            companion is the same failure the product-context card fixed: a
+            number a beginner can never zero out reads as permanent failure.
+            The gap caveat moved to the review, where it changes a decision. */}
         <Typography variant="body2" className="text-text-secondary">
-          {t("wizard-confirmed", { confirmed, missing })}
+          {t("wizard-progress", { confirmed, total: applicable.size })}
         </Typography>
         <Typography variant="body2" className={saveState === "error" ? "text-error" : "text-text-secondary"}>
           {t(`save-${saveState}`)}
@@ -335,6 +362,7 @@ export default function ReadinessWizard({
         // model the rail shows 8 steps that become 9 the moment "trial" is
         // picked, so the target of a jump would shift under the user.
         navigableRail={profile.funnelModel !== null}
+        stepRequest={stepRequest}
         jumpLabel={(title) => t("wizard-jump-to", { step: title })}
         finishEarlyLabel={t("wizard-finish-early")}
         // "Gerar com o que já confirmei" has to be TRUE when it is offered.

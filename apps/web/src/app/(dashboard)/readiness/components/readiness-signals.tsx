@@ -8,7 +8,20 @@ import { Alert, Box, Button, Typography } from "@mui/material";
 
 import NiScreen from "@/icons/nexture/ni-screen";
 import NiTag from "@/icons/nexture/ni-tag";
-import type { ReadinessEvaluation } from "@/lib/readiness/checklist";
+import type { ReadinessEvaluation, ReadinessItemKey } from "@/lib/readiness/checklist";
+
+/**
+ * The checklist item that answers each blocker — the door's destination.
+ * `no-page` and `no-price` are absent on purpose: they live on the product
+ * context screen and already have their own links above.
+ */
+const BLOCKER_ITEM: Record<string, ReadinessItemKey | undefined> = {
+  "no-measurement": "pixelInstalled",
+  "event-untested": "conversionEventTested",
+  "no-payment": "paymentPix",
+  "no-checkout": "paymentPix",
+  "trial-conversion-unmeasured": "trialToPaidTracked",
+};
 
 /**
  * The free, deterministic half of the readiness layer.
@@ -25,11 +38,15 @@ import type { ReadinessEvaluation } from "@/lib/readiness/checklist";
 export default function ReadinessSignals({
   evaluation,
   productId = null,
+  onGoToItem,
 }: {
   evaluation: ReadinessEvaluation;
   /** Enables the fix-it doors: no-page/no-price are corrected on the context
    *  screen, and a named problem with no door is a dead end. */
   productId?: string | null;
+  /** Jump to the wizard step that owns this item — the door for every blocker
+   *  whose fix is a checklist answer rather than a product-context field. */
+  onGoToItem?: (key: ReadinessItemKey) => void;
 }) {
   const t = useTranslations("readiness");
   const hasBlockers = evaluation.blockers.length > 0;
@@ -71,12 +88,30 @@ export default function ReadinessSignals({
           </Typography>
           {/* A real bulleted list: `flex flex-col` on a <ul> suppresses the
               markers, and this is the list the user actually scans. */}
-          <Box component="ul" className="m-0 list-disc space-y-0.5 pl-5">
-            {evaluation.blockers.map((blocker) => (
-              <Typography key={blocker} component="li" variant="body2">
-                {t(`blocker-${blocker}`)}
-              </Typography>
-            ))}
+          {/* Each blocker carries its own door. Two of them are fixed on the
+              context screen (page, price); the rest are checklist answers, and
+              naming a problem whose fix is three steps back — with no way to
+              get there — is the dead end this list existed to remove. */}
+          <Box component="ul" className="m-0 list-disc space-y-1 pl-5">
+            {evaluation.blockers.map((blocker) => {
+              const item = BLOCKER_ITEM[blocker];
+              return (
+                <Typography key={blocker} component="li" variant="body2">
+                  {t(`blocker-${blocker}`)}
+                  {item && onGoToItem && (
+                    <Button
+                      variant="text"
+                      color="primary"
+                      size="small"
+                      className="ml-1 min-w-0 p-0 align-baseline"
+                      onClick={() => onGoToItem(item)}
+                    >
+                      {t("blocker-fix-here")}
+                    </Button>
+                  )}
+                </Typography>
+              );
+            })}
           </Box>
           {fixLinks.length > 0 && (
             <Box className="mt-2 flex flex-row flex-wrap gap-1">

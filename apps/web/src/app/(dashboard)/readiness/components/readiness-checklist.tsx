@@ -574,22 +574,50 @@ export default function ReadinessChecklist({
     );
   };
 
+  /**
+   * A short warning about the SHAPE of a step, when that shape is what makes
+   * it hard or weak. Two cases earn one:
+   *  - mostly-specialist steps (mensuração) are where a beginner stalls, and
+   *    hitting three technical questions after two easy screens reads as "this
+   *    product is not for me" unless someone says it is normal;
+   *  - all-declared steps (ativação) live behind the login, so nothing here can
+   *    ever be proved — the user should know their word is all we will have.
+   */
+  const groupNote = (group: ReadinessGroup) => {
+    const specialists = group.items.filter((item) => READINESS_ITEM_BY_KEY[item.key].difficulty === "specialist");
+    const allDeclared = group.items.every((item) => READINESS_ITEM_BY_KEY[item.key].verification === "declared");
+    const key = allDeclared ? "group-note-declared" : specialists.length >= 3 ? "group-note-technical" : null;
+    if (!key) return null;
+    return (
+      <Typography variant="body2" className="text-text-secondary">
+        {t(key)}
+      </Typography>
+    );
+  };
+
   const items = (group: ReadinessGroup) => (
     <Box className="flex flex-col pl-1">
-      {group.items.map((item) => itemRow(item.key))}
-
+      {groupNote(group)}
       {/* Where the money is actually taken — a select, because "none" is a real
-          and blocking answer, not an unchecked box. */}
+          and blocking answer, not an unchecked box.
+          FIRST, not last: this answer CONDITIONS the boxes below it ("platform"
+          marks two of them as not-applicable, "none" is a blocker on its own).
+          Trailing the list, it read as an afterthought and was answered — when
+          it was answered at all — after the questions it governs. */}
       {group.key === "checkout" && (
-        <Box className="mt-2 flex flex-row flex-wrap gap-3">
+        <Box className="mb-3 flex flex-row flex-wrap items-start gap-3">
           <TextField
             select
             size="small"
             label={t("checkout-type")}
+            helperText={t("checkout-type-help")}
             value={profile.checkoutType ?? ""}
             disabled={disabled}
             onChange={(event) => set("checkoutType", (event.target.value || null) as CheckoutType | null)}
-            className="min-w-56"
+            // Wide enough for the LONGEST locale label, not the pt-BR one: at
+            // min-w-56 the outlined label was clipped mid-word ("Onde você
+            // recebe o pagame...").
+            className="min-w-80"
           >
             <MenuItem value="">{t("checkout-type-unset")}</MenuItem>
             {CHECKOUT_TYPES.map((value) => (
@@ -598,19 +626,25 @@ export default function ReadinessChecklist({
               </MenuItem>
             ))}
           </TextField>
+        </Box>
+      )}
 
-          {profile.hasGuarantee && (
-            <TextField
-              type="number"
-              size="small"
-              label={t("guarantee-days")}
-              value={profile.guaranteeDays ?? ""}
-              disabled={disabled}
-              onChange={(event) => set("guaranteeDays", event.target.value === "" ? null : Number(event.target.value))}
-              slotProps={{ htmlInput: { min: 1, max: 365 } }}
-              className="w-40"
-            />
-          )}
+      {group.items.map((item) => itemRow(item.key))}
+
+      {/* Follows the checkbox that enables it — asking "how many days" above
+          the box that says a guarantee exists was backwards. */}
+      {group.key === "checkout" && profile.hasGuarantee && (
+        <Box className="mt-2">
+          <TextField
+            type="number"
+            size="small"
+            label={t("guarantee-days")}
+            value={profile.guaranteeDays ?? ""}
+            disabled={disabled}
+            onChange={(event) => set("guaranteeDays", event.target.value === "" ? null : Number(event.target.value))}
+            slotProps={{ htmlInput: { min: 1, max: 365 } }}
+            className="w-40"
+          />
         </Box>
       )}
     </Box>

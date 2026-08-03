@@ -48,6 +48,7 @@ export default function ReadinessScan({
   onRefresh,
   productId = null,
   trend,
+  provedCount = 0,
 }: {
   scan: ScanView | null;
   hasUrl: boolean;
@@ -58,6 +59,13 @@ export default function ReadinessScan({
   onRefresh?: () => void;
   /** Enables the no-URL door to the context editor. */
   productId?: string | null;
+  /**
+   * How many checklist items this read PROVED. It is the payoff of the only
+   * action on this step — items proved here are questions the user never has
+   * to answer in the steps that follow — and it used to land silently three
+   * screens away, so the work read as having done nothing.
+   */
+  provedCount?: number;
   /** Oldest→newest proved-count series; a single point is not a trend. */
   trend?: ScanTrendEntry[];
 }) {
@@ -184,6 +192,12 @@ export default function ReadinessScan({
             <Typography variant="body2" className="mt-1">
               {t("scan-failed-hint")}
             </Typography>
+          </Alert>
+        )}
+
+        {scan?.ok && provedCount > 0 && (
+          <Alert severity="success" className="neutral bg-background-paper/60!">
+            <Typography variant="body2">{t("scan-proved-payoff", { count: provedCount })}</Typography>
           </Alert>
         )}
 

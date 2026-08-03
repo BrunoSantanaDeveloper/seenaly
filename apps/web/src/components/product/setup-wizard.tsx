@@ -63,6 +63,7 @@ export default function SetupWizard({
   onStepChange,
   navigableRail = false,
   jumpLabel,
+  stepRequest = null,
 }: {
   steps: WizardStep[];
   onComplete: () => void;
@@ -107,6 +108,13 @@ export default function SetupWizard({
   navigableRail?: boolean;
   /** Accessible name for a rail jump, e.g. (title) => `Ir para ${title}`. */
   jumpLabel?: (title: string) => string;
+  /**
+   * Jump to a step from OUTSIDE the shell — a "fix this" door in one step's
+   * content that has to land the user on another step. The nonce is what makes
+   * the same target requestable twice (naming a problem, going back, naming it
+   * again), which a bare index cannot express.
+   */
+  stepRequest?: { index: number; nonce: number } | null;
 }) {
   const [index, setIndex] = useState(() => Math.min(Math.max(0, initialStep), Math.max(0, steps.length - 1)));
   const [advancing, setAdvancing] = useState(false);
@@ -170,6 +178,13 @@ export default function SetupWizard({
     window.addEventListener("resize", syncRailEdges);
     return () => window.removeEventListener("resize", syncRailEdges);
   }, [syncRailEdges]);
+
+  // An outside door (e.g. "fix this blocker") lands here. Nonce is the trigger:
+  // the same step must be requestable again after the user wanders off it.
+  useEffect(() => {
+    if (stepRequest) goTo(stepRequest.index);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepRequest?.nonce]);
 
   const body = (
     <>
