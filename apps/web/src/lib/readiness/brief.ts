@@ -190,7 +190,12 @@ export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: 
         );
       else if (claimed) marks.push("declarado, NÃO verificado");
       else marks.push("NÃO CONFIRMADO");
-      return `- [${claimed ? "x" : " "}] ${ITEM_LABEL[item.key]} (${marks.join("; ")})`;
+      // The KEY travels with the label. Before, the block sent labels only, so
+      // the engine could only learn the key names from a hardcoded list in the
+      // prompt — which drifted (0034 added four keys and never touched it).
+      // Here the names come from the checklist definition itself, already
+      // filtered to the groups this business actually has.
+      return `- [${claimed ? "x" : " "}] ${ITEM_LABEL[item.key]} \`${item.key}\` (${marks.join("; ")})`;
     });
     return [`### ${GROUP_LABEL[group.key]}`, ...lines].join("\n");
   });

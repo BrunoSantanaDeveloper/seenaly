@@ -43,8 +43,8 @@ import { isPageSpeedConfigured, runPageSpeed } from "@/lib/readiness/pagespeed";
 import { scanCooldownRemainingSeconds, scanSite } from "@/lib/readiness/scan";
 import {
   isReadinessOutput,
-  READINESS_JSON_SCHEMA,
   READINESS_SCHEMA_NAME,
+  readinessJsonSchema,
   readinessNextReviewDays,
   reconcileVerdict,
 } from "@/lib/readiness/schema";
@@ -834,7 +834,10 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       output = await getChatProvider(config.provider).generateStructured(config, [{ role: "user", content: brief }], {
         name: READINESS_SCHEMA_NAME,
         description: "Veredito de prontidão estruturado do Seenaly.",
-        schema: READINESS_JSON_SCHEMA,
+        // Scoped to this business: the valid related_items keys ARE the
+        // checklist it was shown, so the engine cannot name one that does not
+        // apply (a direct sale never sees an activation key).
+        schema: readinessJsonSchema(profile.funnelModel),
       });
     } catch (error) {
       return failure("engine_failed", { detail: (error as Error).message });

@@ -41,6 +41,7 @@ import {
   scanProvedCount,
   toReadinessProfile,
   toReadinessRow,
+  groupsForModel,
   unprovableItems,
   verifyAgainstScan,
   verifyItem,
@@ -53,7 +54,7 @@ import {
   readinessScanBlock,
 } from "../apps/web/src/lib/readiness/brief";
 import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
-import { isReadinessOutput, readinessNextReviewDays } from "../apps/web/src/lib/readiness/schema";
+import { isReadinessOutput, readinessJsonSchema, readinessNextReviewDays } from "../apps/web/src/lib/readiness/schema";
 import { selectDueReviewTargets } from "../apps/web/src/lib/diagnosis/review-select";
 import { experimentsBlock } from "../apps/web/src/lib/experiments/brief";
 import { type AssistSignals, assistReason, sanitizeJourneySignals } from "../apps/web/src/lib/readiness/assist";
@@ -368,6 +369,37 @@ function checkTipCoverage(flag: "recommendedEvents" | "recommendedParameters", p
 }
 checkTipCoverage("recommendedEvents", "item-events");
 checkTipCoverage("recommendedParameters", "item-parameters");
+
+/* ========================================================================== */
+section("Item keys have ONE source of truth (0042)");
+
+// The engine used to learn the valid key names from a list hardcoded in the
+// prompt. Migration 0034 added four keys and never touched it, so the briefing
+// demanded keys the prompt forbade. Now the names travel with the data and the
+// schema enforces them — these two assertions are what keep it that way.
+for (const model of [null, "trial_first"] as const) {
+  const keys = groupsForModel(model).flatMap((g) => g.items.map((i) => i.key));
+  const block = readinessChecklistBlock(p({ funnelModel: model }), undefined);
+  for (const key of keys) {
+    check(`checklist block names \`${key}\` (model: ${model ?? "undeclared"})`, block.includes(`\`${key}\``), true);
+  }
+  const schemaKeys = (
+    (
+      (readinessJsonSchema(model).properties as Record<string, { items?: Record<string, unknown> }>).findings
+        ?.items as Record<string, Record<string, Record<string, { items?: { enum?: string[] } }>>>
+    ).properties.related_items.items as { enum?: string[] }
+  ).enum;
+  check(`schema enum equals the applicable keys (model: ${model ?? "undeclared"})`, schemaKeys, keys);
+}
+// The scoping is the part a global list could not give: a direct sale is never
+// even offered a key about a trial it does not run.
+check(
+  "a direct sale is not offered activation keys",
+  groupsForModel(null)
+    .flatMap((g) => g.items.map((i) => i.key))
+    .includes("trialToPaidTracked"),
+  false,
+);
 
 /* ========================================================================== */
 section("Scope boundary — readiness audits structure, never media setup (0041)");

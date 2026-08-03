@@ -11,6 +11,8 @@
  * line instead of with a number they cannot inspect.
  */
 
+import { type FunnelModel, groupsForModel } from "./checklist";
+
 import type { Confidence, DiagnosisEvidence, DiagnosisTechnicalBasis, EvidenceSource } from "@/lib/diagnosis/schema";
 
 export type { Confidence, DiagnosisEvidence, DiagnosisTechnicalBasis, EvidenceSource };
@@ -81,126 +83,147 @@ export const READINESS_SCHEMA_NAME = "seenaly_readiness";
 
 const EVIDENCE_SOURCES = ["product_context", "campaign_data", "meta_docs", "growth_playbook"];
 
-export const READINESS_JSON_SCHEMA: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    verdict: {
-      type: "string",
-      enum: ["pronto", "quase", "nao_pronto"],
-      description:
-        "pronto = sem bloqueadores e dimensões críticas confirmadas; quase = sem bloqueadores mas há ganhos baratos antes; nao_pronto = existe bloqueador e gastar agora desperdiça orçamento.",
-    },
-    summary: {
-      type: "string",
-      description: "Duas a quatro frases: o estado da estrutura e o que fazer primeiro. Fale direto com o usuário.",
-    },
-    findings: {
-      type: "array",
-      description:
-        "Uma finding por dimensão relevante, ORDENADAS por alavancagem real (o que devolve mais dinheiro primeiro). No máximo 7.",
-      items: {
-        type: "object",
-        properties: {
-          dimension: {
-            type: "string",
-            enum: ["oferta", "pagina", "checkout", "mensuracao", "ativacao", "funil", "descoberta", "midia"],
-            description: "Use `ativacao` SOMENTE quando o modelo declarado for trial-first (estrutura pós-login).",
-          },
-          status: {
-            type: "string",
-            enum: ["ok", "atencao", "critico", "sem_dados"],
-            description: "sem_dados quando o checklist e o contexto não permitem avaliar esta dimensão.",
-          },
-          finding: { type: "string", description: "O que está bom ou o que está faltando, concreto." },
-          evidence: {
-            type: "array",
-            description: "Cada afirmação ancorada em uma fonte. Nunca vazio quando status ≠ sem_dados.",
-            items: {
-              type: "object",
-              properties: {
-                statement: { type: "string" },
-                source: { type: "string", enum: EVIDENCE_SOURCES },
+/**
+ * The verdict schema, SCOPED to the business's funnel model.
+ *
+ * `related_items` carries an enum generated from the checklist definition
+ * instead of a free string list whose valid names were repeated in the
+ * assistant prompt. That prose copy drifted the moment migration 0034 added
+ * the four activation keys without touching the prompt, leaving the engine
+ * with two authoritative instructions that disagreed — the prompt forbidding
+ * keys the briefing demanded. The phase-8 creative-plan engine already works
+ * this way (`enum: [...CREATIVE_FORMATS]`); this aligns phase 7 with it.
+ *
+ * Scoping beats a global list: a direct-sale business is not even offered an
+ * activation key, so the model cannot pick one by association.
+ *
+ * What the enum does NOT do: stop a VALID-but-wrong key (an activation key on
+ * a `pagina` finding). Only the briefing teaches that, and `resolvableItems`
+ * keeps its per-dimension fallback as the net.
+ */
+export function readinessJsonSchema(funnelModel: FunnelModel | null): Record<string, unknown> {
+  const itemKeys = groupsForModel(funnelModel).flatMap((group) => group.items.map((item) => item.key));
+  return {
+    type: "object",
+    properties: {
+      verdict: {
+        type: "string",
+        enum: ["pronto", "quase", "nao_pronto"],
+        description:
+          "pronto = sem bloqueadores e dimensões críticas confirmadas; quase = sem bloqueadores mas há ganhos baratos antes; nao_pronto = existe bloqueador e gastar agora desperdiça orçamento.",
+      },
+      summary: {
+        type: "string",
+        description: "Duas a quatro frases: o estado da estrutura e o que fazer primeiro. Fale direto com o usuário.",
+      },
+      findings: {
+        type: "array",
+        description:
+          "Uma finding por dimensão relevante, ORDENADAS por alavancagem real (o que devolve mais dinheiro primeiro). No máximo 7.",
+        items: {
+          type: "object",
+          properties: {
+            dimension: {
+              type: "string",
+              enum: ["oferta", "pagina", "checkout", "mensuracao", "ativacao", "funil", "descoberta", "midia"],
+              description: "Use `ativacao` SOMENTE quando o modelo declarado for trial-first (estrutura pós-login).",
+            },
+            status: {
+              type: "string",
+              enum: ["ok", "atencao", "critico", "sem_dados"],
+              description: "sem_dados quando o checklist e o contexto não permitem avaliar esta dimensão.",
+            },
+            finding: { type: "string", description: "O que está bom ou o que está faltando, concreto." },
+            evidence: {
+              type: "array",
+              description: "Cada afirmação ancorada em uma fonte. Nunca vazio quando status ≠ sem_dados.",
+              items: {
+                type: "object",
+                properties: {
+                  statement: { type: "string" },
+                  source: { type: "string", enum: EVIDENCE_SOURCES },
+                },
+                required: ["statement", "source"],
               },
-              required: ["statement", "source"],
+            },
+            technical_basis: {
+              type: "array",
+              description:
+                "Princípio do playbook de growth ou regra oficial da Meta que sustenta a finding, citando o trecho como [n]. Vazio quando nenhum trecho recuperado for pertinente — nunca force uma citação.",
+              items: {
+                type: "object",
+                properties: {
+                  rule: { type: "string" },
+                  citation: { type: "string" },
+                },
+                required: ["rule", "citation"],
+              },
+            },
+            recommended_action: { type: "string", description: "O que fazer agora, específico e executável." },
+            effort: { type: "string", enum: ["baixo", "medio", "alto"] },
+            impact: { type: "string", enum: ["baixo", "medio", "alto"] },
+            success_criterion: { type: "string", description: "Como saber, de forma verificável, que foi resolvido." },
+            related_items: {
+              type: "array",
+              description:
+                "Chaves EXATAS do checklist que esta finding trata, para o usuário marcar 'já resolvi' e o sistema saber o que virou verdade. Cada chave aparece ao lado do seu item no bloco do checklist. Seja PRECISO: se a finding é só sobre o Pixel, liste apenas pixelInstalled e conversionEventTested, nunca o grupo inteiro — listar demais faz o usuário consertar uma coisa e a finding continuar pendente. Omita quando a finding não corresponder a nenhum item (oferta e mídia não têm itens).",
+              items: { type: "string", enum: itemKeys },
             },
           },
-          technical_basis: {
-            type: "array",
-            description:
-              "Princípio do playbook de growth ou regra oficial da Meta que sustenta a finding, citando o trecho como [n]. Vazio quando nenhum trecho recuperado for pertinente — nunca force uma citação.",
-            items: {
-              type: "object",
-              properties: {
-                rule: { type: "string" },
-                citation: { type: "string" },
-              },
-              required: ["rule", "citation"],
-            },
-          },
-          recommended_action: { type: "string", description: "O que fazer agora, específico e executável." },
-          effort: { type: "string", enum: ["baixo", "medio", "alto"] },
-          impact: { type: "string", enum: ["baixo", "medio", "alto"] },
-          success_criterion: { type: "string", description: "Como saber, de forma verificável, que foi resolvido." },
-          related_items: {
-            type: "array",
-            description:
-              "Chaves EXATAS do checklist de prontidão que esta finding trata, para o usuário poder marcar 'já resolvi' e o sistema saber o que virou verdade. Use apenas chaves válidas (ex.: pixelInstalled, conversionEventTested, paymentPix, seoBasics). Omita quando a finding não corresponder a nenhum item do checklist (oferta e mídia não têm itens).",
-            items: { type: "string" },
-          },
+          required: [
+            "dimension",
+            "status",
+            "finding",
+            "evidence",
+            "technical_basis",
+            "recommended_action",
+            "effort",
+            "impact",
+            "success_criterion",
+          ],
         },
-        required: [
-          "dimension",
-          "status",
-          "finding",
-          "evidence",
-          "technical_basis",
-          "recommended_action",
-          "effort",
-          "impact",
-          "success_criterion",
-        ],
+      },
+      blocking: {
+        type: "array",
+        description:
+          "SOMENTE o que torna o gasto em anúncio previsivelmente desperdiçado (não há como medir conversão, não há página, não há como receber pagamento, a economia não fecha). Lista vazia quando não houver nenhum — e nesse caso o verdict não pode ser nao_pronto.",
+        items: { type: "string" },
+      },
+      confidence: { type: "string", enum: ["baixa", "media", "alta"] },
+      insufficient_data: {
+        type: "boolean",
+        description: "true quando o contexto do produto é raso demais para avaliar a prontidão.",
+      },
+      missing_data: {
+        type: "string",
+        description:
+          "O que preencher ou confirmar para o veredito ficar mais firme. Preencha mesmo quando insufficient_data for false. String vazia apenas se nada relevante faltar.",
+      },
+      next_review: {
+        type: "string",
+        description: "Quando reconferir a prontidão (janela de tempo, em linguagem natural), coerente com o veredito.",
+      },
+      next_review_days: {
+        type: "integer",
+        minimum: 1,
+        maximum: 60,
+        description:
+          "Em quantos dias reconferir, coerente com o esforço das findings: bloqueadores pedem dias, higiene pede semanas.",
       },
     },
-    blocking: {
-      type: "array",
-      description:
-        "SOMENTE o que torna o gasto em anúncio previsivelmente desperdiçado (não há como medir conversão, não há página, não há como receber pagamento, a economia não fecha). Lista vazia quando não houver nenhum — e nesse caso o verdict não pode ser nao_pronto.",
-      items: { type: "string" },
-    },
-    confidence: { type: "string", enum: ["baixa", "media", "alta"] },
-    insufficient_data: {
-      type: "boolean",
-      description: "true quando o contexto do produto é raso demais para avaliar a prontidão.",
-    },
-    missing_data: {
-      type: "string",
-      description:
-        "O que preencher ou confirmar para o veredito ficar mais firme. Preencha mesmo quando insufficient_data for false. String vazia apenas se nada relevante faltar.",
-    },
-    next_review: {
-      type: "string",
-      description: "Quando reconferir a prontidão (janela de tempo, em linguagem natural), coerente com o veredito.",
-    },
-    next_review_days: {
-      type: "integer",
-      minimum: 1,
-      maximum: 60,
-      description:
-        "Em quantos dias reconferir, coerente com o esforço das findings: bloqueadores pedem dias, higiene pede semanas.",
-    },
-  },
-  required: [
-    "verdict",
-    "summary",
-    "findings",
-    "blocking",
-    "confidence",
-    "insufficient_data",
-    "missing_data",
-    "next_review",
-    "next_review_days",
-  ],
-};
+    required: [
+      "verdict",
+      "summary",
+      "findings",
+      "blocking",
+      "confidence",
+      "insufficient_data",
+      "missing_data",
+      "next_review",
+      "next_review_days",
+    ],
+  };
+}
 
 const VERDICTS: ReadinessVerdict[] = ["pronto", "quase", "nao_pronto"];
 const DIMENSIONS: ReadinessDimension[] = [
