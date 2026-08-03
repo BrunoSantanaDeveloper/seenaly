@@ -7,10 +7,12 @@ import ReadinessScan, { type ScanTrendEntry, type ScanView } from "./readiness-s
 import ReadinessSignals from "./readiness-signals";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Collapse, Typography } from "@mui/material";
 
 import SetupWizard, { type WizardStep } from "@/components/product/setup-wizard";
+import NiExclamationHexagon from "@/icons/nexture/ni-exclamation-hexagon";
 import type { AssistReason } from "@/lib/readiness/assist";
 import {
   groupForItem,
@@ -130,6 +132,16 @@ export default function ReadinessWizard({
   const applicable = new Set(READINESS_ITEM_KEYS.filter((key) => !evaluation.notApplicable.includes(key)));
   const confirmed = [...applicable].filter((key) => profile[key]).length;
   const missing = applicable.size - confirmed;
+  // The header promises the blockers "aparecem na hora, de graça" — and until
+  // now they appeared only on the last step. The free half of this layer is
+  // also its motivation engine: a beginner who sees a real, named problem
+  // surface the moment they answer keeps answering. The review step owns the
+  // full panel, so this compact one stands down there to avoid saying it twice.
+  // Seeded from the SAME position the wizard mounts at: `onStepChange` only
+  // fires on a change, so starting at 0 would show this panel on top of the
+  // review step's full one for anyone resuming at the end.
+  const [stepIndex, setStepIndex] = useState<number>(focusStep ?? storedStep);
+  const liveBlockers = evaluation.blockers;
 
   const steps: WizardStep[] = [
     // Leads the wizard because it reframes every step after it: a trial-first
@@ -147,7 +159,12 @@ export default function ReadinessWizard({
           disabled={busy}
         />
       ),
-      canAdvance: !busy,
+      // The ONE answer that reframes every step after it, so it is the one
+      // answer that cannot be skipped by inertia. Blank used to mean "venda
+      // direta" silently — a SaaS was audited against a public checkout it does
+      // not have. The escape is inside the step ("não sei" → direct, with the
+      // consequence written on it), so this blocks a non-answer, never a user.
+      canAdvance: !busy && profile.funnelModel !== null,
     },
     // Reading the page comes BEFORE the questions, not after: asking someone to
     // declare a pixel we can see for ourselves is redundant work AND an
@@ -181,7 +198,15 @@ export default function ReadinessWizard({
       (group): WizardStep => ({
         title: t(`group-${group.key}`),
         shortLabel: t(`wizard-short-${group.key}`),
-        hint: t(`group-why-${group.key}`),
+        // The checkout step's "why" has to follow the declared model, exactly
+        // as the engine's briefing already does. Saying "o último metro antes
+        // de o dinheiro entrar" to a trial-first business describes a public
+        // checkout it does not have — the user then answers about the wrong
+        // surface and the engine audits the upgrade flow with those answers.
+        hint:
+          group.key === "checkout" && profile.funnelModel && profile.funnelModel !== "direct"
+            ? t(`group-why-checkout-${profile.funnelModel}`)
+            : t(`group-why-${group.key}`),
         content: (
           <ReadinessChecklist
             profile={profile}
@@ -270,6 +295,22 @@ export default function ReadinessWizard({
           </Button>
         </Box>
       )}
+      {/* Live, free, deterministic — recomputed as they tick, never an LLM
+          call. Hidden on the review step, which renders the full panel with
+          the fix doors. */}
+      <Collapse in={liveBlockers.length > 0 && stepIndex < steps.length - 1} unmountOnExit>
+        <Box className="MuiPaper-outlined MuiPaper-rounded flex flex-row items-start gap-3 rounded-lg p-3">
+          <NiExclamationHexagon size="small" className="text-error mt-0.5 flex-none" aria-hidden />
+          <Box className="min-w-0">
+            <Typography variant="subtitle2" component="h3" className="mb-0.5">
+              {t("blockers-title", { count: liveBlockers.length })}
+            </Typography>
+            <Typography variant="body2" className="text-text-secondary">
+              {t("blockers-live-hint")}
+            </Typography>
+          </Box>
+        </Box>
+      </Collapse>
       <SetupWizard
         steps={steps}
         onComplete={() => {
@@ -281,10 +322,19 @@ export default function ReadinessWizard({
         onBeforeAdvance={onBeforeAdvance}
         onFinishEarly={onComplete}
         initialStep={focusStep ?? storedStep}
-        onStepChange={(index) => window.localStorage.setItem(stepStorageKey, String(index))}
+        onStepChange={(index) => {
+          setStepIndex(index);
+          window.localStorage.setItem(stepStorageKey, String(index));
+        }}
         // Safe here ONLY because every readiness step is order-independent and
         // the profile autosaves continuously (a rail jump skips onBeforeAdvance).
-        navigableRail
+        //
+        // Held back until the funnel model is declared, for two reasons that
+        // point the same way: a jump would re-open the silent default the step
+        // gate just closed, and the path itself is not settled yet — without a
+        // model the rail shows 8 steps that become 9 the moment "trial" is
+        // picked, so the target of a jump would shift under the user.
+        navigableRail={profile.funnelModel !== null}
         jumpLabel={(title) => t("wizard-jump-to", { step: title })}
         finishEarlyLabel={t("wizard-finish-early")}
         // "Gerar com o que já confirmei" has to be TRUE when it is offered.

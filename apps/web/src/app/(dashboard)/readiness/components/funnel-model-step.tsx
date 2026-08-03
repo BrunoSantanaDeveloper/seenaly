@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { Box, Card, CardActionArea, CardContent, Typography } from "@mui/material";
+import { Box, Button, Card, CardActionArea, CardContent, Radio, Typography } from "@mui/material";
 
 import NiCartEmpty from "@/icons/nexture/ni-cart-empty";
 import NiFlask from "@/icons/nexture/ni-flask";
@@ -70,7 +70,7 @@ export default function FunnelModelStep({
                 >
                   {MODEL_ICON[model]}
                 </span>
-                <Box>
+                <Box className="grow">
                   <Typography variant="subtitle1" component="p" className="mb-0">
                     {t(`funnel-model-${model}`)}
                   </Typography>
@@ -78,11 +78,39 @@ export default function FunnelModelStep({
                     {t(`funnel-model-why-${model}`)}
                   </Typography>
                 </Box>
+                {/* A real radio glyph, not just a tinted card. Colour alone was
+                    carrying the whole "this one is picked" signal — invisible to
+                    anyone who does not separate those hues, and weak even for
+                    those who do. Non-interactive: the CardActionArea owns the
+                    click and already exposes role=radio + aria-checked. */}
+                <Radio
+                  checked={selected}
+                  disabled={disabled}
+                  tabIndex={-1}
+                  disableRipple
+                  className="pointer-events-none mt-0.5 flex-none p-0"
+                />
               </CardContent>
             </CardActionArea>
           </Card>
         );
       })}
+
+      {/* The silent default was the bug: leaving this blank meant "venda
+          direta" anyway — the audit changed shape and the user was never told.
+          Now the fallback is a CHOICE with its consequence in the label, so
+          "não sei" and "não respondi" stop looking the same to us and to them.
+          Subordinate on purpose: it is an escape, not a fourth funnel. */}
+      {value === null && (
+        <Box className="flex flex-col items-start gap-0.5 pt-1">
+          <Button variant="text" color="grey" size="small" disabled={disabled} onClick={() => onChange("direct")}>
+            {t("funnel-model-unsure")}
+          </Button>
+          <Typography variant="body2" className="text-text-secondary">
+            {t("funnel-model-unsure-hint")}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
