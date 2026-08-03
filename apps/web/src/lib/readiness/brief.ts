@@ -58,7 +58,6 @@ const ITEM_LABEL: Record<ReadinessItemKey, string> = {
   organicContent: "Publica conteúdo orgânico com regularidade",
   emailCapture: "Captura e-mail/contato do visitante",
   emailFollowup: "Sequência de follow-up por e-mail",
-  remarketingAudience: "Público de remarketing configurado",
 };
 
 const CHECKOUT_TYPE_LABEL: Record<CheckoutType, string> = {
@@ -121,7 +120,14 @@ export function readinessFunnelModelBlock(profile: ReadinessProfile): string {
       "5. O CAC real = investimento ÷ clientes PAGANTES, e não ÷ cadastros. Se você só tiver cadastros, diga que o CAC aparente subestima o real e peça a taxa trial → pagante em missing_data.",
       "6. DIMENSÃO FUNIL/RETENÇÃO — leia com atenção, é onde o erro é mais fácil: o FORMULÁRIO DE CADASTRO DO TRIAL JÁ É uma captura de contato. NÃO recomende “implemente um formulário de captura de e-mail na página” como se não existisse nenhum: isso já existe e é a conversão principal. Aqui, captura de contato só faz sentido para quem NÃO se cadastra (ex.: material/lista para quem ainda não quer testar) — e é uma alavanca secundária, não a principal.",
       "7. A sequência de e-mail que decide dinheiro neste modelo NÃO é “boas-vindas e nutrição” genérica: é a régua do TRIAL — ativação nos primeiros dias (levar ao “aha”), lembrete de expiração e convite ao upgrade. Se for recomendar e-mail, recomende ISSO, com o gatilho e o momento.",
-      "8. Remarketing aqui é SEGMENTADO POR ESTADO DO TRIAL (cadastrou e não ativou; ativou e não contratou; trial expirando) e precisa EXCLUIR quem já é cliente pagante e quem está em trial ativo das campanhas de aquisição. Não trate como “público de remarketing de visitantes da página”.",
+      // A consequência que aqui existia prescrevia SEGMENTAÇÃO DE PÚBLICO na
+      // Meta (excluir pagantes, separar por estado do trial). É verdadeira e
+      // valiosa — mas é configuração dentro do Gerenciador, que esta auditoria
+      // não prescreve (migração 0041): pertence ao Plano de Lançamento, onde
+      // existe tráfego acumulado para formar esses públicos. O que SOBRA aqui
+      // é a parte estrutural: os estados do trial precisam ser distinguíveis,
+      // senão nenhuma segmentação futura é possível.
+      "8. Para que qualquer segmentação futura exista, os ESTADOS DO TRIAL precisam ser distinguíveis no seu próprio sistema (cadastrou e não ativou; ativou e não contratou; trial expirando; já é pagante). Isso é estrutura de dados do negócio, e é o que você audita. Como esses estados viram público de anúncio é decisão da campanha — não recomende aqui.",
       "9. Achados sobre a estrutura pós-login (fricção do cadastro, momento de ativação, conversão trial → pagante, caminho de upgrade) usam a dimensão `ativacao` — nunca `checkout` nem `funil`. Fora do modelo trial-first, NUNCA use a dimensão `ativacao`.",
       "",
       "Ao gerar related_items para findings deste modelo: as chaves signupFrictionLow, activationDefined, trialToPaidTracked e upgradePathClear pertencem a findings da dimensão `ativacao`.",
@@ -457,6 +463,6 @@ export function readinessCreativesBlock(creatives: PlanCreativeRow[]): string {
  */
 export function readinessRetrievalQuery(hasPage: boolean): string {
   const base =
-    "prontidão antes de investir em tráfego pago: instalação de pixel e API de Conversões, escolha do evento de otimização, fase de aprendizado e volume mínimo, fricção de checkout e abandono, meios de pagamento PIX, equação de valor e garantia, prova social, message match entre anúncio e página, velocidade e experiência mobile, captura de contato e remarketing, fundamentos de SEO e descoberta orgânica, criativos mínimos por ângulo antes da primeira campanha";
+    "prontidão antes de investir em tráfego pago: instalação de pixel e API de Conversões, escolha do evento de otimização, fase de aprendizado e volume mínimo, fricção de checkout e abandono, meios de pagamento PIX, equação de valor e garantia, prova social, message match entre anúncio e página, velocidade e experiência mobile, captura de contato e régua de follow-up, fundamentos de SEO e descoberta orgânica, criativos mínimos por ângulo antes da primeira campanha";
   return hasPage ? base : `${base}, o que precisa existir em uma página de vendas antes do primeiro anúncio`;
 }

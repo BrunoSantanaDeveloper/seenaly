@@ -42,8 +42,10 @@ export type ReadinessItemKey =
   | "socialProfiles"
   | "organicContent"
   | "emailCapture"
-  | "emailFollowup"
-  | "remarketingAudience";
+  // Público de remarketing saiu daqui na migração 0041: só existe depois de
+  // tráfego acumulado, então pedi-lo antes do primeiro gasto é impossível de
+  // cumprir. Configuração de plataforma é assunto do Plano de Lançamento.
+  | "emailFollowup";
 
 /**
  * Which acquisition funnel this business actually runs (migration 0034).
@@ -207,7 +209,6 @@ export const READINESS_GROUPS: ReadinessGroup[] = [
     items: [
       { key: "emailCapture", verification: "weak", difficulty: "diy" },
       { key: "emailFollowup", verification: "declared", difficulty: "diy" },
-      { key: "remarketingAudience", verification: "declared", difficulty: "specialist" },
     ],
   },
 ];
@@ -333,7 +334,6 @@ const COLUMN_BY_KEY: Record<ReadinessItemKey, string> = {
   organicContent: "organic_content",
   emailCapture: "email_capture",
   emailFollowup: "email_followup",
-  remarketingAudience: "remarketing_audience",
 };
 
 /** DB row → profile. A missing row is a valid state: nothing confirmed yet. */

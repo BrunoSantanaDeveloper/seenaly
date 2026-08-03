@@ -67,8 +67,10 @@ export const productReadiness = pgTable(
 
     // Retenção e funil
     emailCapture: boolean("email_capture").notNull().default(false),
+    // Público de remarketing NÃO mora aqui (migração 0041): é configuração
+    // dentro do Gerenciador e só existe depois de tráfego acumulado — pedi-la
+    // numa auditoria pré-gasto é pedir o impossível. Pertence à fase 9.
     emailFollowup: boolean("email_followup").notNull().default(false),
-    remarketingAudience: boolean("remarketing_audience").notNull().default(false),
 
     extra: jsonb("extra").notNull().default({}),
 

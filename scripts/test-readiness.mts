@@ -49,6 +49,7 @@ import {
   readinessChecklistBlock,
   readinessCreativesBlock,
   readinessFunnelModelBlock,
+  readinessRetrievalQuery,
   readinessScanBlock,
 } from "../apps/web/src/lib/readiness/brief";
 import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
@@ -83,8 +84,16 @@ section("Deterministic blocker evaluator");
 
 const p = (over: Partial<ReadinessProfile> = {}): ReadinessProfile => ({ ...EMPTY_READINESS_PROFILE, ...over });
 
-// 21 structural items + the 4 trial-first activation items (migration 0034).
-check("25 checklist items", READINESS_ITEM_KEYS.length, 25);
+// 20 structural items + the 4 trial-first activation items (migration 0034).
+// 24, not 25: `remarketingAudience` saiu na 0041 — um público de remarketing
+// só existe depois de tráfego acumulado, então pedi-lo numa auditoria feita
+// ANTES do primeiro gasto era pedir o impossível.
+check("24 checklist items", READINESS_ITEM_KEYS.length, 24);
+check(
+  "remarketing audience is not a readiness item (0041)",
+  (READINESS_ITEM_KEYS as readonly string[]).includes("remarketingAudience"),
+  false,
+);
 
 const blank = evaluateReadiness(p(), { hasLandingPage: false, hasPrice: false });
 check("blank: untouched", blank.untouched, true);
@@ -133,9 +142,9 @@ check(
   ev.confirmed,
 );
 check(
-  "group totals equal 25",
+  "group totals equal 24",
   ev.byGroup.reduce((s, g) => s + g.total, 0),
-  25,
+  24,
 );
 
 const rich = p({
@@ -361,6 +370,35 @@ checkTipCoverage("recommendedEvents", "item-events");
 checkTipCoverage("recommendedParameters", "item-parameters");
 
 /* ========================================================================== */
+section("Scope boundary — readiness audits structure, never media setup (0041)");
+
+// The engine has the Meta docs in retrieval, so it reaches for platform
+// mechanics on its own. These assertions pin the three places where the old
+// spec invited it: the checklist item, the funnel group and the query that
+// decides which knowledge gets retrieved in the first place.
+check(
+  "the funil group carries only what the business owns",
+  READINESS_GROUPS.find((g) => g.key === "funil")!.items.map((i) => i.key),
+  ["emailCapture", "emailFollowup"],
+);
+check(
+  "the retrieval query no longer pulls remarketing knowledge",
+  /remarketing/i.test(readinessRetrievalQuery(true)),
+  false,
+);
+// Copy for a removed item would resurrect it silently the day someone reads
+// the catalog instead of the code.
+for (const locale of LOCALES) {
+  for (const prefix of ["item", "item-what", "item-hire"]) {
+    check(
+      `${prefix}-remarketingAudience is gone from ${locale}`,
+      `${prefix}-remarketingAudience` in readinessMessages[locale],
+      false,
+    );
+  }
+}
+
+/* ========================================================================== */
 section("GTM laundering — a tag inside the container is invisible, not absent");
 /* ========================================================================== */
 
@@ -565,9 +603,10 @@ check(
 section("HowTo cache normalization — one shape for every read path");
 /* ========================================================================== */
 
-check("null => empty, honest shape", normalizeStoredHowTo(null), { steps: [], needs_specialist: false, note: "" });
+check("null => empty, honest shape", normalizeStoredHowTo(null), { steps: [], references: [], needs_specialist: false, note: "" });
 check("well-formed stored object round-trips", normalizeStoredHowTo({ steps: ["a", "b"], needs_specialist: true, note: "n" }), {
   steps: ["a", "b"],
+  references: [],
   needs_specialist: true,
   note: "n",
 });
@@ -1175,7 +1214,17 @@ check(
   true,
 );
 check("trial-first brief redirects email to the trial sequence", trialBrief.includes("régua do TRIAL"), true);
-check("trial-first brief segments remarketing by trial state", trialBrief.includes("ESTADO DO TRIAL"), true);
+// The trial states still have to be DISTINGUISHABLE — that is data structure
+// the business owns. What turning them into ad audiences looks like is the
+// launch plan's job, so the brief must ask for the former and refuse the
+// latter (0041). Without the negative half this assertion would pass on the
+// old text too.
+check("trial-first brief demands the trial states be distinguishable", trialBrief.includes("ESTADOS DO TRIAL"), true);
+check(
+  "trial-first brief does not prescribe audience setup",
+  /exclu(ir|a)|público de remarketing|campanhas de aquisição/i.test(trialBrief),
+  false,
+);
 check(
   "trial-first brief exposes the new item keys for related_items",
   trialBrief.includes("trialToPaidTracked"),
@@ -1207,8 +1256,8 @@ check(
   ["no-page", "no-measurement", "no-payment", "no-price"],
 );
 const evalPlatform = evaluateReadiness(platformSeller, { hasLandingPage: false, hasPrice: false });
-check("total stays 25 regardless of applicability", evalPlatform.total, 25);
-check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 25 - evalPlatform.notApplicable.length);
+check("total stays 24 regardless of applicability", evalPlatform.total, 24);
+check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 24 - evalPlatform.notApplicable.length);
 check("applicableTotal never exceeds total", evalPlatform.applicableTotal <= evalPlatform.total, true);
 
 /* ========================================================================== */
