@@ -25,7 +25,31 @@
     "trust-reclassificado": "13/14 = 93%, inalterado — e era o esperado. Reclassificar 21,3% dos chunks Meta (cases para trust 3, curso Performance 5 para trust 4) corrige HONESTIDADE, não recall: `buildKnowledgeContext` imprime o nível no prompt, então o motor vinha sendo informado de que um case promocional era 'trust 1: doc oficial'. Recall é a métrica errada para essa correção; não interprete o empate como 'não funcionou'.",
     "descoberta-cards": "15/16 = 94% — 4 cards escritos para a dimensão `descoberta` (que tinha ZERO documentos) e orçamento dela corrigido para meta 0 / playbook 4. O denominador subiu de 14 para 16 porque a dimensão passou a ter alvos. ESTA É A CONFIGURAÇÃO ATUAL.",
     "chunk-v4-sections-REVERTIDO": "13/16 = 81% — EXPERIMENTO QUE FALHOU, mantido aqui para não ser refeito. Chunking header-aware (fatiar por seção markdown em vez de empacotar parágrafos, com fusão de seções curtas adjacentes) produziu chunks visivelmente melhores — 620 em vez de 498, 73% começando num heading, meio-palavra de 1,2% para 0,8% — e PIOROU a recuperação: mensuracao_instalacao 2/3 -> 1/3, descoberta 2/2 -> 1/2. Hipótese: com maxPerDocument 1 só o melhor chunk de cada documento entra, e chunks mais estreitos cobrem menos da pergunta. Revertido para o empacotamento por parágrafo.",
-    "$proximo": "Único alvo restante: `boas-praticas-configuracao-pixel`, em mensuracao_instalacao — que tem 3 alvos disputando 4 slots com maxPerDocument 1. É limite de ORÇAMENTO, não de recuperação: subir `meta` de 4 para 5 nessa dimensão resolveria, ao custo de contexto. Medir antes."
+    "orcamento-mensuracao-5": "16/16 = 100% — CONFIGURAÇÃO ATUAL. `mensuracao_instalacao` subiu de meta 4 para 5: era a única dimensão com TRÊS alvos, e com maxPerDocument 1 um orçamento de 4 nunca os devolvia junto com um concorrente. Custo: um chunk a mais no contexto. Confirma que o último buraco era orçamento, não recuperação — algo que trocar de modelo de embedding não conserta.",
+    "$gemini-embedding-2": "NÃO migrado, e a descoberta que mudou a conta: `gemini-embedding-2` NÃO faz lote. Enviando 3 textos num `embedContent` ele devolve 1 embedding (trata `contents` como entrada única, comportamento multimodal), enquanto o 001 devolve 3. Não há `batchEmbedContents` no SDK. Consequência: re-embedar o corpus passa de ~128 requisições para ~498 (uma por chunk), metade da cota diária gratuita por tentativa. Ganho do outro lado: +1,58 ponto de MTEB; multimodal inútil hoje (zero imagens no sistema); janela de 8.192 não é gargalo (chunks têm ~400 tokens); normalização L2 irrelevante (usamos cosseno). Com o recall em 100%, não há buraco que o modelo resolveria."
+  },
+  "creative_plan_queries": {
+    "$comment": "Gabarito do Plano de Teste Criativo (fase 8). Mesmo princípio: alvos no nível de documento, curtos e conservadores.",
+    "anatomia": {
+      "expect": ["criativo-gancho-angulo-prova"],
+      "note": "As três camadas do criativo e qual variar. É o card central da dimensão."
+    },
+    "ganchos": {
+      "expect": ["taxonomia-ganchos-visuais"],
+      "note": "Ganchos visuais e o erro da introdução lenta — primeiros segundos."
+    },
+    "formatos": {
+      "expect": ["formato-lista-carrossel-topo-funil"],
+      "note": "Formato por etapa do funil. O corpus Meta cobre as especificações; o playbook cobre a escolha."
+    },
+    "message_match": {
+      "expect": ["congruencia-anuncio-pagina", "copy-frameworks-headline"],
+      "note": "Congruência entre promessa do conteúdo e oferta, mais o nível de consciência que decide a copy."
+    },
+    "teste": {
+      "expect": ["teste-escala-orcamento"],
+      "note": "O que caracteriza um teste conclusivo antes de escalar."
+    }
   },
   "queries": {
     "mensuracao_instalacao": {

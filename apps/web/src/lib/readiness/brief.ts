@@ -14,6 +14,7 @@ import type { PlanCreativeRow } from "../creative-plan/brief";
 import {
   type CheckoutType,
   type FunnelModel,
+  groupForItem,
   groupsForModel,
   isTrialFirst,
   type NotApplicableReason,
@@ -470,6 +471,10 @@ export interface ReadinessRetrievalQuery {
   meta: number;
   /** Chunks to take from `growth-playbook` (CRO/checkout/offer). */
   playbook: number;
+  /** Checklist group this question audits, when it maps to one. `oferta` and
+   *  `midia` have none — they come from product context and the creative
+   *  library, not from the checklist. */
+  group?: ReadinessGroupKey;
 }
 
 /**
@@ -514,14 +519,22 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
       // fix is embedding the title/heading path with the chunk, and lexical
       // search for exact product names, not another rewrite of this string.
       text: "instalação do pixel da Meta, API de Conversões, Gerenciador de Eventos, correspondência avançada, como testar se o evento de conversão está disparando",
-      meta: 4,
+      // 5, não 4: esta é a única dimensão cujos documentos-alvo são TRÊS
+      // ("Sobre a API de Conversões", "Como usar a API", "Boas práticas para a
+      // configuração do Pixel"), e com maxPerDocument 1 um orçamento de 4 nunca
+      // devolvia os três junto com um concorrente. Era limite de ORÇAMENTO, não
+      // de recuperação — o tipo de coisa que trocar de modelo de embedding não
+      // conserta. Medido: 2/3 -> 3/3, recall global 94% -> 100%.
+      meta: 5,
       playbook: 0,
+      group: "mensuracao",
     },
     {
       key: "mensuracao_otimizacao",
       text: "escolha do evento de otimização, fase de aprendizado, volume mínimo de eventos por semana, janela de conversão",
       meta: 4,
       playbook: 1,
+      group: "mensuracao",
     },
     {
       key: "pagina",
@@ -530,12 +543,14 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
         : "o que precisa existir em uma página de vendas antes do primeiro anúncio: estrutura, promessa, prova social, sinais de confiança",
       meta: 1,
       playbook: 3,
+      group: "pagina",
     },
     {
       key: "checkout",
       text: "abandono de checkout e suas causas, meios de pagamento no Brasil (PIX, cartão, parcelamento, boleto), fricção do formulário, garantia",
       meta: 0,
       playbook: 3,
+      group: "checkout",
     },
     {
       key: "oferta",
@@ -548,6 +563,7 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
       text: "captura de contato, régua de follow-up e nutrição por e-mail, tipos de funil e critérios de escolha",
       meta: 0,
       playbook: 2,
+      group: "funil",
     },
     {
       key: "descoberta",
@@ -560,6 +576,7 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
       // que entra é sobre a dimensão. Medido: 1/2 -> 2/2 (`npm run eval:retrieval`).
       meta: 0,
       playbook: 4,
+      group: "descoberta",
     },
     {
       key: "midia",
@@ -577,8 +594,69 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
       text: "fricção do cadastro, momento de ativação do usuário, conversão de trial para pagante, caminho de upgrade em SaaS",
       meta: 0,
       playbook: 3,
+      group: "ativacao",
     });
   }
 
   return queries;
+}
+
+/**
+ * Measurement is never de-prioritised, whatever the checklist says.
+ *
+ * A pixel the user swears is installed and that nothing ever proved is the
+ * single most expensive thing to be wrong about — the verdict has to be able to
+ * argue about it even when the intake looks perfect.
+ */
+const ALWAYS_FULL_BUDGET = new Set(["mensuracao_instalacao", "mensuracao_otimizacao"]);
+
+/**
+ * Re-weights the plan toward the gaps THIS business actually has.
+ *
+ * Without it the retrieval is a constant: someone whose checkout is impeccable
+ * and whose pixel is unconfirmed receives the same amount of checkout knowledge
+ * as measurement knowledge, and half the evidence budget is spent on subjects
+ * already settled — while the real gap, where the verdict most needs to be
+ * specific, competes for the other half.
+ *
+ * THE RULE THAT MAKES THIS SAFE: the budget shrinks only on PROOF, never on a
+ * tick. `achieved` counts a provable item once the scan proved it and a
+ * declared item once confirmed — it is the honest "settled" count. Shrinking on
+ * `confirmed` instead would mean the engine holds less citable rule exactly
+ * where the user is most confident, and confident-and-wrong is the case this
+ * product exists to catch.
+ *
+ * A dimension the scan CONTRADICTS gets the opposite treatment: it is promoted,
+ * because the brief already treats a divergence between declared and observed
+ * as a first-class finding, and sustaining that in front of the user takes a
+ * rule to cite, not an assertion.
+ *
+ * Never drops to zero: a settled dimension still needs one citable rule to say
+ * "this is fine, keep it" without inventing the reason.
+ */
+export function weightRetrievalPlan(
+  plan: ReadinessRetrievalQuery[],
+  evaluation: ReadinessEvaluation,
+): ReadinessRetrievalQuery[] {
+  const progressByGroup = new Map(evaluation.byGroup.map((group) => [group.key, group]));
+  const contradictedGroups = new Set(evaluation.contradicted.map(groupForItem));
+
+  return plan.map((query) => {
+    if (!query.group || ALWAYS_FULL_BUDGET.has(query.key)) return query;
+    const progress = progressByGroup.get(query.group);
+    if (!progress || progress.applicable === 0) return query;
+
+    if (contradictedGroups.has(query.group)) {
+      // The observed disproves the declared: give the engine more to argue with.
+      return { ...query, meta: query.meta > 0 ? query.meta + 1 : 0, playbook: query.playbook + 1 };
+    }
+
+    const settled = progress.achieved >= progress.applicable;
+    if (!settled) return query;
+
+    // Keep one chunk from whichever corpus owns the subject.
+    return query.playbook > 0
+      ? { ...query, meta: 0, playbook: 1 }
+      : { ...query, meta: Math.min(query.meta, 1), playbook: 0 };
+  });
 }

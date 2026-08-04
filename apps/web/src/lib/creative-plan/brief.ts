@@ -104,7 +104,66 @@ export function planCohortBlock(): string {
   ].join("\n");
 }
 
-/** What we ask the knowledge base for a plan. */
+/** One focused retrieval question plus how much evidence it may claim. */
+export interface PlanRetrievalQuery {
+  key: string;
+  text: string;
+  /** Chunks from `meta-ads-docs` (official creative guidance). */
+  meta: number;
+  /** Chunks from `growth-playbook` (the craft Meta does not document). */
+  playbook: number;
+}
+
+/**
+ * What we ask the knowledge base for a plan — ONE question per subject.
+ *
+ * This used to be a single string chaining five subjects (hook anatomy, hook
+ * taxonomy, organic formats, message match, testing before scaling), which the
+ * embedder collapsed into one averaged vector. The readiness engine had the
+ * same shape and the gate measured what it costs: document recall went from 7%
+ * to 79% purely by splitting the question. There is no reason to expect this
+ * corpus to behave differently — it is the same corpus.
+ *
+ * Collection weights follow ownership: Meta documents its own creative specs
+ * and placements; the playbook carries the craft (hook taxonomy, angle–market
+ * fit, proof types) that Meta does not write down.
+ */
+export function planRetrievalPlan(): PlanRetrievalQuery[] {
+  return [
+    {
+      key: "anatomia",
+      text: "anatomia do criativo de performance: gancho, ângulo e prova, e qual camada variar quando o criativo não performa",
+      meta: 1,
+      playbook: 3,
+    },
+    {
+      key: "ganchos",
+      text: "taxonomia de ganchos visuais, primeiros segundos do vídeo, retenção e o erro da introdução lenta",
+      meta: 2,
+      playbook: 2,
+    },
+    {
+      key: "formatos",
+      text: "formatos de anúncio e de conteúdo: reels, carrossel, imagem estática, vídeo — boas práticas e quando usar cada um por etapa do funil",
+      meta: 3,
+      playbook: 2,
+    },
+    {
+      key: "message_match",
+      text: "congruência entre a promessa do conteúdo e a oferta, message match, copy e nível de consciência",
+      meta: 0,
+      playbook: 3,
+    },
+    {
+      key: "teste",
+      text: "teste e validação de criativo antes de escalar, diversificação criativa, o que caracteriza um teste conclusivo",
+      meta: 2,
+      playbook: 2,
+    },
+  ];
+}
+
+/** @deprecated Kept for the retrieval gate's baseline comparison only. */
 export function planRetrievalQuery(): string {
   return "anatomia de criativo vencedor: gancho, ângulo e prova; taxonomia de ganchos e primeiros segundos; formatos orgânicos (reels, carrossel, lista) por etapa do funil; message match entre conteúdo e oferta; teste criativo antes de escalar mídia paga";
 }

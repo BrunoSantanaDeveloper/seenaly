@@ -18,6 +18,7 @@ import {
   readinessScanBlock,
   readinessSignalsBlock,
   type ScanRecord,
+  weightRetrievalPlan,
 } from "@/lib/readiness/brief";
 import {
   CHECKOUT_TYPES,
@@ -784,7 +785,13 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
     // large trust-1 Meta corpus owns measurement, the playbook owns conversion
     // structure, and neither should crowd the other out of a subject it owns.
     const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
-    const plan = readinessRetrievalPlan(Boolean(product.landingPageUrl), profile.funnelModel);
+    // Weighted by THIS business's gaps: budget shrinks only on what the scan
+    // proved, grows where the scan contradicts the checklist. See
+    // `weightRetrievalPlan` for why proof and not the tick.
+    const plan = weightRetrievalPlan(
+      readinessRetrievalPlan(Boolean(product.landingPageUrl), profile.funnelModel),
+      evaluation,
+    );
     try {
       // Collections resolved once, and every question embedded in a SINGLE
       // batch — decomposition costs one embedding call for the whole plan,

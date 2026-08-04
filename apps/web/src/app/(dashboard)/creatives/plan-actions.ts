@@ -9,7 +9,7 @@ import {
   planCreativesBlock,
   planOrganicBlock,
   type PlanOrganicPresence,
-  planRetrievalQuery,
+  planRetrievalPlan,
 } from "@/lib/creative-plan/brief";
 import { loadCreativeEvidence } from "@/lib/creative-plan/evidence";
 import {
@@ -22,7 +22,7 @@ import {
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
-import { buildKnowledgeContext, embedQuery, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
+import { buildKnowledgeContext, embedQueries, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
 const ASSISTANT_SLUG = "creative-plan-engine";
 
@@ -156,28 +156,53 @@ export async function generateCreativePlan(productId: string): Promise<GenerateP
     };
   }
 
-  // Ground in the knowledge base, per collection (same reason as the other
-  // engines): the large trust-1 Meta corpus would otherwise crowd out the
-  // growth playbook, which carries the creative-craft knowledge.
-  const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
-    ?.knowledge;
-  const collectionSlugs = knowledgeConfig?.collections ?? ["growth-playbook", "meta-ads-docs"];
-  const matchCount = knowledgeConfig?.matchCount ?? 8;
-  const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
+  // Ground in the knowledge base with ONE question per subject, each carrying
+  // its own collection weights (see `planRetrievalPlan`). The weights replace
+  // the blind 50/50 split this used to apply: Meta owns the ad-format specs,
+  // the playbook owns the craft.
   const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+  const retrievalPlan = planRetrievalPlan();
   try {
-    const query = planRetrievalQuery();
-    // The query is a constant, so its vector is too — embed once and reuse it
-    // across collections instead of paying the API per slug.
-    const embedding = await embedQuery(query);
-    for (const slug of collectionSlugs) {
-      const collectionIds = await resolveCollectionIds(supabase, [slug]);
-      if (collectionIds.length === 0) continue;
-      excerpts.push(...(await searchKnowledge(supabase, embedding, { collectionIds, matchCount: perCollection })));
-    }
+    // Same shape the readiness engine was measured into: one focused question
+    // per subject, collections resolved once, every question embedded in a
+    // SINGLE batch, one chunk per document, and hybrid retrieval because these
+    // questions are full of proper nouns ("reels", "carrossel") that a dense
+    // vector averages away.
+    const [metaIds, playbookIds, vectors] = await Promise.all([
+      resolveCollectionIds(supabase, ["meta-ads-docs"]),
+      resolveCollectionIds(supabase, ["growth-playbook"]),
+      embedQueries(retrievalPlan.map((query) => query.text)),
+    ]);
+
+    const searches = retrievalPlan.flatMap((query, index) => {
+      const perCorpus: [string[], number][] = [
+        [metaIds, query.meta],
+        [playbookIds, query.playbook],
+      ];
+      return perCorpus
+        .filter(([ids, count]) => ids.length > 0 && count > 0)
+        .map(([collectionIds, matchCount]) =>
+          searchKnowledge(supabase, vectors[index], {
+            collectionIds,
+            matchCount,
+            maxPerDocument: 1,
+            queryText: query.text,
+          }),
+        );
+    });
+    for (const batch of await Promise.all(searches)) excerpts.push(...batch);
   } catch (error) {
     return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
   }
+
+  // The same chunk can win more than one subject; keep the first hit so the
+  // engine is not handed the same excerpt twice under different numbers.
+  const seenChunks = new Set<string>();
+  const uniqueExcerpts = excerpts.filter((excerpt) => {
+    if (seenChunks.has(excerpt.chunk_id)) return false;
+    seenChunks.add(excerpt.chunk_id);
+    return true;
+  });
 
   // Same rule as the other two engines: an empty retrieval is an operational
   // fault, and a plan written without a single retrieved excerpt is a generic
@@ -201,7 +226,7 @@ export async function generateCreativePlan(productId: string): Promise<GenerateP
     "",
     "## Regra de volume",
     planCohortBlock(),
-    buildKnowledgeContext(excerpts),
+    buildKnowledgeContext(uniqueExcerpts),
     "",
     "## Tarefa",
     "Monte o plano de teste criativo orgânico deste produto e devolva o objeto JSON.",
@@ -265,7 +290,7 @@ export async function generateCreativePlan(productId: string): Promise<GenerateP
       insufficient_data: plan.insufficient_data,
       // The plan never reads media data — that is the whole point.
       had_campaign_data: false,
-      knowledge_refs: excerpts.map((excerpt) => ({
+      knowledge_refs: uniqueExcerpts.map((excerpt) => ({
         title: excerpt.title,
         source: excerpt.source,
         trust_level: excerpt.trust_level,

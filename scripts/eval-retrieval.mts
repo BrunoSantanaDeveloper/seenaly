@@ -28,6 +28,7 @@ import process from "node:process";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { planRetrievalPlan, planRetrievalQuery } from "../apps/web/src/lib/creative-plan/brief";
 import { readinessRetrievalPlan } from "../apps/web/src/lib/readiness/brief";
 import { embedQueries, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
@@ -69,7 +70,11 @@ async function main() {
 
   const golden = JSON.parse(
     await readFile(path.join(ROOT, "scripts", "knowledge-eval", "readiness-golden-set.json"), "utf8"),
-  ) as { corpus_protocol: string; queries: Record<string, GoldenEntry> };
+  ) as {
+    corpus_protocol: string;
+    queries: Record<string, GoldenEntry>;
+    creative_plan_queries?: Record<string, GoldenEntry>;
+  };
 
   // A score against a corpus that is not the one the golden set was written
   // for is a number without meaning — say so instead of printing it.
@@ -173,6 +178,65 @@ async function main() {
     console.log(`Trechos: ${legacyResults.length} (baseline) vs decomposto acima.`);
     console.log(
       `\nDELTA: ${totalFound - legacyFound >= 0 ? "+" : ""}${totalFound - legacyFound} documentos-alvo recuperados.`,
+    );
+  }
+
+  // ---- Creative Test Plan (fase 8), same gate, same corpus ----
+  const planGolden = golden.creative_plan_queries ?? {};
+  const planQueries = planRetrievalPlan();
+  const planVectors = await embedQueries(planQueries.map((query) => query.text));
+
+  console.log("\n=== PLANO DE TESTE CRIATIVO ===\n");
+  let planExpected = 0;
+  let planFound = 0;
+  for (const [index, query] of planQueries.entries()) {
+    const entry = planGolden[query.key];
+    if (!entry) continue;
+    const results = (
+      await Promise.all(
+        [[metaIds, query.meta] as const, [playbookIds, query.playbook] as const]
+          .filter(([ids, count]) => ids.length > 0 && count > 0)
+          .map(([collectionIds, matchCount]) =>
+            searchKnowledge(supabase, planVectors[index], {
+              collectionIds,
+              matchCount,
+              maxPerDocument: 1,
+              ...(process.env.EVAL_DENSE_ONLY ? {} : { queryText: query.text }),
+            }),
+          ),
+      )
+    ).flat();
+    const retrieved = new Set(results.map((r) => slugById.get(r.document_id) ?? "?"));
+    const found = entry.expect.filter((slug) => retrieved.has(slug));
+    const missing = entry.expect.filter((slug) => !retrieved.has(slug));
+    planExpected += entry.expect.length;
+    planFound += found.length;
+    console.log(
+      `${query.key.padEnd(24)} recall ${String(`${found.length}/${entry.expect.length}`).padEnd(24)} ${pct(found.length, entry.expect.length).padStart(4)}  (${results.length} trechos, ${retrieved.size} docs)`,
+    );
+    if (missing.length > 0) console.log(`${" ".repeat(26)}FALTOU: ${missing.join(", ")}`);
+    if (VERBOSE) for (const slug of retrieved) console.log(`${" ".repeat(28)}· ${slug}`);
+  }
+  console.log(`\nRECALL GLOBAL (plano criativo): ${planFound}/${planExpected} = ${pct(planFound, planExpected)}`);
+
+  if (WITH_BASELINE) {
+    // The single five-subject string this plan replaced.
+    const [legacyVector] = await embedQueries([planRetrievalQuery()]);
+    const legacyResults = (
+      await Promise.all(
+        [metaIds, playbookIds].map((collectionIds) =>
+          searchKnowledge(supabase, legacyVector, { collectionIds, matchCount: 4 }),
+        ),
+      )
+    ).flat();
+    const legacyRetrieved = new Set(legacyResults.map((r) => slugById.get(r.document_id) ?? "?"));
+    let legacyFound = 0;
+    for (const entry of Object.values(planGolden)) {
+      if (!entry?.expect) continue;
+      legacyFound += entry.expect.filter((slug) => legacyRetrieved.has(slug)).length;
+    }
+    console.log(
+      `RECALL (plano criativo, query única): ${legacyFound}/${planExpected} = ${pct(legacyFound, planExpected)}`,
     );
   }
 

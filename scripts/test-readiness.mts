@@ -51,6 +51,7 @@ import {
   readinessCreativesBlock,
   readinessFunnelModelBlock,
   readinessRetrievalPlan,
+  weightRetrievalPlan,
   readinessScanBlock,
 } from "../apps/web/src/lib/readiness/brief";
 import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
@@ -451,6 +452,88 @@ for (const model of [null, "direct", "trial_first", "lead_first"] as const) {
       false,
     );
   }
+}
+
+section("Retrieval weighting — budget follows the gap, and shrinks only on proof");
+
+{
+  const basePlan = readinessRetrievalPlan(true, null);
+  const budget = (plan: ReturnType<typeof readinessRetrievalPlan>, key: string) => {
+    const query = plan.find((q) => q.key === key)!;
+    return query.meta + query.playbook;
+  };
+  const evaluation = (over: Partial<Record<string, unknown>> = {}) =>
+    ({
+      confirmed: 0,
+      total: 0,
+      byGroup: [
+        { key: "checkout", confirmed: 5, total: 5, applicable: 5, verified: 0, achieved: 5 },
+        { key: "pagina", confirmed: 4, total: 4, applicable: 4, verified: 0, achieved: 1 },
+        { key: "mensuracao", confirmed: 4, total: 4, applicable: 4, verified: 4, achieved: 4 },
+      ],
+      blockers: [],
+      untouched: false,
+      verified: [],
+      contradicted: [],
+      unprovable: [],
+      notApplicable: [],
+      ...over,
+    }) as never;
+
+  const weighted = weightRetrievalPlan(basePlan, evaluation());
+
+  check("a settled dimension shrinks to a single citable rule", budget(weighted, "checkout"), 1);
+  check("an unsettled dimension keeps its full budget", budget(weighted, "pagina"), budget(basePlan, "pagina"));
+  // The most expensive thing to be wrong about is a pixel nobody proved.
+  check(
+    "measurement is never de-prioritised, even fully achieved",
+    budget(weighted, "mensuracao_instalacao"),
+    budget(basePlan, "mensuracao_instalacao"),
+  );
+  check(
+    "measurement optimisation is never de-prioritised either",
+    budget(weighted, "mensuracao_otimizacao"),
+    budget(basePlan, "mensuracao_otimizacao"),
+  );
+  // No checklist group at all — nothing to weight against.
+  check("oferta is untouched (no checklist group)", budget(weighted, "oferta"), budget(basePlan, "oferta"));
+  check("midia is untouched (no checklist group)", budget(weighted, "midia"), budget(basePlan, "midia"));
+
+  // THE ANTI-FRAUD RULE: ticking every box must not buy a smaller budget. Only
+  // what the scan proved (achieved) may shrink it.
+  const declaredOnly = weightRetrievalPlan(
+    basePlan,
+    evaluation({
+      byGroup: [{ key: "checkout", confirmed: 5, total: 5, applicable: 5, verified: 0, achieved: 2 }],
+    }),
+  );
+  check(
+    "ticking boxes without proof does NOT shrink the budget",
+    budget(declaredOnly, "checkout"),
+    budget(basePlan, "checkout"),
+  );
+
+  // A contradiction needs MORE rule to cite, not less — the engine has to
+  // sustain "your page says otherwise" in front of the user.
+  const contradicted = weightRetrievalPlan(
+    basePlan,
+    evaluation({
+      contradicted: ["paymentPix"],
+      byGroup: [{ key: "checkout", confirmed: 5, total: 5, applicable: 5, verified: 0, achieved: 5 }],
+    }),
+  );
+  check(
+    "a contradicted dimension is promoted, not shrunk",
+    budget(contradicted, "checkout") > budget(basePlan, "checkout"),
+    true,
+  );
+
+  // Never zero: a settled dimension still needs one rule to say "keep it".
+  check(
+    "no dimension is ever left with zero evidence",
+    weighted.every((query) => query.meta + query.playbook > 0),
+    true,
+  );
 }
 
 section("Citations — the chips must credit what was USED, not what was fetched");
