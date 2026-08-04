@@ -1,6 +1,7 @@
 ---
 title: "Introdução ao Performance 5"
 description: "Introdução ao Performance 5 (curso Meta Blueprint): papel da IA no sistema de veiculação, resultados médios observados e visão geral das cinco boas práticas para campanhas de resposta direta."
+trust: 4
 tags: [performance-5, blueprint, course, ai-delivery]
 related: [meta-performance-5, meta-performance-5-simplificar, meta-performance-5-conclusao]
 captured: 2026-06-23

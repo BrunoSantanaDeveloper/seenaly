@@ -1,6 +1,7 @@
 ---
 title: "Curso Blueprint: Campanhas de Vendas Advantage+"
 description: "Curso Blueprint sobre campanhas de vendas Advantage+: papel da IA generativa, alavancas de automação total e parcial, sinais de dados no criativo e como estruturar estudos de Conversion Lift."
+trust: 4
 tags: [advantage-plus, shopping-campaigns, blueprint, course, generative-ai, conversion-lift]
 related: [advantage-plus-shopping-campaigns, testes-incremento, meta-performance-5-automatizar]
 ---

@@ -1,6 +1,7 @@
 ---
 title: "Use dados de alta qualidade"
 description: "Performance 5 — Lição 4, Use dados de alta qualidade: API de Conversões como fundamento, métodos de integração (direta, parceiro, gateway), pontuação EMQ e boas práticas de qualidade de dados."
+trust: 4
 tags: [performance-5, blueprint, capi, data-quality, emq]
 related: [api-conversao, comparar-opcoes-configuracoes-api, boas-praticas-melhorar-anuncios-api, meta-performance-5-resultados]
 captured: 2026-06-23

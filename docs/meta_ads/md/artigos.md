@@ -1,6 +1,7 @@
 ---
 title: "Central de Artigos e Insights Meta (Edição 2026)"
 description: "Notícias e tendências reportadas pela Meta (edição 2026): preparação para alta temporada de compras, Meta Business Agent (agente de IA para empresas) e pesquisa social como novo ROI da descoberta."
+trust: 4
 tags: [news, insights, ai-agent, trends]
 related: [cases, meta-pixel]
 ---

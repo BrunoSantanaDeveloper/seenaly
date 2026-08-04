@@ -411,6 +411,15 @@ def frontmatter(stem: str, html: str, md: str) -> str:
         return '"' + s.replace('"', '\\"') + '"'
 
     lines = ["---", f"title: {q(title)}", f"description: {q(meta['description'])}"]
+    # trust: nivel de confianca 1-5 lido pela ingestao da base de conhecimento.
+    # Ausente = o default do corpus (1, "doc oficial"). Declare em
+    # metadata.json tudo que NAO for regra de plataforma: estudo de caso (3) e
+    # curso/framework do proprio fornecedor (4). Sem isso, um case promocional
+    # entra na base rotulado como regra oficial, ganha bonus de ranking sobre a
+    # regra de verdade, e o motor cita "a Casas Bahia teve 17,7X" como se fosse
+    # documentacao — que e exatamente a recomendacao generica que o produto proibe.
+    if meta.get("trust") is not None:
+        lines.append(f"trust: {int(meta['trust'])}")
     if meta.get("tags"):
         lines.append("tags: [" + ", ".join(meta["tags"]) + "]")
     if meta.get("related"):

@@ -1,6 +1,7 @@
 ---
 title: "Casos de Sucesso da API de Conversões da Meta"
 description: "Nove casos de sucesso com API de Conversões e Advantage+ (PRESS Healthfoods, Living Proof, Central Department Store, Five Below, HEMA, Principessa, Rosa Azul Kids, Stone, Casas Bahia), com estratégias e métricas de resultado."
+trust: 3
 tags: [capi, case-studies, advantage-plus, results]
 related: [api-conversao, boas-praticas-melhorar-anuncios-api]
 captured: 2026-06-23

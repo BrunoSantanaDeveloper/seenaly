@@ -1,6 +1,7 @@
 ---
 title: "Estudo de caso: Barceló Hotel Group com campanhas de compras Advantage+"
 description: "Estudo de caso Barceló Hotel Group: teste A/B de campanhas manuais vs compras Advantage+ para reservas de hotel, resultados e recursos tecnológicos utilizados."
+trust: 3
 tags: [case-studies, advantage-plus, shopping-campaigns, ab-testing, travel]
 related: [advantage-plus-shopping-campaigns, cases, testes-incremento]
 captured: 2026-07-07

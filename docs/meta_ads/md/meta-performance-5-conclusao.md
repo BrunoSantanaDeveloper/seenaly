@@ -1,6 +1,7 @@
 ---
 title: "Performance 5 da Meta: técnicas comprovadas para ajudar empresas a terem sucesso"
 description: "Performance 5 — Conclusão: resumo das cinco boas práticas (simplificar estrutura, automatizar, diversificar criativo, dados de qualidade, validar resultados) e próximos passos."
+trust: 4
 tags: [performance-5, blueprint, summary]
 related: [meta-performance-5, meta-performance-5-intro]
 captured: 2026-06-23

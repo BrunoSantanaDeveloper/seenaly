@@ -1,6 +1,7 @@
 ---
 title: "Diversifique o criativo do anúncio"
 description: "Performance 5 — Lição 3, Diversifique o criativo do anúncio: diversificação por conceito e formato (imagem, vídeo, Reels) para combater fadiga criativa e alcançar segmentos diferentes do público."
+trust: 4
 tags: [performance-5, blueprint, creative, diversification, creative-fatigue]
 related: [meta-performance-5-automatizar, meta-performance-5-dados]
 captured: 2026-06-23

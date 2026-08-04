@@ -1,6 +1,7 @@
 ---
 title: "Simplifique a estrutura da sua conta"
 description: "Performance 5 — Lição 1, Simplifique a estrutura da conta: fase de aprendizado, consolidação de conjuntos de anúncios, posicionamentos Advantage+ e redução de fragmentação para acelerar a otimização."
+trust: 4
 tags: [performance-5, blueprint, account-structure, learning-phase, advantage-plus]
 related: [gerenciador-consolidacao, gerenciador-fase-aprendizado, gerenciador-volume-anuncios, meta-performance-5-automatizar]
 captured: 2026-06-23

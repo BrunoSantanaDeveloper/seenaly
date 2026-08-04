@@ -1,6 +1,7 @@
 ---
 title: "Automatize suas campanhas"
 description: "Performance 5 — Lição 2, Automatize suas campanhas: campanhas de Compras Advantage+, App Advantage+ e anúncios de catálogo Advantage+ para deixar a IA otimizar público, criativo e orçamento."
+trust: 4
 tags: [performance-5, blueprint, automation, advantage-plus, shopping-campaigns]
 related: [advantage-criar-campanha, meta-performance-5-simplificar, meta-performance-5-criativo]
 captured: 2026-06-23

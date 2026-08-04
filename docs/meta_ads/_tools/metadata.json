@@ -186,7 +186,8 @@
   "related": [
    "api-conversao",
    "boas-praticas-melhorar-anuncios-api"
-  ]
+  ],
+  "trust": 3
  },
  "meta-pixel": {
   "title": "Atualizações do Pixel da Meta e da API de Conversões (comunicado oficial)",
@@ -603,7 +604,8 @@
    "meta-performance-5",
    "meta-performance-5-simplificar",
    "meta-performance-5-conclusao"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-simplificar": {
   "description": "Performance 5 — Lição 1, Simplifique a estrutura da conta: fase de aprendizado, consolidação de conjuntos de anúncios, posicionamentos Advantage+ e redução de fragmentação para acelerar a otimização.",
@@ -619,7 +621,8 @@
    "gerenciador-fase-aprendizado",
    "gerenciador-volume-anuncios",
    "meta-performance-5-automatizar"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-automatizar": {
   "description": "Performance 5 — Lição 2, Automatize suas campanhas: campanhas de Compras Advantage+, App Advantage+ e anúncios de catálogo Advantage+ para deixar a IA otimizar público, criativo e orçamento.",
@@ -634,7 +637,8 @@
    "advantage-criar-campanha",
    "meta-performance-5-simplificar",
    "meta-performance-5-criativo"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-criativo": {
   "description": "Performance 5 — Lição 3, Diversifique o criativo do anúncio: diversificação por conceito e formato (imagem, vídeo, Reels) para combater fadiga criativa e alcançar segmentos diferentes do público.",
@@ -648,7 +652,8 @@
   "related": [
    "meta-performance-5-automatizar",
    "meta-performance-5-dados"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-dados": {
   "description": "Performance 5 — Lição 4, Use dados de alta qualidade: API de Conversões como fundamento, métodos de integração (direta, parceiro, gateway), pontuação EMQ e boas práticas de qualidade de dados.",
@@ -664,7 +669,8 @@
    "comparar-opcoes-configuracoes-api",
    "boas-praticas-melhorar-anuncios-api",
    "meta-performance-5-resultados"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-resultados": {
   "description": "Performance 5 — Lição 5, Valide os resultados: testes A/B, Conversion Lift e métricas para validar campanhas e provar incrementalidade em vez de confiar só em métricas de atribuição.",
@@ -679,7 +685,8 @@
    "meta-performance-5-dados",
    "meta-performance-5-conclusao",
    "diferenca-entre-contagem-eventos"
-  ]
+  ],
+  "trust": 4
  },
  "meta-performance-5-conclusao": {
   "description": "Performance 5 — Conclusão: resumo das cinco boas práticas (simplificar estrutura, automatizar, diversificar criativo, dados de qualidade, validar resultados) e próximos passos.",
@@ -691,7 +698,8 @@
   "related": [
    "meta-performance-5",
    "meta-performance-5-intro"
-  ]
+  ],
+  "trust": 4
  },
  "regras-de-valor": {
   "title": "Regras de Valor em Campanhas (índice do tópico)",
@@ -1022,7 +1030,8 @@
    "advantage-plus-shopping-campaigns",
    "testes-incremento",
    "meta-performance-5-automatizar"
-  ]
+  ],
+  "trust": 4
  },
  "align-ad-creative-to-your-business-goals": {
   "description": "Curso Blueprint sobre alinhamento de criativo a objetivos de negócio: criativos por etapa do funil, escolha de posicionamentos, e mecanismos de otimização automática (adaptação de anúncios por posicionamento e idioma).",
@@ -1136,7 +1145,8 @@
   "related": [
    "cases",
    "meta-pixel"
-  ]
+  ],
+  "trust": 4
  },
  "boas-praticas-anuncio-carrossel": {
   "description": "Boas práticas para anúncios em carrossel: uso de imagens/vídeos com título, descrição, link e CTA próprios por cartão; ordem dos cartões, narrativa e otimização automática.",
@@ -1363,7 +1373,8 @@
    "advantage-plus-shopping-campaigns",
    "cases",
    "testes-incremento"
-  ]
+  ],
+  "trust": 3
  },
  "meta-advantage-plus-budget": {
   "description": "Orçamento de campanha Advantage+ (CBO): distribuição automática do orçamento entre conjuntos de anúncios, benefícios, boas práticas e casos de sucesso — visão de produto.",

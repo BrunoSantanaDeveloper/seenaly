@@ -1,6 +1,7 @@
 ---
 title: "Valide os resultados"
 description: "Performance 5 — Lição 5, Valide os resultados: testes A/B, Conversion Lift e métricas para validar campanhas e provar incrementalidade em vez de confiar só em métricas de atribuição."
+trust: 4
 tags: [performance-5, blueprint, ab-testing, conversion-lift, measurement]
 related: [meta-performance-5-dados, meta-performance-5-conclusao, diferenca-entre-contagem-eventos]
 captured: 2026-06-23
