@@ -54,7 +54,12 @@ import {
   readinessScanBlock,
 } from "../apps/web/src/lib/readiness/brief";
 import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
-import { isReadinessOutput, readinessJsonSchema, readinessNextReviewDays } from "../apps/web/src/lib/readiness/schema";
+import {
+  citedExcerptIndexes,
+  isReadinessOutput,
+  readinessJsonSchema,
+  readinessNextReviewDays,
+} from "../apps/web/src/lib/readiness/schema";
 import { selectDueReviewTargets } from "../apps/web/src/lib/diagnosis/review-select";
 import { experimentsBlock } from "../apps/web/src/lib/experiments/brief";
 import { type AssistSignals, assistReason, sanitizeJourneySignals } from "../apps/web/src/lib/readiness/assist";
@@ -446,6 +451,42 @@ for (const model of [null, "direct", "trial_first", "lead_first"] as const) {
       false,
     );
   }
+}
+
+section("Citations — the chips must credit what was USED, not what was fetched");
+
+{
+  const verdictWith = (citations: string[]) =>
+    ({
+      verdict: "quase",
+      summary: "",
+      blocking: [],
+      confidence: "media",
+      insufficient_data: false,
+      missing_data: "",
+      findings: citations.map((citation) => ({
+        dimension: "checkout",
+        status: "atencao",
+        finding: "",
+        evidence: [],
+        technical_basis: [{ rule: "", citation }],
+        recommended_action: "",
+        effort: "baixo",
+        impact: "baixo",
+        success_criterion: "",
+      })),
+    }) as never;
+
+  check("plain [3]", [...citedExcerptIndexes(verdictWith(["[3]"]), 8)], [3]);
+  check("several in one string", [...citedExcerptIndexes(verdictWith(["[1, 2]"]), 8)].sort(), [1, 2]);
+  check("adjacent brackets", [...citedExcerptIndexes(verdictWith(["[1][4]"]), 8)].sort(), [1, 4]);
+  check("prose around the number", [...citedExcerptIndexes(verdictWith(["conforme o trecho [5]"]), 8)], [5]);
+  // A hallucinated index would credit a document that was never retrieved —
+  // the exact failure this whole change exists to remove.
+  check("index beyond what was retrieved is dropped", [...citedExcerptIndexes(verdictWith(["[9]"]), 8)], []);
+  check("zero is not an index", [...citedExcerptIndexes(verdictWith(["[0]"]), 8)], []);
+  check("no citation at all", [...citedExcerptIndexes(verdictWith([""]), 8)], []);
+  check("empty findings", [...citedExcerptIndexes({ findings: [] } as never, 8)], []);
 }
 
 section("Retrieval plan — one focused question per audited dimension");

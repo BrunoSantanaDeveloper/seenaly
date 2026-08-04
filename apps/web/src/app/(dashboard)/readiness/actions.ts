@@ -42,6 +42,7 @@ import {
 import { isPageSpeedConfigured, runPageSpeed } from "@/lib/readiness/pagespeed";
 import { scanCooldownRemainingSeconds, scanSite } from "@/lib/readiness/scan";
 import {
+  citedExcerptIndexes,
   isReadinessOutput,
   READINESS_SCHEMA_NAME,
   readinessJsonSchema,
@@ -908,6 +909,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
 
     if (!isReadinessOutput(output)) return failure("engine_malformed");
     const verdict = reconcileVerdict(output);
+    const cited = citedExcerptIndexes(verdict, uniqueExcerpts.length);
 
     // Re-audit cadence (R1): unlike the campaign diagnosis, readiness ALWAYS
     // sets next_review_at — the reminder is the loop's engine, so a model
@@ -930,11 +932,18 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       p_insufficient_data: verdict.insufficient_data,
       // Readiness never reads media data — that is the whole point.
       p_had_campaign_data: false,
-      p_knowledge_refs: uniqueExcerpts.map((excerpt) => ({
+      // `used` resolves the engine's `[n]` citations back to documents. Without
+      // it the UI credits everything RETRIEVED as grounding, including excerpts
+      // the model never cited — a claim we cannot back, in the one product
+      // where "cites its source" is the promise. Everything stays persisted:
+      // the retrieved-but-unused set is what makes a weak retrieval visible
+      // later, so it is marked, never dropped.
+      p_knowledge_refs: uniqueExcerpts.map((excerpt, index) => ({
         title: excerpt.title,
         source: excerpt.source,
         trust_level: excerpt.trust_level,
         similarity: excerpt.similarity,
+        used: cited.has(index + 1),
       })),
       p_reason: `Prontidão — ${product.name}`,
       p_next_review_at: nextReviewAt,

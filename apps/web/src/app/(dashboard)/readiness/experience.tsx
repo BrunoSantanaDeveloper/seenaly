@@ -89,7 +89,9 @@ type VerdictRow = {
   id: string;
   output: ReadinessOutput;
   created_at: string;
-  knowledge_refs: { title: string; trust_level: number }[];
+  /** `used` marks the excerpts the verdict actually cited; absent on verdicts
+   *  stored before citations were resolved (see `citedExcerptIndexes`). */
+  knowledge_refs: { title: string; trust_level: number; used?: boolean }[];
 };
 
 export function ReadinessExperience({

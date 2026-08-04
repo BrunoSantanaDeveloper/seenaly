@@ -2339,6 +2339,7 @@
     "source-meta_docs": "documentación de Meta",
     "source-growth_playbook": "playbook de growth",
     "grounded-in": "Basado en:",
+    "grounded-in-none": "El motor no citó ningún fragmento de la base en este veredicto.",
     "generated-at": "Generado el {when}",
     "history-title": "Verificaciones anteriores",
     "go-to-diagnosis": "Ir al diagnóstico de campaña",

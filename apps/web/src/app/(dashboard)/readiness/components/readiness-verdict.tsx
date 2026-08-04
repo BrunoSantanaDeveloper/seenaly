@@ -161,7 +161,7 @@ const SOURCE_COLOR: Record<EvidenceSource, "success" | "primary" | "info" | "def
 
 export interface ReadinessMeta {
   createdAt: string;
-  knowledgeRefs: { title: string; trust_level: number }[];
+  knowledgeRefs: { title: string; trust_level: number; used?: boolean }[];
 }
 
 /** A how-to that has been requested: loading, or loaded with its sources. */
@@ -1109,21 +1109,31 @@ export default function ReadinessVerdict({
           {group(t("plan-quick"), t("plan-quick-hint"), groups.quick)}
           {group(t("plan-later"), t("plan-later-hint"), groups.later)}
 
-          {meta.knowledgeRefs.length > 0 && (
-            <>
-              <Divider />
-              <Box className="flex flex-col gap-1">
-                <Typography variant="body2" className="text-text-secondary">
-                  {t("grounded-in")}
-                </Typography>
-                <Box className="flex flex-row flex-wrap gap-1">
-                  {meta.knowledgeRefs.slice(0, 6).map((ref, index) => (
-                    <Chip key={index} label={ref.title} size="small" variant="outlined" color="grey" />
-                  ))}
+          {/* Only what the verdict actually CITED. Verdicts stored before
+              citations were resolved carry no `used` flag at all; those keep
+              rendering as they always did rather than silently emptying. */}
+          {(() => {
+            const resolved = meta.knowledgeRefs.some((ref) => ref.used !== undefined);
+            const shown = resolved ? meta.knowledgeRefs.filter((ref) => ref.used) : meta.knowledgeRefs;
+            if (meta.knowledgeRefs.length === 0) return null;
+            return (
+              <>
+                <Divider />
+                <Box className="flex flex-col gap-1">
+                  <Typography variant="body2" className="text-text-secondary">
+                    {shown.length > 0 ? t("grounded-in") : t("grounded-in-none")}
+                  </Typography>
+                  {shown.length > 0 && (
+                    <Box className="flex flex-row flex-wrap gap-1">
+                      {shown.slice(0, 6).map((ref, index) => (
+                        <Chip key={index} label={ref.title} size="small" variant="outlined" color="grey" />
+                      ))}
+                    </Box>
+                  )}
                 </Box>
-              </Box>
-            </>
-          )}
+              </>
+            );
+          })()}
 
           <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
             <Box className="flex flex-col">

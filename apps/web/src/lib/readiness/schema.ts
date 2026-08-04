@@ -311,3 +311,32 @@ export function reconcileVerdict(output: ReadinessOutput): ReadinessOutput {
   }
   return output;
 }
+
+/**
+ * Which retrieved excerpts the verdict actually CITED, as 1-based indexes.
+ *
+ * The engine is told to cite excerpts as `[n]` and it does — into
+ * `technical_basis[].citation` — but nothing ever resolved those numbers back
+ * to a document, so the "Fundamentado em" chips listed everything RETRIEVED.
+ * That is a claim the product cannot back: the user reads it as "these are the
+ * sources behind your verdict" when several were merely fetched and possibly
+ * never read. In a product whose whole promise is that a recommendation cites
+ * its rule, showing unread sources as grounding is the one lie that costs the
+ * most.
+ *
+ * Tolerant on purpose — `[3]`, `[1, 2]`, `[1][2]` and `trecho [4]` all appear
+ * in practice, and the citation is a free-text field. Indexes outside the
+ * retrieved range are dropped rather than trusted.
+ */
+export function citedExcerptIndexes(output: ReadinessOutput, retrievedCount: number): Set<number> {
+  const cited = new Set<number>();
+  for (const finding of output.findings ?? []) {
+    for (const basis of finding.technical_basis ?? []) {
+      for (const match of String(basis.citation ?? "").matchAll(/\[?\s*(\d{1,2})\s*\]?/g)) {
+        const index = Number(match[1]);
+        if (index >= 1 && index <= retrievedCount) cited.add(index);
+      }
+    }
+  }
+  return cited;
+}

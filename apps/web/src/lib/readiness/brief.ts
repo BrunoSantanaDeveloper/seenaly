@@ -552,8 +552,14 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
     {
       key: "descoberta",
       text: "SEO e indexação, sitemap e robots, dados estruturados, descoberta orgânica e presença social como sinal de confiança",
-      meta: 1,
-      playbook: 2,
+      // meta 0: o corpus da Meta não tem UMA LINHA sobre busca orgânica, então
+      // aquele slot era ruído garantido. O playbook subiu de 2 para 4 quando os
+      // cards de descoberta passaram a existir — antes deles a dimensão não
+      // tinha o que recuperar, e o orçamento refletia essa ausência. São
+      // exatamente 4 cards para 4 slots, então não há diluição a temer: tudo
+      // que entra é sobre a dimensão. Medido: 1/2 -> 2/2 (`npm run eval:retrieval`).
+      meta: 0,
+      playbook: 4,
     },
     {
       key: "midia",

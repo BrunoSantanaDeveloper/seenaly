@@ -52,6 +52,19 @@ que acontece **depois do clique** e **antes da campanha** (página, checkout, of
 - [Remarketing por estado do ciclo de vida e disciplina de exclusão](remarketing-estado-ciclo-vida.md) (trust 4): O público não se divide em "visitou / não visitou" e sim pelo estado no funil (cadastrou-não-ativou, ativou-não-contratou, trial expirando, pagante, cancelado) — cada um pede outra mensagem, e excluir quem já paga é a correção mais barata. A mecânica de Públicos Personalizados fica em `meta-ads-docs`.
 - [Métricas de SaaS por assinatura: ativação, trial→pagante, churn e payback](metricas-saas-conversao.md) (trust 4): Em assinatura o CPA não fecha a conta sozinho — quem paga a aquisição é o LTV, que depende de churn. As métricas mínimas e qual delas separa ativação de oferta de produto, mais por que payback costuma ser a restrição real de quem começa.
 
+## Descoberta e presença orgânica
+
+> Cobre a dimensão `descoberta` do Diagnóstico de Prontidão, cujos itens o scan da página
+> verifica de forma determinística. Não é um corpus de SEO: é o recorte que o motor precisa
+> citar para sustentar findings sobre metadados, indexabilidade, dados estruturados e
+> presença social. Nenhum destes é pré-requisito para anunciar — os cards são explícitos
+> sobre isso — e o argumento para tratá-los antes é sempre custo de correção, nunca bloqueio.
+
+- [Fundamentos de descoberta: title, meta description e hierarquia da página](descoberta-title-meta-description.md) (trust 2): O que title, meta description, H1 e lang fazem na busca e no compartilhamento, e por que um título herdado do template gasta a vitrine dizendo nada. Item `diy` de menor custo do grupo.
+- [Indexabilidade: noindex, robots.txt e sitemap](descoberta-indexacao-sitemap-robots.md) (trust 2): A diferença entre rastrear e listar, a armadilha documentada de bloquear e marcar noindex ao mesmo tempo, e por que o achado real costuma ser configuração de ambiente de teste vazada para produção. Indexabilidade é decisão deliberada, não checkbox universal.
+- [Dados estruturados: como a oferta se descreve para máquinas](descoberta-dados-estruturados.md) (trust 2): schema.org Product/Offer/FAQ como declaração de elegibilidade a recursos avançados de resultado — e o único item de descoberta onde presença incorreta é passivo, não ausência.
+- [Presença social e conteúdo orgânico como sinal pré-clique](descoberta-presenca-social-conteudo.md) (trust 4): O perfil que assina o anúncio é verificado antes da compra, e conteúdo orgânico é o único teste de mensagem anterior ao orçamento de mídia. Sinal orgânico ordena hipóteses; nunca prevê resultado pago.
+
 ## Mensuração e funil
 
 - [Mensuração de funil: o que medir para o diagnóstico fechar](mensuracao-funil-metricas.md) (trust 4): As métricas mínimas do funil (visitas, checkout iniciado, compra, pagamento pendente, reembolso, receita líquida, margem) e qual taxa separa cada hipótese concorrente — página vs. checkout vs. preço. É o mapa do que o motor pede em `missing_data`. Para produtos de assinatura, ver [metricas-saas-conversao](metricas-saas-conversao.md).

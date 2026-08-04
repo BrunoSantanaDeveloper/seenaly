@@ -19,10 +19,12 @@
   "$baselines": {
     "query-unica-12-assuntos": "1/14 = 7% — a string única que existia antes da decomposição, medida no índice chunk-v2-lf.",
     "chunk-v2-lf": "11/14 = 79% (decomposta, maxPerDocument 1). Com maxPerDocument 2 era 9/14 = 64%: um orçamento de 4 chunks com teto de 2 por documento nunca devolve mais de 2 documentos.",
-    "chunk-v3-titled": "12/14 = 86% — título + caminho de headings embedados junto do chunk. O ganho veio onde a hipótese apontava: mensuracao_instalacao 1/3 -> 2/3, cujos documentos-alvo se identificam pelo TÍTULO ('Boas práticas para a configuração do Pixel da Meta'). Medido com 5 documentos ainda fora da busca por cota diária — nenhum deles é alvo do gabarito, então o número é levemente OTIMISTA (menos documentos disputando os mesmos slots). Remedir com o corpus em 124/124.",
+    "chunk-v3-titled": "12/14 = 86% — título + caminho de headings embedados junto do chunk. O ganho veio onde a hipótese apontava: mensuracao_instalacao 1/3 -> 2/3, cujos documentos-alvo se identificam pelo TÍTULO ('Boas práticas para a configuração do Pixel da Meta').",
     "hibrida-rrf": "13/14 = 93% — busca densa + lexical fundidas por RRF (migração 0043). Fechou `mensuracao_otimizacao` em 2/2: 'Sobre a fase de aprendizado' é nome próprio, o caso que a busca densa não ancora. ATENÇÃO ao detalhe que decidiu tudo: `websearch_to_tsquery` junta termos com AND, e a pergunta de 13 palavras casava 0 de 498 chunks — a metade lexical devolvia vazio e o híbrido era idêntico ao denso (86%). Com OR, 412 chunks casam e o ranking sobe os alvos.",
     "corpus-completo-124": "13/14 = 93% — mesmo número com o corpus em 124/124 (antes havia 5 docs fora da busca por cota). O 93% NÃO estava inflado pela ausência deles.",
     "trust-reclassificado": "13/14 = 93%, inalterado — e era o esperado. Reclassificar 21,3% dos chunks Meta (cases para trust 3, curso Performance 5 para trust 4) corrige HONESTIDADE, não recall: `buildKnowledgeContext` imprime o nível no prompt, então o motor vinha sendo informado de que um case promocional era 'trust 1: doc oficial'. Recall é a métrica errada para essa correção; não interprete o empate como 'não funcionou'.",
+    "descoberta-cards": "15/16 = 94% — 4 cards escritos para a dimensão `descoberta` (que tinha ZERO documentos) e orçamento dela corrigido para meta 0 / playbook 4. O denominador subiu de 14 para 16 porque a dimensão passou a ter alvos. ESTA É A CONFIGURAÇÃO ATUAL.",
+    "chunk-v4-sections-REVERTIDO": "13/16 = 81% — EXPERIMENTO QUE FALHOU, mantido aqui para não ser refeito. Chunking header-aware (fatiar por seção markdown em vez de empacotar parágrafos, com fusão de seções curtas adjacentes) produziu chunks visivelmente melhores — 620 em vez de 498, 73% começando num heading, meio-palavra de 1,2% para 0,8% — e PIOROU a recuperação: mensuracao_instalacao 2/3 -> 1/3, descoberta 2/2 -> 1/2. Hipótese: com maxPerDocument 1 só o melhor chunk de cada documento entra, e chunks mais estreitos cobrem menos da pergunta. Revertido para o empacotamento por parágrafo.",
     "$proximo": "Único alvo restante: `boas-praticas-configuracao-pixel`, em mensuracao_instalacao — que tem 3 alvos disputando 4 slots com maxPerDocument 1. É limite de ORÇAMENTO, não de recuperação: subir `meta` de 4 para 5 nessa dimensão resolveria, ao custo de contexto. Medir antes."
   },
   "queries": {
@@ -51,9 +53,8 @@
       "note": "Escolha de funil. A régua de e-mail é trial-first e pertence a `ativacao`."
     },
     "descoberta": {
-      "expect": [],
-      "coverage": "none",
-      "note": "LACUNA CONHECIDA: zero documentos sobre SEO, sitemap, robots.txt, dados estruturados ou Core Web Vitals nos dois corpora, enquanto o checklist audita 6 itens (4 medidos pelo scan). Enquanto estiver assim, o esperado correto é NÃO recuperar nada — trecho vindo aqui é ruído, não evidência."
+      "expect": ["descoberta-indexacao-sitemap-robots", "descoberta-title-meta-description"],
+      "note": "Lacuna FECHADA em 2026-08-04: 4 cards escritos para os 6 itens do checklist (title/meta/H1, indexabilidade, dados estruturados, presença social). Antes disso a dimensão tinha zero documentos e o esperado correto era não recuperar nada. Os dois alvos são os que sustentam os achados mais frequentes do scan — `robotsDisallowsAll`/`noindex` e title ausente."
     },
     "midia": {
       "expect": ["criativo-gancho-angulo-prova"],

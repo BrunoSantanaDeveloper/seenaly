@@ -19,13 +19,13 @@ origem: princípios e fatos não são protegidos; a expressão deles é.
 
 ## Mapa de trust levels (escala 1–5 da knowledge base)
 
-| Trust | Uso neste corpus |
-|---|---|
-| 1 | Documentação oficial de plataforma (gateways, Google, web.dev) — capturável, cite a página |
-| 2 | Pesquisa quantitativa publicada (Baymard, NN/g, estudos com N grande) — sintetizada com números e atribuição |
-| 3 | Estudos de caso documentados com resultado verificável |
-| 4 | Playbook sintetizado de frameworks de praticantes (livros, metodologias consolidadas) — **default** |
-| 5 | Opinião/curso sem evidência verificável — evitar; só se o valor prático justificar |
+| Trust | Uso neste corpus                                                                                             |
+| ----- | ------------------------------------------------------------------------------------------------------------ |
+| 1     | Documentação oficial de plataforma (gateways, Google, web.dev) — capturável, cite a página                   |
+| 2     | Pesquisa quantitativa publicada (Baymard, NN/g, estudos com N grande) — sintetizada com números e atribuição |
+| 3     | Estudos de caso documentados com resultado verificável                                                       |
+| 4     | Playbook sintetizado de frameworks de praticantes (livros, metodologias consolidadas) — **default**          |
+| 5     | Opinião/curso sem evidência verificável — evitar; só se o valor prático justificar                           |
 
 ## Domínios e prioridade
 
@@ -44,7 +44,15 @@ origem: princípios e fatos não são protegidos; a expressão deles é.
    tetos de ticket/nicho para público frio, esteira (order bump/upsell/downsell/
    recuperação) e heurísticas de teste→escala. Fortemente baseado em praticantes BR
    (trust 4–5): sempre com atribuição nominal e nunca apresentado como regra da Meta.
-6. **SaaS, trial e recorrência** — modelo trial-first (cadastro grátis → uso → contratação),
+6. **Descoberta e presença orgânica** — metadados da página (title, meta description, H1),
+   indexabilidade (noindex, robots.txt, sitemap), dados estruturados e presença social como
+   sinal pré-clique. Existe porque a dimensão `descoberta` do Diagnóstico de Prontidão
+   audita seis itens — quatro deles verificados deterministicamente pelo scan — e o corpus
+   não tinha **uma linha** para sustentá-los: as findings saíam com evidência medida e
+   `technical_basis` vazio, que é a recomendação genérica que o produto proíbe. Recorte
+   deliberadamente estreito: cobre o que o motor precisa citar, não SEO em geral — um
+   corpus amplo de busca afogaria os cards de conversão, que são o núcleo do playbook.
+7. **SaaS, trial e recorrência** — modelo trial-first (cadastro grátis → uso → contratação),
    ativação/aha moment, régua de e-mail do trial e economia unitária de assinatura
    (churn, LTV/CAC, payback). É o **segundo modelo de negócio** do corpus: os itens 1–5
    assumem compra imediata em checkout único; aqui a venda acontece depois do uso, e a

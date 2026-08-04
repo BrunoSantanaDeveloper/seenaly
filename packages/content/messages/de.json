@@ -2339,6 +2339,7 @@
     "source-meta_docs": "Meta-Dokumentation",
     "source-growth_playbook": "Growth-Playbook",
     "grounded-in": "Basiert auf:",
+    "grounded-in-none": "Die Engine hat in diesem Urteil keinen Auszug aus der Wissensbasis zitiert.",
     "generated-at": "Erstellt am {when}",
     "history-title": "Frühere Prüfungen",
     "go-to-diagnosis": "Zur Kampagnendiagnose",

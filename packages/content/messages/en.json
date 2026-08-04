@@ -2339,6 +2339,7 @@
     "source-meta_docs": "Meta documentation",
     "source-growth_playbook": "growth playbook",
     "grounded-in": "Grounded in:",
+    "grounded-in-none": "The engine cited no knowledge-base excerpt in this verdict.",
     "generated-at": "Generated {when}",
     "history-title": "Previous checks",
     "go-to-diagnosis": "Go to campaign diagnosis",

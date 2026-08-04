@@ -36,6 +36,16 @@ export interface Chunk {
  * document it belongs to. The path is metadata the corpus already carries and
  * the vector never saw. It is reported, not glued onto `content` — the caller
  * decides what to embed and what to show, and those are not the same string.
+ *
+ * MEASURED, and it settles an obvious-sounding idea: splitting on SECTION
+ * boundaries instead of packing paragraphs (heading-aware chunking, with
+ * adjacent short sections merged) produced cleaner-looking chunks — 620 instead
+ * of 498, 73% of them starting at a heading — and made retrieval WORSE:
+ * document recall 94% -> 81% (`npm run eval:retrieval`). The likely mechanism
+ * is the interaction with `maxPerDocument: 1`, which takes only each document's
+ * single best chunk: narrower chunks each cover less of a question, so the best
+ * one matches less of it. Do not reintroduce section splitting without
+ * re-running the gate — it is the kind of change that looks right and is not.
  */
 export function chunkDocument(text: string, options: ChunkOptions = {}): Chunk[] {
   const maxChars = options.maxChars ?? 1600;
