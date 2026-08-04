@@ -39,6 +39,20 @@ export interface KnowledgeSearchOptions {
    * question never appears. Costs one wider query, then filters locally.
    */
   maxPerDocument?: number;
+  /**
+   * Enables HYBRID retrieval: the same question is also run as a lexical
+   * (full-text) search and the two rankings are fused with RRF.
+   *
+   * Pass this whenever the query can contain a proper noun. Dense retrieval
+   * averages "API de Conversões" into its words and cannot tell the document
+   * that IS about it from the ninety that mention it; full-text matches the
+   * exact string and the weighted title. Both halves are weak where the other
+   * is strong, which is why they are fused rather than swapped.
+   *
+   * Only useful with a focused query — a string listing a dozen subjects turns
+   * into a stopword soup that matches everything.
+   */
+  queryText?: string;
 }
 
 /**

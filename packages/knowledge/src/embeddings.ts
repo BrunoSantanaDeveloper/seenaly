@@ -69,7 +69,25 @@ async function takeSlot() {
 const isRetryableRateLimit = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   if (!/429|RESOURCE_EXHAUSTED/i.test(message)) return false;
-  return !/credits are depleted/i.test(message);
+  if (/credits are depleted/i.test(message)) return false;
+  // A PER-DAY quota does not recover inside a run. Retrying it burns the whole
+  // backoff ladder per document — minutes of waiting — and then fails anyway,
+  // which is how a bulk ingestion turns a clear "the daily budget is gone" into
+  // a slow, confusing partial failure. Stop and say so.
+  return !/PerDay|RequestsPerDay/i.test(message);
+};
+
+/** Gemini returns `RetryInfo.retryDelay` ("5.26s"); obey it over guessing. */
+const serverRetryDelayMs = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  const match = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(message) ?? /retry in (\d+(?:\.\d+)?)s/i.exec(message);
+  return match ? Math.ceil(Number(match[1]) * 1000) : null;
+};
+
+/** True when the daily free-tier budget is gone — waiting will not help today. */
+export const isDailyQuotaExhausted = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /429|RESOURCE_EXHAUSTED/i.test(message) && /PerDay|RequestsPerDay/i.test(message);
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -96,9 +114,11 @@ async function embed(texts: string[], taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVA
         break;
       } catch (error) {
         if (attempt >= MAX_RETRIES || !isRetryableRateLimit(error)) throw error;
-        // Exponential backoff, capped: per-minute quotas recover on their own,
-        // so waiting is the correct response, not failing the document.
-        await sleep(Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS));
+        // Per-minute quotas recover on their own, so waiting is the correct
+        // response rather than failing the document. Prefer the delay the
+        // server asked for; fall back to capped exponential backoff.
+        const serverDelay = serverRetryDelayMs(error);
+        await sleep(serverDelay ?? Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS));
       }
     }
     for (const embedding of response.embeddings ?? []) {

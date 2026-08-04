@@ -115,7 +115,14 @@ async function main() {
         [[metaIds, query.meta] as const, [playbookIds, query.playbook] as const]
           .filter(([ids, count]) => ids.length > 0 && count > 0)
           .map(([collectionIds, matchCount]) =>
-            searchKnowledge(supabase, vectors[index], { collectionIds, matchCount, maxPerDocument: 1 }),
+            searchKnowledge(supabase, vectors[index], {
+              collectionIds,
+              matchCount,
+              maxPerDocument: 1,
+              // Mirrors production. `EVAL_DENSE_ONLY=1` drops the lexical half
+              // so the two can be compared on the same index, same minute.
+              ...(process.env.EVAL_DENSE_ONLY ? {} : { queryText: query.text }),
+            }),
           ),
       )
     ).flat();

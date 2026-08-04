@@ -25,7 +25,13 @@ import process from "node:process";
 
 import { createClient } from "@supabase/supabase-js";
 
-import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, normalizeNewlines, processDocument } from "@flyee/knowledge";
+import {
+  EMBEDDING_DIMENSIONS,
+  EMBEDDING_MODEL,
+  isDailyQuotaExhausted,
+  normalizeNewlines,
+  processDocument,
+} from "@flyee/knowledge";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -319,6 +325,14 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
     } else {
       console.error(`✗ ${file}: ${result.error}`);
       failed += 1;
+      // The daily budget does not come back before tomorrow. Grinding through
+      // the remaining documents just converts one clear cause into a hundred
+      // identical failures, and the summary stops being readable.
+      if (isDailyQuotaExhausted(result.error)) {
+        console.error("\n! Cota DIÁRIA de embeddings esgotada — os documentos restantes falhariam igual.");
+        console.error("  Rode novamente após o reset diário, ou habilite billing para subir o limite.");
+        break;
+      }
     }
   }
 

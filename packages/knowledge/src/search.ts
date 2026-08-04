@@ -27,7 +27,13 @@ export async function searchKnowledge(
   const matchCount = options.matchCount ?? 8;
   const perDocument = options.maxPerDocument;
   const embedding = typeof query === "string" ? await embedQuery(query) : query;
-  const { data, error } = await supabase.rpc("knowledge_search", {
+  // Strictly opt-in, NOT inferred from a string query: enabling hybrid for
+  // every existing caller would silently change retrieval for the chat route
+  // and the how-to engine, neither of which has been measured against it. A
+  // free-text chat message is also the case the lexical half handles worst —
+  // long prose stems down to common words that match everything.
+  const queryText = options.queryText;
+  const shared = {
     query_embedding: JSON.stringify(embedding),
     collections: options.collectionIds,
     // Over-fetch when diversifying: the cap discards chunks, so asking for the
@@ -35,7 +41,10 @@ export async function searchKnowledge(
     match_count: perDocument ? matchCount * 4 : matchCount,
     max_trust: options.maxTrust ?? 5,
     min_similarity: options.minSimilarity ?? 0.25,
-  });
+  };
+  const { data, error } = queryText
+    ? await supabase.rpc("knowledge_search_hybrid", { ...shared, query_text: queryText })
+    : await supabase.rpc("knowledge_search", shared);
   if (error) throw new Error(`knowledge_search failed: ${error.message}`);
 
   const results = (data ?? []) as KnowledgeSearchResult[];

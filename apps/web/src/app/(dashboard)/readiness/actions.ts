@@ -810,7 +810,16 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
             // decides the verdict is whether the document carrying the rule is
             // present at all, not how much of it. Measured on the real index:
             // recall 64% -> 79% (`npm run eval:retrieval`).
-            searchKnowledge(supabase, vector, { collectionIds, matchCount, maxPerDocument: 1 }),
+            searchKnowledge(supabase, vector, {
+              collectionIds,
+              matchCount,
+              maxPerDocument: 1,
+              // Hybrid: these questions are full of proper nouns ("API de
+              // Conversões", "fase de aprendizado", "PIX") that dense
+              // retrieval averages away. Safe here precisely because the
+              // questions are focused — see `readinessRetrievalPlan`.
+              queryText: query.text,
+            }),
           );
       });
       for (const batch of await Promise.all(searches)) excerpts.push(...batch);
