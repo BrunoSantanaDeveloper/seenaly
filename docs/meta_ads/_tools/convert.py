@@ -442,7 +442,11 @@ def main():
     for f in files:
         md = convert(f)
         out = OUT / (slug_stem(f.stem) + ".md")
-        out.write_text(md, encoding="utf-8")
+        # newline="\n": no Windows o padrao traduz \n para \r\n, e o chunker da
+        # base de conhecimento separa paragrafos por dois \n consecutivos —
+        # texto CRLF nunca casa, e o documento inteiro vira um chunk cortado as
+        # cegas no meio das palavras. Ver .gitattributes e chunking.ts.
+        out.write_text(md, encoding="utf-8", newline="\n")
         print(f"{f.name} -> md/{out.name}  ({len(md)//1024} KB)")
 
     # arquivos sem entrada no metadata.json = novos, ainda nao enriquecidos

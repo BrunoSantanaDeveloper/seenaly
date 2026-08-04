@@ -2453,6 +2453,7 @@
     "error-verdict_malformed": "Le verdict ne respecte pas le format attendu.",
     "error-finding_not_found": "Constat introuvable dans le verdict.",
     "error-knowledge_failed": "Échec de la consultation de la base de connaissances. Rien n'a été facturé.",
+    "error-knowledge_empty": "La base de connaissances n'a renvoyé aucun extrait pour cette analyse. Sans fondement, le verdict serait générique : il n'a pas été généré et rien n'a été facturé.",
     "error-engine_failed": "Le moteur a échoué. Rien n'a été facturé.",
     "error-engine_malformed": "Le moteur a renvoyé une réponse au format invalide. Rien n'a été facturé.",
     "error-save_failed": "Impossible d'enregistrer. Réessayez.",

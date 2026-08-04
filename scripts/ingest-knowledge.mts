@@ -4,13 +4,20 @@
  * default trust level; individual documents can override it via a `trust:`
  * frontmatter field.
  *
- * Usage:  npm run knowledge:ingest [-- --corpus=<slug>] [-- --dry-run]
+ * Usage:  npm run knowledge:ingest [-- --corpus=<slug>] [-- --dry-run] [-- --force]
  *
  * Requires in apps/web/.env (or the environment):
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
  *
  * Idempotent: documents are keyed by their file slug (metadata.slug); unchanged
  * content is skipped, changed content is re-chunked and re-embedded.
+ *
+ * "Unchanged" means unchanged IN EVERY INPUT, not just the text. A vector is
+ * derived from the text AND from the embedding model AND from the chunker, so
+ * the skip check carries INGEST_PROTOCOL (below) — otherwise swapping the model
+ * or the splitter and re-running prints "130 unchanged" and leaves the whole
+ * corpus in the old vector space, reporting success. That is the one failure
+ * mode of a re-ingestion that looks exactly like a clean run.
  */
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -18,7 +25,7 @@ import process from "node:process";
 
 import { createClient } from "@supabase/supabase-js";
 
-import { processDocument } from "@flyee/knowledge";
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, normalizeNewlines, processDocument } from "@flyee/knowledge";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -51,7 +58,19 @@ const CORPORA: Corpus[] = [
   },
 ];
 
+/**
+ * Identifies the vector space a document's chunks live in. Persisted per
+ * document in `metadata.embedding_protocol` and compared on every run, so any
+ * change here invalidates the ingestion cache automatically.
+ *
+ * BUMP THE SUFFIX whenever the chunking behaviour changes (`chunkText` params
+ * or algorithm). The model and dimensions come from the constants, so those
+ * invalidate on their own.
+ */
+const INGEST_PROTOCOL = `${EMBEDDING_MODEL}@${EMBEDDING_DIMENSIONS}/chunk-v2-lf`;
+
 const DRY_RUN = process.argv.includes("--dry-run");
+const FORCE = process.argv.includes("--force");
 const corpusArg = process.argv.find((arg) => arg.startsWith("--corpus="))?.slice("--corpus=".length);
 
 /** Minimal .env loader — never overrides variables already set in the environment. */
@@ -113,10 +132,38 @@ function resolveTrust(front: Frontmatter, corpus: Corpus, file: string): 1 | 2 |
   return front.trust as 1 | 2 | 3 | 4 | 5;
 }
 
-/** Drops the human-only navigation line; keeps everything else (image alt text is content). */
+/**
+ * Drops human-only navigation; keeps everything else (image alt text is content).
+ *
+ * Newlines are normalized here so the stored `content` is LF regardless of how
+ * the corpus was checked out — the chunker needs `\n\n` to see paragraphs at
+ * all (see chunking.ts), and keeping the DB copy canonical also keeps the
+ * skip-comparison below stable across machines.
+ *
+ * Link-only bullets are navigation, not content: a list of internal `.md`
+ * links carries no rule, but it embeds as a dense list of topic names, which
+ * scores well against a multi-topic retrieval query and burns evidence slots
+ * that should hold an actual platform rule. Bullets that also carry prose are
+ * left alone — the test is that the bullet is ONLY a link.
+ */
 function cleanBody(body: string): string {
-  return body.replace(/^\[← Voltar[^\]]*\]\(INDEX\.md\)\s*/im, "").trim();
+  return normalizeNewlines(body)
+    .replace(/^\[← Voltar[^\]]*\]\(INDEX\.md\)\s*/im, "")
+    .replace(/^[ \t]*[-*][ \t]*\[[^\]]+\]\([^)]+\.md\)[ \t]*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
+
+/**
+ * Pure navigation documents ("índice do tópico") are excluded from ingestion.
+ *
+ * They are lists of topic titles with no rule in them, and that shape is
+ * pathologically attractive to the readiness query, which is itself a list of
+ * topics — high cosine similarity, zero citable content. The corpus already
+ * self-declares them with the `index` tag, so no heuristic is needed.
+ */
+const isNavigationOnly = (front: Frontmatter) =>
+  front.tags.includes("index") || /\(\s*[íi]ndice do t[óo]pico\s*\)/i.test(front.title ?? "");
 
 async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: Corpus) {
   const corpusDir = path.join(ROOT, corpus.dir);
@@ -128,7 +175,13 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
       const { front, body } = parseFrontmatter(await readFile(path.join(corpusDir, file), "utf8"));
       const title = front.title ?? file.replace(/\.md$/, "");
       const trust = resolveTrust(front, corpus, file);
-      console.log(`- ${file}: "${title}" (trust ${trust}, ${cleanBody(body).length} chars, tags: ${front.tags.join(", ") || "—"})`);
+      if (isNavigationOnly(front)) {
+        console.log(`- ${file}: SKIP (navegação) "${title}"`);
+        continue;
+      }
+      console.log(
+        `- ${file}: "${title}" (trust ${trust}, ${cleanBody(body).length} chars, tags: ${front.tags.join(", ") || "—"})`,
+      );
     }
     return { ingested: 0, skipped: 0, failed: 0 };
   }
@@ -157,10 +210,15 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
   let ingested = 0;
   let skipped = 0;
   let failed = 0;
+  let navigation = 0;
 
   for (const file of files) {
     const slug = file.replace(/\.md$/, "");
     const { front, body } = parseFrontmatter(await readFile(path.join(corpusDir, file), "utf8"));
+    if (isNavigationOnly(front)) {
+      navigation += 1;
+      continue;
+    }
     const content = cleanBody(body);
     const title = front.title ?? slug;
     const trust = resolveTrust(front, corpus, file);
@@ -171,11 +229,12 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
       related: front.related,
       sources: front.sources,
       captured: front.captured ?? null,
+      embedding_protocol: INGEST_PROTOCOL,
     };
 
     const { data: existing, error: lookupError } = await supabase
       .from("knowledge_documents")
-      .select("id, content, status, trust_level")
+      .select("id, content, status, trust_level, metadata")
       .eq("collection_id", collectionId)
       .eq("metadata->>slug", slug)
       .maybeSingle();
@@ -185,7 +244,15 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
       continue;
     }
 
-    if (existing && existing.content === content && existing.trust_level === trust && existing.status === "ready") {
+    const storedProtocol = (existing?.metadata as { embedding_protocol?: string } | null)?.embedding_protocol;
+    if (
+      !FORCE &&
+      existing &&
+      existing.content === content &&
+      existing.trust_level === trust &&
+      existing.status === "ready" &&
+      storedProtocol === INGEST_PROTOCOL
+    ) {
       skipped += 1;
       continue;
     }
@@ -232,7 +299,41 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
     }
   }
 
-  return { ingested, skipped, failed };
+  if (navigation > 0) console.log(`  (${navigation} documento(s) de navegação ignorado(s))`);
+  return { ingested, skipped, failed, navigation };
+}
+
+/**
+ * Fails the run if any ready document is still on an older protocol.
+ *
+ * This script is the only place that sees the whole corpus, so it is the right
+ * place to assert the invariant. Without it, a partial re-ingestion leaves a
+ * half-old/half-new vector space, which has no symptom at all — just quietly
+ * worse retrieval.
+ */
+async function assertProtocolConsistency(supabase: ReturnType<typeof createClient>) {
+  const { data, error } = await supabase.from("knowledge_documents").select("title, status, metadata");
+  if (error) {
+    console.error(`\n! Não foi possível verificar o protocolo de embedding: ${error.message}`);
+    return false;
+  }
+  const stale = (data ?? []).filter(
+    (doc) =>
+      doc.status === "ready" &&
+      (doc.metadata as { embedding_protocol?: string } | null)?.embedding_protocol !== INGEST_PROTOCOL,
+  );
+  if (stale.length === 0) {
+    console.log(`\n✓ Todos os documentos estão no protocolo ${INGEST_PROTOCOL}.`);
+    return true;
+  }
+  console.error(`\n✗ ${stale.length} documento(s) fora do protocolo ${INGEST_PROTOCOL}:`);
+  for (const doc of stale.slice(0, 10)) {
+    const proto = (doc.metadata as { embedding_protocol?: string } | null)?.embedding_protocol ?? "(nenhum)";
+    console.error(`  - ${doc.title} — ${proto}`);
+  }
+  if (stale.length > 10) console.error(`  … e mais ${stale.length - 10}.`);
+  console.error("A busca mistura espaços vetoriais incompatíveis. Rode novamente (ou com --force).");
+  return false;
 }
 
 async function main() {
@@ -262,15 +363,23 @@ async function main() {
   let ingested = 0;
   let skipped = 0;
   let failed = 0;
+  let navigation = 0;
   for (const corpus of corpora) {
     const result = await ingestCorpus(supabase, corpus);
     ingested += result.ingested;
     skipped += result.skipped;
     failed += result.failed;
+    navigation += result.navigation;
   }
 
-  if (!DRY_RUN) console.log(`\nDone: ${ingested} ingested, ${skipped} unchanged, ${failed} failed.`);
-  if (failed > 0) process.exit(1);
+  if (DRY_RUN) return;
+  console.log(`\nDone: ${ingested} ingested, ${skipped} unchanged, ${navigation} navigation-only, ${failed} failed.`);
+  console.log(`Protocolo: ${INGEST_PROTOCOL}`);
+
+  // Only meaningful for a full run: ingesting one corpus legitimately leaves
+  // the other on whatever protocol it already had.
+  const consistent = corpusArg ? true : await assertProtocolConsistency(supabase);
+  if (failed > 0 || !consistent) process.exit(1);
 }
 
 main().catch((error) => {

@@ -14,7 +14,7 @@ import {
   readinessCreativesBlock,
   readinessFunnelModelBlock,
   readinessOrganicBlock,
-  readinessRetrievalQuery,
+  readinessRetrievalPlan,
   readinessScanBlock,
   readinessSignalsBlock,
   type ScanRecord,
@@ -52,7 +52,13 @@ import { type AiProviderName, type AssistantConfig, getChatProvider } from "@fly
 import { createClient } from "@flyee/auth/server";
 import { createServiceClient } from "@flyee/auth/service";
 import { isInngestConfigured, sendEvent } from "@flyee/jobs";
-import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
+import {
+  buildKnowledgeContext,
+  embedQueries,
+  embedQuery,
+  resolveCollectionIds,
+  searchKnowledge,
+} from "@flyee/knowledge";
 
 const ASSISTANT_SLUG = "readiness-engine";
 const HOWTO_ASSISTANT_SLUG = "readiness-howto";
@@ -504,11 +510,20 @@ export async function generateFindingHowTo(diagnosisId: string, findingIndex: nu
   const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
   try {
     const query = `como fazer, passo a passo: ${finding.recommended_action} (${finding.dimension}). ${finding.finding}`;
+    // One embedding for the query, reused across collections. Searching per
+    // collection keeps the 108-document Meta corpus from crowding out the
+    // playbook, but the vector does not change per collection — embedding it
+    // once per slug paid the API twice for the same answer.
+    const embedding = await embedQuery(query);
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
       excerpts.push(
-        ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
+        ...(await searchKnowledge(supabase, embedding, {
+          collectionIds,
+          matchCount: perCollection,
+          maxPerDocument: 2,
+        })),
       );
     }
   } catch (error) {
@@ -762,27 +777,59 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
   if (!claimError && claimed === false) return failure("generation_in_progress");
 
   try {
-    // Ground in the knowledge base. Per collection (same reason as the diagnosis
-    // engine): the large trust-1 Meta corpus would otherwise crowd out the
-    // growth playbook, which carries most of the pre-spend structure knowledge.
-    const knowledgeConfig = (assistant.config as { knowledge?: { collections?: string[]; matchCount?: number } })
-      ?.knowledge;
-    const collectionSlugs = knowledgeConfig?.collections ?? ["growth-playbook", "meta-ads-docs"];
-    const matchCount = knowledgeConfig?.matchCount ?? 8;
-    const perCollection = Math.max(2, Math.ceil(matchCount / Math.max(collectionSlugs.length, 1)));
+    // Ground in the knowledge base with ONE question per audited dimension
+    // (see `readinessRetrievalPlan`). Each question carries its own collection
+    // weights, which is what the old blind 50/50 loop was standing in for: the
+    // large trust-1 Meta corpus owns measurement, the playbook owns conversion
+    // structure, and neither should crowd the other out of a subject it owns.
     const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
+    const plan = readinessRetrievalPlan(Boolean(product.landingPageUrl), profile.funnelModel);
     try {
-      const query = readinessRetrievalQuery(Boolean(product.landingPageUrl));
-      for (const slug of collectionSlugs) {
-        const collectionIds = await resolveCollectionIds(supabase, [slug]);
-        if (collectionIds.length === 0) continue;
-        excerpts.push(
-          ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
-        );
-      }
+      // Collections resolved once, and every question embedded in a SINGLE
+      // batch — decomposition costs one embedding call for the whole plan,
+      // fewer than the two the previous single query paid (once per collection).
+      const [metaIds, playbookIds, vectors] = await Promise.all([
+        resolveCollectionIds(supabase, ["meta-ads-docs"]),
+        resolveCollectionIds(supabase, ["growth-playbook"]),
+        embedQueries(plan.map((query) => query.text)),
+      ]);
+
+      const searches = plan.flatMap((query, index) => {
+        const vector = vectors[index];
+        const perCorpus: [string[], number][] = [
+          [metaIds, query.meta],
+          [playbookIds, query.playbook],
+        ];
+        return perCorpus
+          .filter(([ids, count]) => ids.length > 0 && count > 0)
+          .map(([collectionIds, matchCount]) =>
+            searchKnowledge(supabase, vector, { collectionIds, matchCount, maxPerDocument: 2 }),
+          );
+      });
+      for (const batch of await Promise.all(searches)) excerpts.push(...batch);
     } catch (error) {
       return failure("knowledge_failed", { detail: (error as Error).message });
     }
+
+    // A single dimension coming back empty is legitimate — it means the corpus
+    // does not cover it, and saying so beats inventing grounding. EVERY
+    // dimension coming back empty is a fault: the collections are global and
+    // always populated, so zero excerpts across the whole plan means the corpus,
+    // the slugs or the similarity floor is broken. Continuing would produce a
+    // confident verdict with no citable rule behind it — the generic
+    // recommendation this engine exists to prevent — so fail before the charge.
+    if (excerpts.length === 0) {
+      return failure("knowledge_empty", { detail: `queries: ${plan.map((query) => query.key).join(", ")}` });
+    }
+
+    // The same chunk can win more than one dimension; keep the first hit so the
+    // engine is not handed the same excerpt twice under different numbers.
+    const seenChunks = new Set<string>();
+    const uniqueExcerpts = excerpts.filter((excerpt) => {
+      if (seenChunks.has(excerpt.chunk_id)) return false;
+      seenChunks.add(excerpt.chunk_id);
+      return true;
+    });
 
     const brief = [
       "## Contexto do produto",
@@ -810,7 +857,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       "",
       "## Memória de experimentos",
       experimentsBlock((experimentRows as ExperimentSummaryRow[]) ?? []),
-      buildKnowledgeContext(excerpts),
+      buildKnowledgeContext(uniqueExcerpts),
       "",
       "## Tarefa",
       "Audite a prontidão desta estrutura para receber tráfego pago e devolva o veredito.",
@@ -867,7 +914,7 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
       p_insufficient_data: verdict.insufficient_data,
       // Readiness never reads media data — that is the whole point.
       p_had_campaign_data: false,
-      p_knowledge_refs: excerpts.map((excerpt) => ({
+      p_knowledge_refs: uniqueExcerpts.map((excerpt) => ({
         title: excerpt.title,
         source: excerpt.source,
         trust_level: excerpt.trust_level,

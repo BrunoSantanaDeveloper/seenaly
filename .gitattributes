@@ -1,0 +1,25 @@
+# Line endings are content, not formatting, for the knowledge corpus.
+#
+# `core.autocrlf=true` (the Windows default) checks Markdown out as CRLF. The
+# knowledge chunker splits paragraphs on two consecutive `\n`, which CRLF text
+# never contains — so a CRLF checkout silently degrades every embedding built
+# from `docs/`, and only on Windows. Pinning the working tree to LF makes the
+# corpus byte-identical on every machine and in CI.
+* text=auto eol=lf
+
+# Binary assets: never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
+*.gz binary

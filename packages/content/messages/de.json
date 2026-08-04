@@ -2453,6 +2453,7 @@
     "error-verdict_malformed": "Das Urteil entspricht nicht dem erwarteten Format.",
     "error-finding_not_found": "Befund im Urteil nicht gefunden.",
     "error-knowledge_failed": "Abfrage der Wissensbasis fehlgeschlagen. Es wurde nichts berechnet.",
+    "error-knowledge_empty": "Die Wissensbasis lieferte keine Auszüge für diese Analyse. Ohne Beleg wäre das Urteil generisch, deshalb wurde es nicht erstellt und nichts berechnet.",
     "error-engine_failed": "Die Engine ist fehlgeschlagen. Es wurde nichts berechnet.",
     "error-engine_malformed": "Die Engine lieferte eine Antwort im falschen Format. Es wurde nichts berechnet.",
     "error-save_failed": "Speichern fehlgeschlagen. Bitte erneut versuchen.",

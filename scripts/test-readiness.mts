@@ -50,7 +50,7 @@ import {
   readinessChecklistBlock,
   readinessCreativesBlock,
   readinessFunnelModelBlock,
-  readinessRetrievalQuery,
+  readinessRetrievalPlan,
   readinessScanBlock,
 } from "../apps/web/src/lib/readiness/brief";
 import { compareVerdicts, worstStatusByDimension } from "../apps/web/src/lib/readiness/compare";
@@ -162,7 +162,7 @@ check("missing row is a valid empty profile", toReadinessProfile(null), EMPTY_RE
 check("garbage checkout_type ignored", toReadinessProfile({ checkout_type: "bogus" }).checkoutType, null);
 
 /* ========================================================================== */
-section("Finding → checklist mapping (\"I already fixed this\")");
+section('Finding → checklist mapping ("I already fixed this")');
 /* ========================================================================== */
 
 // Model output is never trusted: unknown keys are dropped, junk yields nothing.
@@ -285,17 +285,29 @@ check(
   "unverifiable",
 );
 // Unclaimed + absent is not a lie, just a gap.
-check("unclaimed + absent => unverifiable", verifyItem("pixelInstalled", false, signalsWith({ tracking: { metaPixel: false } })), "unverifiable");
+check(
+  "unclaimed + absent => unverifiable",
+  verifyItem("pixelInstalled", false, signalsWith({ tracking: { metaPixel: false } })),
+  "unverifiable",
+);
 
 // Tier discipline: things we cannot see are never refused.
 for (const key of ["capiInstalled", "conversionEventTested", "paymentPix", "checkoutShort"] as const) {
-  check(`declared item never refused: ${key}`, verifyItem(key, true, signalsWith({ tracking: { metaPixel: false } })), "unverifiable");
+  check(
+    `declared item never refused: ${key}`,
+    verifyItem(key, true, signalsWith({ tracking: { metaPixel: false } })),
+    "unverifiable",
+  );
 }
 // Weak hints must not refuse either — rejecting on a guess is worse than trusting.
 // (pageFast left this list in V3: it is proved-tier now, via the official
 // PageSpeed channel — tested in its own section below.)
 for (const key of ["pageMobileTested", "hasGuarantee", "socialProfiles", "emailCapture"] as const) {
-  check(`weak item never refused: ${key}`, verifyItem(key, true, signalsWith({ seo: { hasViewport: false } })), "unverifiable");
+  check(
+    `weak item never refused: ${key}`,
+    verifyItem(key, true, signalsWith({ seo: { hasViewport: false } })),
+    "unverifiable",
+  );
 }
 
 // `sitemapRobots` means BOTH published; an `error` is not evidence of absence.
@@ -317,7 +329,10 @@ check(
 
 check(
   "verifyAgainstScan lists only the disproved claims",
-  verifyAgainstScan(p({ pixelInstalled: true, capiInstalled: true }), signalsWith({ tracking: { metaPixel: false, ga4: false } })),
+  verifyAgainstScan(
+    p({ pixelInstalled: true, capiInstalled: true }),
+    signalsWith({ tracking: { metaPixel: false, ga4: false } }),
+  ),
   ["pixelInstalled"],
 );
 
@@ -413,9 +428,80 @@ check(
   READINESS_GROUPS.find((g) => g.key === "funil")!.items.map((i) => i.key),
   ["emailCapture", "emailFollowup"],
 );
+// Every question in the plan, not just one: decomposition multiplied the places
+// where in-platform setup could sneak back into readiness retrieval.
+for (const model of [null, "direct", "trial_first", "lead_first"] as const) {
+  const plan = readinessRetrievalPlan(true, model);
+  for (const forbidden of [
+    "remarketing",
+    "público personalizado",
+    "lookalike",
+    "semelhante",
+    "estrutura de campanha",
+    "lance",
+  ]) {
+    check(
+      `retrieval plan (model: ${model ?? "undeclared"}) never reaches for "${forbidden}"`,
+      plan.some((query) => new RegExp(forbidden, "i").test(query.text)),
+      false,
+    );
+  }
+}
+
+section("Retrieval plan — one focused question per audited dimension");
+
+// The whole point of decomposing: a verdict dimension with no question of its
+// own gets argued from whatever the other questions happened to retrieve.
+{
+  const plan = readinessRetrievalPlan(true, "trial_first");
+  const keys = plan.map((query) => query.key).sort();
+  check("plan covers every audited dimension (trial-first)", keys, [
+    "ativacao",
+    "checkout",
+    "descoberta",
+    "funil",
+    "mensuracao_instalacao",
+    "mensuracao_otimizacao",
+    "midia",
+    "oferta",
+    "pagina",
+  ]);
+}
+
+// Mirrors `groupsForModel`: knowledge about trial→paid must not ground the
+// verdict of someone who sells directly.
+for (const model of [null, "direct", "lead_first"] as const) {
+  check(
+    `activation question is absent outside trial-first (model: ${model ?? "undeclared"})`,
+    readinessRetrievalPlan(true, model).some((query) => query.key === "ativacao"),
+    false,
+  );
+}
+
+// A question that claims no budget from either corpus retrieves nothing and is
+// dead weight in the plan.
 check(
-  "the retrieval query no longer pulls remarketing knowledge",
-  /remarketing/i.test(readinessRetrievalQuery(true)),
+  "every question claims evidence from at least one corpus",
+  readinessRetrievalPlan(true, "trial_first").every((query) => query.meta + query.playbook > 0),
+  true,
+);
+
+// Measurement is the only subject the Meta corpus owns outright; conversion
+// structure belongs to the playbook. Pinning the routing keeps a future edit
+// from silently handing checkout back to the 108-document trust-1 corpus.
+{
+  const byKey = new Map(readinessRetrievalPlan(true, "trial_first").map((query) => [query.key, query]));
+  check("pixel installation is answered by Meta, not the playbook", byKey.get("mensuracao_instalacao")!.playbook, 0);
+  check("checkout is answered by the playbook, not Meta", byKey.get("checkout")!.meta, 0);
+  check("offer is answered by the playbook, not Meta", byKey.get("oferta")!.meta, 0);
+}
+
+// Without a page the page question has to ask what must EXIST, not how the
+// existing one performs — the zero-data user is the one who needs it most.
+check(
+  "the page question changes when there is no page yet",
+  readinessRetrievalPlan(false, null).find((query) => query.key === "pagina")!.text ===
+    readinessRetrievalPlan(true, null).find((query) => query.key === "pagina")!.text,
   false,
 );
 // Copy for a removed item would resurrect it silently the day someone reads
@@ -560,14 +646,18 @@ check(
   verifyItem("pageFast", true, signalsWith({ psi: psiOk(4500) })),
   "contradicted",
 );
-check("claimed fast + officially fast => verified", verifyItem("pageFast", true, signalsWith({ psi: psiOk(2000) })), "verified");
-check("claimed fast + gray zone => unverifiable", verifyItem("pageFast", true, signalsWith({ psi: psiOk(3200) })), "unverifiable");
-check("claimed fast + no measurement => unverifiable", verifyItem("pageFast", true, signalsWith()), "unverifiable");
 check(
-  "fast page auto-confirms pageFast",
-  autoConfirmProven(p(), signalsWith({ psi: psiOk(2000) })).pageFast,
-  true,
+  "claimed fast + officially fast => verified",
+  verifyItem("pageFast", true, signalsWith({ psi: psiOk(2000) })),
+  "verified",
 );
+check(
+  "claimed fast + gray zone => unverifiable",
+  verifyItem("pageFast", true, signalsWith({ psi: psiOk(3200) })),
+  "unverifiable",
+);
+check("claimed fast + no measurement => unverifiable", verifyItem("pageFast", true, signalsWith()), "unverifiable");
+check("fast page auto-confirms pageFast", autoConfirmProven(p(), signalsWith({ psi: psiOk(2000) })).pageFast, true);
 check(
   "unprovable excludes pageFast when a measurement exists",
   unprovableItems(signalsWith({ psi: psiOk(3200) })).includes("pageFast"),
@@ -635,13 +725,22 @@ check(
 section("HowTo cache normalization — one shape for every read path");
 /* ========================================================================== */
 
-check("null => empty, honest shape", normalizeStoredHowTo(null), { steps: [], references: [], needs_specialist: false, note: "" });
-check("well-formed stored object round-trips", normalizeStoredHowTo({ steps: ["a", "b"], needs_specialist: true, note: "n" }), {
-  steps: ["a", "b"],
+check("null => empty, honest shape", normalizeStoredHowTo(null), {
+  steps: [],
   references: [],
-  needs_specialist: true,
-  note: "n",
+  needs_specialist: false,
+  note: "",
 });
+check(
+  "well-formed stored object round-trips",
+  normalizeStoredHowTo({ steps: ["a", "b"], needs_specialist: true, note: "n" }),
+  {
+    steps: ["a", "b"],
+    references: [],
+    needs_specialist: true,
+    note: "n",
+  },
+);
 check(
   "non-string steps are filtered",
   normalizeStoredHowTo({ steps: ["a", 2, null, "b"], needs_specialist: false, note: "" }).steps,
@@ -678,13 +777,21 @@ for (const locale of LOCALES) {
       readinessMessages[locale]["error-unknown"].trim().length > 0,
     true,
   );
-  check(`error-detail interpolates in ${locale}`, (readinessMessages[locale]["error-detail"] ?? "").includes("{detail}"), true);
+  check(
+    `error-detail interpolates in ${locale}`,
+    (readinessMessages[locale]["error-detail"] ?? "").includes("{detail}"),
+    true,
+  );
   check(
     `scan-gtm-pixel-note has real copy in ${locale}`,
     (readinessMessages[locale]["scan-gtm-pixel-note"] ?? "").trim().length > 0,
     true,
   );
-  check(`scan-cooldown interpolates in ${locale}`, (readinessMessages[locale]["scan-cooldown"] ?? "").includes("{seconds}"), true);
+  check(
+    `scan-cooldown interpolates in ${locale}`,
+    (readinessMessages[locale]["scan-cooldown"] ?? "").includes("{seconds}"),
+    true,
+  );
   check(
     `verify-in-progress has real copy in ${locale}`,
     (readinessMessages[locale]["verify-in-progress"] ?? "").trim().length > 0,
@@ -733,11 +840,7 @@ check("rejects NaN to fallback", readinessNextReviewDays({ ...baseVerdict, next_
 
 // Backward compat: stored verdicts predate the review fields (and ativacao).
 check("old verdict without review fields still validates", isReadinessOutput(baseVerdict), true);
-check(
-  "string next_review_days fails validation",
-  isReadinessOutput({ ...baseVerdict, next_review_days: "7" }),
-  false,
-);
+check("string next_review_days fails validation", isReadinessOutput({ ...baseVerdict, next_review_days: "7" }), false);
 check("numeric next_review fails validation", isReadinessOutput({ ...baseVerdict, next_review: 7 }), false);
 check(
   "ativacao finding validates (S1)",
@@ -801,7 +904,14 @@ check(
   const rows = [
     { title: "T-planned", status: "planned", hypothesis: null, result: null, conclusion: null, next_step: null },
     { title: "T-abandoned", status: "abandoned", hypothesis: null, result: null, conclusion: null, next_step: null },
-    { title: "T-concluded", status: "concluded", hypothesis: "h", result: "r", conclusion: "aprendido", next_step: null },
+    {
+      title: "T-concluded",
+      status: "concluded",
+      hypothesis: "h",
+      result: "r",
+      conclusion: "aprendido",
+      next_step: null,
+    },
     { title: "T-running", status: "running", hypothesis: null, result: null, conclusion: null, next_step: null },
     { title: "T-weird", status: "weird", hypothesis: null, result: null, conclusion: null, next_step: null },
   ];
@@ -809,7 +919,11 @@ check(
   const order = ["T-concluded", "T-running", "T-planned", "T-abandoned", "T-weird"].map((title) =>
     block.indexOf(title),
   );
-  check("concluded first, unknown status last", [...order].every((pos, i) => i === 0 || pos > order[i - 1]), true);
+  check(
+    "concluded first, unknown status last",
+    [...order].every((pos, i) => i === 0 || pos > order[i - 1]),
+    true,
+  );
   check("a concluded row carries its conclusion", block.includes("conclusão: aprendido"), true);
 }
 
@@ -819,26 +933,28 @@ section("Creative evidence block — presence, never performance");
 
 check(
   "empty library is missing data, never proof of absence",
-  readinessCreativesBlock([]).includes("DADO AUSENTE") && readinessCreativesBlock([]).includes("Plano de Teste Criativo"),
+  readinessCreativesBlock([]).includes("DADO AUSENTE") &&
+    readinessCreativesBlock([]).includes("Plano de Teste Criativo"),
   true,
 );
 {
-  const creative = (over: Record<string, unknown>) => ({
-    name: "c",
-    status: "draft",
-    source: "manual",
-    format: null,
-    angle: null,
-    hook: null,
-    promise: null,
-    proof_type: null,
-    emotion: null,
-    funnel_stage: null,
-    result_summary: null,
-    organic_count: 0,
-    ...over,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any;
+  const creative = (over: Record<string, unknown>) =>
+    ({
+      name: "c",
+      status: "draft",
+      source: "manual",
+      format: null,
+      angle: null,
+      hook: null,
+      promise: null,
+      proof_type: null,
+      emotion: null,
+      funnel_stage: null,
+      result_summary: null,
+      organic_count: 0,
+      ...over,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any;
   const block = readinessCreativesBlock([
     creative({ angle: "dor", promise: "emagreça em 30 dias" }),
     creative({ angle: "prova", organic_count: 2 }),
@@ -911,10 +1027,14 @@ section("Verdict diff — honest deltas, never string-diffed prose");
 
   // Two findings on one dimension: the WORST one is its status.
   const worst = worstStatusByDimension(
-    mk("quase", [], [
-      { dimension: "pagina", status: "atencao" },
-      { dimension: "pagina", status: "critico" },
-    ]),
+    mk(
+      "quase",
+      [],
+      [
+        { dimension: "pagina", status: "atencao" },
+        { dimension: "pagina", status: "critico" },
+      ],
+    ),
   );
   check("worst status wins within a dimension", worst.get("pagina"), "critico");
 
@@ -923,9 +1043,7 @@ section("Verdict diff — honest deltas, never string-diffed prose");
     mk("quase", [], [{ dimension: "descoberta", status: "atencao" }]),
   );
   check("dimension absent now is CLEARED (neutral), not resolved", clearedAndNew.clearedDimensions, ["checkout"]);
-  check("dimension only in next is NEW", clearedAndNew.newDimensions, [
-    { dimension: "descoberta", status: "atencao" },
-  ]);
+  check("dimension only in next is NEW", clearedAndNew.newDimensions, [{ dimension: "descoberta", status: "atencao" }]);
 
   const identical = compareVerdicts(
     mk("quase", ["a"], [{ dimension: "pagina", status: "atencao" }]),
@@ -936,21 +1054,13 @@ section("Verdict diff — honest deltas, never string-diffed prose");
 
 // The honest scan series: proved-count, never the tick-inflatable confirmed.
 check("scanProvedCount: no signals => null (unreadable, not zero)", scanProvedCount(null), null);
-check(
-  "scanProvedCount: SPA => null",
-  scanProvedCount(signalsWith({ jsRenderedLikely: true })),
-  null,
-);
+check("scanProvedCount: SPA => null", scanProvedCount(signalsWith({ jsRenderedLikely: true })), null);
 check(
   "scanProvedCount: full fixture proves the six tag/probe items",
   scanProvedCount(signalsWith()),
   6, // pixel, analytics, seoBasics, indexable, sitemapRobots, structuredData — pageFast needs PSI
 );
-check(
-  "scanProvedCount: PSI-fast adds pageFast",
-  scanProvedCount(signalsWith({ psi: psiOk(2000) })),
-  7,
-);
+check("scanProvedCount: PSI-fast adds pageFast", scanProvedCount(signalsWith({ psi: psiOk(2000) })), 7);
 check(
   "scanProvedCount: partial fixture counts only observed-true",
   scanProvedCount(
@@ -1067,7 +1177,11 @@ check(
     ),
     { 0: "e1" },
   );
-  check("null change_made produces no entry", mapRegisteredExperiments(findings, [{ id: "e1", change_made: null }]), {});
+  check(
+    "null change_made produces no entry",
+    mapRegisteredExperiments(findings, [{ id: "e1", change_made: null }]),
+    {},
+  );
   check("unmatched rows produce no entry", mapRegisteredExperiments(findings, [{ id: "e1", change_made: "x" }]), {});
   check("empty inputs produce {}", mapRegisteredExperiments([], []), {});
 }
@@ -1257,23 +1371,19 @@ check(
   /exclu(ir|a)|público de remarketing|campanhas de aquisição/i.test(trialBrief),
   false,
 );
-check(
-  "trial-first brief exposes the new item keys for related_items",
-  trialBrief.includes("trialToPaidTracked"),
-  true,
-);
-check(
-  "undeclared model refuses to assume direct sale",
-  readinessFunnelModelBlock(p()).includes("NÃO INFORMOU"),
-  true,
-);
+check("trial-first brief exposes the new item keys for related_items", trialBrief.includes("trialToPaidTracked"), true);
+check("undeclared model refuses to assume direct sale", readinessFunnelModelBlock(p()).includes("NÃO INFORMOU"), true);
 // Silence about the checkout must be framed as expected, even with no scan.
 check(
   "no scan + trial-first still states the auth-wall limit",
   readinessScanBlock(null, "trial_first").includes("INALCANÇÁVEL"),
   true,
 );
-check("no scan + direct funnel adds no auth-wall note", readinessScanBlock(null, "direct").includes("INALCANÇÁVEL"), false);
+check(
+  "no scan + direct funnel adds no auth-wall note",
+  readinessScanBlock(null, "direct").includes("INALCANÇÁVEL"),
+  false,
+);
 check(
   "platform seller WITH own page keeps the site items",
   notApplicableReason("sitemapRobots", p({ checkoutType: "platform" }), { hasLandingPage: true }),
@@ -1289,7 +1399,11 @@ check(
 );
 const evalPlatform = evaluateReadiness(platformSeller, { hasLandingPage: false, hasPrice: false });
 check("total stays 24 regardless of applicability", evalPlatform.total, 24);
-check("applicableTotal excludes what does not apply", evalPlatform.applicableTotal, 24 - evalPlatform.notApplicable.length);
+check(
+  "applicableTotal excludes what does not apply",
+  evalPlatform.applicableTotal,
+  24 - evalPlatform.notApplicable.length,
+);
 check("applicableTotal never exceeds total", evalPlatform.applicableTotal <= evalPlatform.total, true);
 
 /* ========================================================================== */
@@ -1328,8 +1442,10 @@ check(
 );
 check(
   "absence on an SPA never confirms",
-  autoConfirmProven(p(), signalsWith({ jsRenderedLikely: true, tracking: { metaPixel: false, ga4: false, gtm: false } }))
-    .pixelInstalled,
+  autoConfirmProven(
+    p(),
+    signalsWith({ jsRenderedLikely: true, tracking: { metaPixel: false, ga4: false, gtm: false } }),
+  ).pixelInstalled,
   false,
 );
 check("no scan at all confirms nothing", autoConfirmProven(p(), null).pixelInstalled, false);
@@ -1372,7 +1488,10 @@ check("awaiting-proof stays pending", isFindingPending("awaiting-proof"), true);
 // Ticked + the scan proved it → genuinely done.
 check(
   "ticked and proved is verified",
-  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), { verified: ["pixelInstalled"], contradicted: [] }),
+  findingResolution(["pixelInstalled"], p({ pixelInstalled: true }), {
+    verified: ["pixelInstalled"],
+    contradicted: [],
+  }),
   "verified",
 );
 check("verified is not pending", isFindingPending("verified"), false);
@@ -1543,7 +1662,11 @@ check(
 
 // Locale coverage for the three new keys.
 for (const locale of LOCALES) {
-  for (const key of ["resolution-declared-unverifiable", "resolution-declared-unverifiable-body", "item-unprovable-note"]) {
+  for (const key of [
+    "resolution-declared-unverifiable",
+    "resolution-declared-unverifiable-body",
+    "item-unprovable-note",
+  ]) {
     check(`${key} has real copy in ${locale}`, (readinessMessages[locale][key] ?? "").trim().length > 0, true);
   }
 }
@@ -1578,7 +1701,11 @@ const sig = (over: Partial<AssistSignals> = {}): AssistSignals => ({
 // struggling, and offering paid help there turns the tool into an upsell funnel.
 check("no offer with no signals at all", assistReason("pixelInstalled", sig()), null);
 check("no offer merely because an item is unconfirmed", assistReason("capiInstalled", sig()), null);
-check("opening the explanation alone is not resistance", assistReason("pixelInstalled", sig({ openedHelp: true })), null);
+check(
+  "opening the explanation alone is not resistance",
+  assistReason("pixelInstalled", sig({ openedHelp: true })),
+  null,
+);
 check(
   "one scan with no other signal is not resistance",
   assistReason("pixelInstalled", sig({ scanAttempts: 1 })),

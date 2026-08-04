@@ -2453,6 +2453,7 @@
     "error-verdict_malformed": "O veredito está fora do formato esperado.",
     "error-finding_not_found": "Achado não encontrado no veredito.",
     "error-knowledge_failed": "Falha ao consultar a base de conhecimento. Nada foi cobrado.",
+    "error-knowledge_empty": "A base de conhecimento não retornou nenhum trecho para esta análise. Sem base, o veredito seria genérico — então ele não foi gerado e nada foi cobrado.",
     "error-engine_failed": "O motor falhou ao processar. Nada foi cobrado.",
     "error-engine_malformed": "O motor devolveu uma resposta fora do formato exigido. Nada foi cobrado.",
     "error-save_failed": "Não foi possível salvar. Tente novamente.",

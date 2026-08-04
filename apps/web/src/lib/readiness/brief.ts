@@ -461,13 +461,106 @@ export function readinessCreativesBlock(creatives: PlanCreativeRow[]): string {
   return lines.join("\n");
 }
 
+/** One focused retrieval question plus how much evidence it may claim. */
+export interface ReadinessRetrievalQuery {
+  /** Stable id — used by tests and by per-dimension retrieval telemetry. */
+  key: string;
+  text: string;
+  /** Chunks to take from `meta-ads-docs` (platform rules). */
+  meta: number;
+  /** Chunks to take from `growth-playbook` (CRO/checkout/offer). */
+  playbook: number;
+}
+
 /**
- * What we ask the knowledge base. Spans the whole pre-spend structure — the
- * playbook (CRO/checkout/offer) carries most of it, and the Meta corpus carries
- * the measurement rules (pixel/CAPI, optimization event, learning phase).
+ * What we ask the knowledge base — ONE question per audited dimension.
+ *
+ * This used to be a single string listing twelve subjects, which the embedder
+ * collapsed into one vector. A vector averaged over twelve topics sits at the
+ * centroid of all of them and close to none, and the corpus is organized by
+ * exactly the dimensions that string mixed together (docs/growth/md/INDEX.md
+ * separates checkout, offer, page, funnel), so the averaged query was the worst
+ * possible match for how the knowledge is filed. With four chunks per
+ * collection deciding the whole verdict, checkout and offer were routinely
+ * argued from whatever the average happened to land on.
+ *
+ * Collection weights encode which corpus actually owns each subject, replacing
+ * the blind 50/50 split the old per-collection loop applied: platform mechanics
+ * come from Meta, conversion structure from the playbook. A dimension the
+ * corpus does not cover (today: `descoberta`) simply returns nothing for its
+ * question instead of dragging in loosely-related text — an honest gap beats
+ * manufactured grounding.
+ *
+ * SCOPE (migration 0041): none of these questions may reach for in-platform
+ * setup — audiences, campaign structure, budget, bidding, remarketing. Readiness
+ * audits the structure the BUSINESS owns; remarketing is stage 2 of the Launch
+ * Plan (phase 9), never a readiness subject. `scripts/test-readiness.mts` pins
+ * this across the whole plan.
  */
-export function readinessRetrievalQuery(hasPage: boolean): string {
-  const base =
-    "prontidão antes de investir em tráfego pago: instalação de pixel e API de Conversões, escolha do evento de otimização, fase de aprendizado e volume mínimo, fricção de checkout e abandono, meios de pagamento PIX, equação de valor e garantia, prova social, message match entre anúncio e página, velocidade e experiência mobile, captura de contato e régua de follow-up, fundamentos de SEO e descoberta orgânica, criativos mínimos por ângulo antes da primeira campanha";
-  return hasPage ? base : `${base}, o que precisa existir em uma página de vendas antes do primeiro anúncio`;
+export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | null): ReadinessRetrievalQuery[] {
+  const queries: ReadinessRetrievalQuery[] = [
+    {
+      key: "mensuracao_instalacao",
+      text: "instalação do pixel da Meta, API de Conversões, Gerenciador de Eventos, correspondência avançada, como testar se o evento de conversão está disparando",
+      meta: 4,
+      playbook: 0,
+    },
+    {
+      key: "mensuracao_otimizacao",
+      text: "escolha do evento de otimização, fase de aprendizado, volume mínimo de eventos por semana, janela de conversão",
+      meta: 4,
+      playbook: 1,
+    },
+    {
+      key: "pagina",
+      text: hasPage
+        ? "estrutura da página de vendas, primeira dobra, prova social e sinais de confiança, congruência entre anúncio e página, velocidade e experiência mobile"
+        : "o que precisa existir em uma página de vendas antes do primeiro anúncio: estrutura, promessa, prova social, sinais de confiança",
+      meta: 1,
+      playbook: 3,
+    },
+    {
+      key: "checkout",
+      text: "abandono de checkout e suas causas, meios de pagamento no Brasil (PIX, cartão, parcelamento, boleto), fricção do formulário, garantia",
+      meta: 0,
+      playbook: 3,
+    },
+    {
+      key: "oferta",
+      text: "equação de valor, preço e ancoragem, quando o gargalo é a oferta e não o tráfego",
+      meta: 0,
+      playbook: 3,
+    },
+    {
+      key: "funil",
+      text: "captura de contato, régua de follow-up e nutrição por e-mail, tipos de funil e critérios de escolha",
+      meta: 0,
+      playbook: 2,
+    },
+    {
+      key: "descoberta",
+      text: "SEO e indexação, sitemap e robots, dados estruturados, descoberta orgânica e presença social como sinal de confiança",
+      meta: 1,
+      playbook: 2,
+    },
+    {
+      key: "midia",
+      text: "cobertura mínima de ângulos criativos antes da primeira campanha, gancho, ângulo e prova, diversificação de criativo",
+      meta: 2,
+      playbook: 2,
+    },
+  ];
+
+  // Mirrors `groupsForModel`: asking a direct-response seller about trial→paid
+  // would ground their verdict in knowledge about a funnel they do not have.
+  if (isTrialFirst(model)) {
+    queries.push({
+      key: "ativacao",
+      text: "fricção do cadastro, momento de ativação do usuário, conversão de trial para pagante, caminho de upgrade em SaaS",
+      meta: 0,
+      playbook: 3,
+    });
+  }
+
+  return queries;
 }

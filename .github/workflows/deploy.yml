@@ -42,6 +42,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Domain rules that are cheap to break and expensive to notice: readiness
+      # scope, error-code catalog coverage across all five locales, the SSRF
+      # guard, the creative-plan taxonomy. All hermetic (no network, no DB, no
+      # API keys), so they run here rather than in the pre-commit hook, which
+      # already carries harness:test.
+      - name: Domain tests
+        run: npm test
+
       - name: Lint
         run: npm run lint
 

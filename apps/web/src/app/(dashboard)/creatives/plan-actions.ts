@@ -22,7 +22,7 @@ import {
 import { productContextBlock } from "@/lib/diagnosis/product-brief";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
-import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
+import { buildKnowledgeContext, embedQuery, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
 const ASSISTANT_SLUG = "creative-plan-engine";
 
@@ -167,13 +167,26 @@ export async function generateCreativePlan(productId: string): Promise<GenerateP
   const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
   try {
     const query = planRetrievalQuery();
+    // The query is a constant, so its vector is too — embed once and reuse it
+    // across collections instead of paying the API per slug.
+    const embedding = await embedQuery(query);
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
-      excerpts.push(...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection })));
+      excerpts.push(...(await searchKnowledge(supabase, embedding, { collectionIds, matchCount: perCollection })));
     }
   } catch (error) {
     return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
+  }
+
+  // Same rule as the other two engines: an empty retrieval is an operational
+  // fault, and a plan written without a single retrieved excerpt is a generic
+  // plan wearing the costume of a grounded one.
+  if (excerpts.length === 0) {
+    return {
+      ok: false,
+      error: "A base de conhecimento não retornou nenhum trecho. Sem base, o plano seria genérico — nada foi cobrado.",
+    };
   }
 
   const brief = [

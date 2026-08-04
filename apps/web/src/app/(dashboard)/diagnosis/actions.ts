@@ -12,7 +12,7 @@ import { DIAGNOSIS_JSON_SCHEMA, DIAGNOSIS_SCHEMA_NAME, isDiagnosisOutput } from 
 import { EXPERIMENT_BRIEF_LIMIT, experimentsBlock, type ExperimentSummaryRow } from "@/lib/experiments/brief";
 import { type AiProviderName, type AssistantConfig, getChatProvider } from "@flyee/ai";
 import { createClient } from "@flyee/auth/server";
-import { buildKnowledgeContext, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
+import { buildKnowledgeContext, embedQuery, resolveCollectionIds, searchKnowledge } from "@flyee/knowledge";
 
 export type GenerateResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -285,15 +285,36 @@ export async function generateDiagnosis(productId: string): Promise<GenerateResu
   const excerpts: Awaited<ReturnType<typeof searchKnowledge>> = [];
   try {
     const query = retrievalQuery(product, campaignBrief.hadData);
+    // Embedded once, searched per collection: the vector is identical for every
+    // collection, so embedding inside the loop paid the API once per slug for
+    // the same result.
+    const embedding = await embedQuery(query);
     for (const slug of collectionSlugs) {
       const collectionIds = await resolveCollectionIds(supabase, [slug]);
       if (collectionIds.length === 0) continue;
       excerpts.push(
-        ...(await searchKnowledge(supabase, query, { collectionIds, matchCount: perCollection, maxPerDocument: 2 })),
+        ...(await searchKnowledge(supabase, embedding, {
+          collectionIds,
+          matchCount: perCollection,
+          maxPerDocument: 2,
+        })),
       );
     }
   } catch (error) {
     return { ok: false, error: `Falha ao consultar a base de conhecimento: ${(error as Error).message}` };
+  }
+
+  // Zero excerpts is a fault, not a state: the collections are global and
+  // always populated, so an empty result means the corpus, the slugs or the
+  // similarity floor is broken. Generating anyway yields a diagnosis with no
+  // citable platform rule — the generic answer the engine exists to avoid —
+  // and it would be billed and stored looking exactly like a grounded one.
+  if (excerpts.length === 0) {
+    return {
+      ok: false,
+      error:
+        "A base de conhecimento não retornou nenhum trecho. Sem base, o diagnóstico seria genérico — nada foi cobrado.",
+    };
   }
 
   // 6. The brief.

@@ -2453,6 +2453,7 @@
     "error-verdict_malformed": "El veredicto está fuera del formato esperado.",
     "error-finding_not_found": "Hallazgo no encontrado en el veredicto.",
     "error-knowledge_failed": "Error al consultar la base de conocimiento. No se cobró nada.",
+    "error-knowledge_empty": "La base de conocimiento no devolvió ningún fragmento para este análisis. Sin fundamento el veredicto sería genérico, así que no se generó y no se cobró nada.",
     "error-engine_failed": "El motor falló al procesar. No se cobró nada.",
     "error-engine_malformed": "El motor devolvió una respuesta con formato inválido. No se cobró nada.",
     "error-save_failed": "No se pudo guardar. Inténtalo de nuevo.",

@@ -50,3 +50,14 @@ async function embed(texts: string[], taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVA
 
 export const embedDocuments = (texts: string[]) => embed(texts, "RETRIEVAL_DOCUMENT");
 export const embedQuery = async (text: string) => (await embed([text], "RETRIEVAL_QUERY"))[0];
+
+/**
+ * Embed several queries in ONE request.
+ *
+ * A retrieval plan that asks one focused question per audited dimension beats a
+ * single averaged question, but only if the extra precision does not cost a
+ * network round-trip per dimension. `embed` already batches up to BATCH_SIZE,
+ * so N queries cost the same one call — decomposition ends up cheaper than the
+ * previous code, which embedded the same string once per collection.
+ */
+export const embedQueries = (texts: string[]) => embed(texts, "RETRIEVAL_QUERY");

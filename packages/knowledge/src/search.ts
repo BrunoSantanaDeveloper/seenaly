@@ -10,16 +10,23 @@ export async function resolveCollectionIds(supabase: SupabaseClient, slugs: stri
   return (data ?? []).map((row) => row.id as string);
 }
 
-/** Embed the query and run the trust-weighted vector search (RLS applies). */
+/**
+ * Run the trust-weighted vector search (RLS applies).
+ *
+ * `query` accepts a pre-computed vector as well as text. Callers that issue
+ * several queries should embed them in one batch (`embedQueries`) and pass the
+ * vectors here — otherwise each search pays its own round-trip, and a caller
+ * that searches the same text across N collections pays N times for one vector.
+ */
 export async function searchKnowledge(
   supabase: SupabaseClient,
-  query: string,
+  query: string | number[],
   options: KnowledgeSearchOptions,
 ): Promise<KnowledgeSearchResult[]> {
   if (options.collectionIds.length === 0) return [];
   const matchCount = options.matchCount ?? 8;
   const perDocument = options.maxPerDocument;
-  const embedding = await embedQuery(query);
+  const embedding = typeof query === "string" ? await embedQuery(query) : query;
   const { data, error } = await supabase.rpc("knowledge_search", {
     query_embedding: JSON.stringify(embedding),
     collections: options.collectionIds,

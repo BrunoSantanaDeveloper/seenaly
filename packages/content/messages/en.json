@@ -2453,6 +2453,7 @@
     "error-verdict_malformed": "The verdict is out of the expected format.",
     "error-finding_not_found": "Finding not found in the verdict.",
     "error-knowledge_failed": "Failed to query the knowledge base. Nothing was charged.",
+    "error-knowledge_empty": "The knowledge base returned no excerpts for this analysis. Without grounding the verdict would be generic, so it was not generated and nothing was charged.",
     "error-engine_failed": "The engine failed to process. Nothing was charged.",
     "error-engine_malformed": "The engine returned a malformed answer. Nothing was charged.",
     "error-save_failed": "Could not save. Please try again.",
