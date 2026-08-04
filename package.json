@@ -21,6 +21,7 @@
     "test:onboarding": "tsx scripts/test-onboarding.mts",
     "tokens:generate": "npm run generate -w @flyee/design-tokens",
     "knowledge:ingest": "tsx scripts/ingest-knowledge.mts",
+    "eval:retrieval": "tsx scripts/eval-retrieval.mts",
     "db:migrate": "node scripts/apply-migrations.mjs",
     "db:seed-plans": "node scripts/seed-mock-plans.mjs",
     "db:grant-credits": "tsx scripts/grant-monthly-credits.mts",

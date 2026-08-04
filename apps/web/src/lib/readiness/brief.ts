@@ -501,6 +501,18 @@ export function readinessRetrievalPlan(hasPage: boolean, model: FunnelModel | nu
   const queries: ReadinessRetrievalQuery[] = [
     {
       key: "mensuracao_instalacao",
+      // MEASURED, do not "improve" by intuition: rewriting this to talk about
+      // installing and configuring (dropping "Gerenciador de Eventos" and
+      // "testar se o evento dispara") sounded sharper and scored WORSE —
+      // global recall 79% -> 71%, this dimension 1/3 -> 0/3. Run
+      // `npm run eval:retrieval` before and after any edit here.
+      //
+      // This is still the weakest dimension in the plan, and the cause is not
+      // the wording: the documents that ARE the answer are titled "Sobre a API
+      // de Conversões" and "Boas práticas para a configuração do Pixel da
+      // Meta", and titles never reach the vector — only chunk bodies do. The
+      // fix is embedding the title/heading path with the chunk, and lexical
+      // search for exact product names, not another rewrite of this string.
       text: "instalação do pixel da Meta, API de Conversões, Gerenciador de Eventos, correspondência avançada, como testar se o evento de conversão está disparando",
       meta: 4,
       playbook: 0,

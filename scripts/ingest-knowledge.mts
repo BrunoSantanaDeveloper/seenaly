@@ -67,7 +67,7 @@ const CORPORA: Corpus[] = [
  * or algorithm). The model and dimensions come from the constants, so those
  * invalidate on their own.
  */
-const INGEST_PROTOCOL = `${EMBEDDING_MODEL}@${EMBEDDING_DIMENSIONS}/chunk-v2-lf`;
+const INGEST_PROTOCOL = `${EMBEDDING_MODEL}@${EMBEDDING_DIMENSIONS}/chunk-v3-titled`;
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const FORCE = process.argv.includes("--force");
@@ -211,12 +211,35 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
   let skipped = 0;
   let failed = 0;
   let navigation = 0;
+  let removed = 0;
 
   for (const file of files) {
     const slug = file.replace(/\.md$/, "");
     const { front, body } = parseFrontmatter(await readFile(path.join(corpusDir, file), "utf8"));
     if (isNavigationOnly(front)) {
       navigation += 1;
+      // Skipping is not enough: a document ingested before this rule existed
+      // keeps its row AND its chunks, stays `ready`, and goes on being
+      // retrieved — the exclusion would be a no-op against exactly the corpus
+      // it was written for. Delete it; `knowledge_chunks` cascades
+      // (0003_knowledge.sql:55), and re-running ingestion without the rule
+      // recreates it, so nothing is lost that `docs/` cannot regenerate.
+      const { data: stale } = await supabase
+        .from("knowledge_documents")
+        .select("id")
+        .eq("collection_id", collectionId)
+        .eq("metadata->>slug", slug)
+        .maybeSingle();
+      if (stale) {
+        const { error } = await supabase.from("knowledge_documents").delete().eq("id", stale.id);
+        if (error) {
+          console.error(`✗ ${file}: could not remove navigation document — ${error.message}`);
+          failed += 1;
+        } else {
+          console.log(`− ${file}: documento de navegação removido do corpus`);
+          removed += 1;
+        }
+      }
       continue;
     }
     const content = cleanBody(body);
@@ -299,40 +322,62 @@ async function ingestCorpus(supabase: ReturnType<typeof createClient>, corpus: C
     }
   }
 
-  if (navigation > 0) console.log(`  (${navigation} documento(s) de navegação ignorado(s))`);
+  if (navigation > 0) {
+    console.log(`  (${navigation} documento(s) de navegação ignorado(s), ${removed} removido(s) do corpus)`);
+  }
   return { ingested, skipped, failed, navigation };
 }
 
 /**
- * Fails the run if any ready document is still on an older protocol.
+ * Fails the run unless the WHOLE corpus is searchable and on this protocol.
  *
  * This script is the only place that sees the whole corpus, so it is the right
- * place to assert the invariant. Without it, a partial re-ingestion leaves a
- * half-old/half-new vector space, which has no symptom at all — just quietly
- * worse retrieval.
+ * place to assert the invariant — and the invariant has two halves, because
+ * both failures are silent:
+ *
+ *  - a stale protocol mixes incompatible vector spaces, which has no symptom
+ *    beyond quietly worse retrieval;
+ *  - a document left in `status = 'error'` is filtered out by the search RPC
+ *    (0003_knowledge.sql:176), so the corpus has a hole and every answer is
+ *    written without it. A transient rate limit produced exactly this: 14
+ *    documents dropped out of retrieval while the run reported success.
  */
-async function assertProtocolConsistency(supabase: ReturnType<typeof createClient>) {
-  const { data, error } = await supabase.from("knowledge_documents").select("title, status, metadata");
+async function assertCorpusHealthy(supabase: ReturnType<typeof createClient>) {
+  const { data, error } = await supabase.from("knowledge_documents").select("title, status, error, metadata");
   if (error) {
-    console.error(`\n! Não foi possível verificar o protocolo de embedding: ${error.message}`);
+    console.error(`\n! Não foi possível verificar o corpus: ${error.message}`);
     return false;
   }
-  const stale = (data ?? []).filter(
+  const docs = data ?? [];
+  const broken = docs.filter((doc) => doc.status !== "ready");
+  const stale = docs.filter(
     (doc) =>
       doc.status === "ready" &&
       (doc.metadata as { embedding_protocol?: string } | null)?.embedding_protocol !== INGEST_PROTOCOL,
   );
-  if (stale.length === 0) {
-    console.log(`\n✓ Todos os documentos estão no protocolo ${INGEST_PROTOCOL}.`);
+
+  if (broken.length === 0 && stale.length === 0) {
+    console.log(`\n✓ ${docs.length} documentos prontos, todos no protocolo ${INGEST_PROTOCOL}.`);
     return true;
   }
-  console.error(`\n✗ ${stale.length} documento(s) fora do protocolo ${INGEST_PROTOCOL}:`);
-  for (const doc of stale.slice(0, 10)) {
-    const proto = (doc.metadata as { embedding_protocol?: string } | null)?.embedding_protocol ?? "(nenhum)";
-    console.error(`  - ${doc.title} — ${proto}`);
+
+  if (broken.length > 0) {
+    console.error(`\n✗ ${broken.length} documento(s) FORA da busca (status != ready):`);
+    for (const doc of broken.slice(0, 10)) {
+      console.error(`  - ${doc.title} [${doc.status}] ${(doc.error ?? "").slice(0, 120)}`);
+    }
+    if (broken.length > 10) console.error(`  … e mais ${broken.length - 10}.`);
+    console.error("Rode novamente: documentos com falha são reprocessados (o skip exige status 'ready').");
   }
-  if (stale.length > 10) console.error(`  … e mais ${stale.length - 10}.`);
-  console.error("A busca mistura espaços vetoriais incompatíveis. Rode novamente (ou com --force).");
+  if (stale.length > 0) {
+    console.error(`\n✗ ${stale.length} documento(s) fora do protocolo ${INGEST_PROTOCOL}:`);
+    for (const doc of stale.slice(0, 10)) {
+      const proto = (doc.metadata as { embedding_protocol?: string } | null)?.embedding_protocol ?? "(nenhum)";
+      console.error(`  - ${doc.title} — ${proto}`);
+    }
+    if (stale.length > 10) console.error(`  … e mais ${stale.length - 10}.`);
+    console.error("A busca mistura espaços vetoriais incompatíveis. Rode novamente (ou com --force).");
+  }
   return false;
 }
 
@@ -378,7 +423,7 @@ async function main() {
 
   // Only meaningful for a full run: ingesting one corpus legitimately leaves
   // the other on whatever protocol it already had.
-  const consistent = corpusArg ? true : await assertProtocolConsistency(supabase);
+  const consistent = corpusArg ? true : await assertCorpusHealthy(supabase);
   if (failed > 0 || !consistent) process.exit(1);
 }
 

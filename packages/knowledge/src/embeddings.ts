@@ -22,6 +22,58 @@ export const isEmbeddingConfigured = () => Boolean(process.env.GEMINI_API_KEY);
 
 const BATCH_SIZE = 100;
 
+const MAX_RETRIES = 8;
+const BASE_DELAY_MS = 5_000;
+const MAX_DELAY_MS = 60_000;
+
+/**
+ * Minimum spacing between embedding requests.
+ *
+ * Retrying is the wrong tool alone for a SUSTAINED quota. Ingesting the whole
+ * corpus is ~217k tokens; against the free tier's 30k tokens/minute the job
+ * physically cannot finish in under ~7 minutes, so firing as fast as possible
+ * and backing off means every request races to fail. Pacing spends that time
+ * up front instead, and backoff goes back to being what it should be — the
+ * exception path. ~700ms keeps requests under the 100/minute ceiling too.
+ *
+ * Tune with `EMBED_MIN_INTERVAL_MS=0` once billing raises the limits; the
+ * interactive paths (chat, how-to) issue one call at a time and never feel it.
+ */
+const MIN_INTERVAL_MS = Number(process.env.EMBED_MIN_INTERVAL_MS ?? 700);
+let nextSlot = 0;
+
+async function takeSlot() {
+  if (MIN_INTERVAL_MS <= 0) return;
+  const now = Date.now();
+  const wait = Math.max(0, nextSlot - now);
+  nextSlot = Math.max(now, nextSlot) + MIN_INTERVAL_MS;
+  if (wait > 0) await sleep(wait);
+}
+
+/**
+ * Two very different faults share HTTP 429, and only one is worth retrying.
+ *
+ * A rate limit ("you exceeded your current quota") is transient: the next
+ * minute has fresh budget. Depleted prepaid credits are not — retrying just
+ * burns time before failing anyway. Telling them apart matters most during a
+ * bulk ingestion, where a rate limit silently turned 14 documents into
+ * `status = 'error'` rows that the search RPC then filtered out of every
+ * answer: a corpus with holes, reported as a successful run.
+ *
+ * Match ONLY the depletion wording. Both messages mention billing — the rate
+ * limit says "check your plan and billing details" and the depletion links to
+ * the billing docs — so keying off "billing" classifies every rate limit as
+ * fatal and silently disables the retry, which is exactly what happened on the
+ * first attempt at this.
+ */
+const isRetryableRateLimit = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!/429|RESOURCE_EXHAUSTED/i.test(message)) return false;
+  return !/credits are depleted/i.test(message);
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function embed(texts: string[], taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[][]> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
@@ -32,11 +84,23 @@ async function embed(texts: string[], taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVA
   const vectors: number[][] = [];
   for (let start = 0; start < texts.length; start += BATCH_SIZE) {
     const batch = texts.slice(start, start + BATCH_SIZE);
-    const response = await client.models.embedContent({
-      model: EMBEDDING_MODEL,
-      contents: batch,
-      config: { taskType, outputDimensionality: EMBEDDING_DIMENSIONS },
-    });
+    let response;
+    for (let attempt = 0; ; attempt++) {
+      await takeSlot();
+      try {
+        response = await client.models.embedContent({
+          model: EMBEDDING_MODEL,
+          contents: batch,
+          config: { taskType, outputDimensionality: EMBEDDING_DIMENSIONS },
+        });
+        break;
+      } catch (error) {
+        if (attempt >= MAX_RETRIES || !isRetryableRateLimit(error)) throw error;
+        // Exponential backoff, capped: per-minute quotas recover on their own,
+        // so waiting is the correct response, not failing the document.
+        await sleep(Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS));
+      }
+    }
     for (const embedding of response.embeddings ?? []) {
       if (!embedding.values) throw new Error("Gemini returned an empty embedding.");
       vectors.push(embedding.values);

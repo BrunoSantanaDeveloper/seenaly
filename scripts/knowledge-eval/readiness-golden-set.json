@@ -1,0 +1,62 @@
+{
+  "$comment": [
+    "Gabarito de recuperação da Prontidão — versionado de propósito.",
+    "",
+    "O gabarito é no nível de DOCUMENTO, nunca de chunk: chunk muda toda vez que",
+    "o chunker muda, e um gabarito que precisa ser reescrito a cada mudança de",
+    "chunking não mede nada — ele só acompanha. Documento é estável.",
+    "",
+    "`expect` lista os documentos que uma resposta correta PRECISA trazer para",
+    "aquela dimensão. Mantido curto e conservador de propósito: um gabarito",
+    "generoso infla o recall e para de detectar regressão.",
+    "",
+    "`coverage: none` declara uma lacuna CONHECIDA do corpus. A dimensão fica no",
+    "arquivo com a lacuna explícita em vez de sumir — some e ninguém lembra que",
+    "o motor audita um assunto sobre o qual não tem uma linha para citar."
+  ],
+  "corpus_protocol": "gemini-embedding-001@768/chunk-v3-titled",
+  "authored": "2026-08-04",
+  "$baselines": {
+    "chunk-v2-lf": "recall 11/14 = 79% (query decomposta, maxPerDocument 1). Query única de 12 assuntos no mesmo índice: 1/14 = 7%.",
+    "chunk-v3-titled": "título + caminho de headings embedados junto do chunk — medir e registrar aqui."
+  },
+  "queries": {
+    "mensuracao_instalacao": {
+      "expect": ["boas-praticas-configuracao-pixel", "api-conversao", "como-usar-api"],
+      "note": "Instalação: pixel, CAPI e como usá-la. Regra de plataforma, corpus Meta."
+    },
+    "mensuracao_otimizacao": {
+      "expect": ["gerenciador-eventos-otimizacao", "gerenciador-fase-aprendizado"],
+      "note": "Evento de otimização e fase de aprendizado — o par que decide se o algoritmo aprende."
+    },
+    "pagina": {
+      "expect": ["pagina-vendas-estrutura", "congruencia-anuncio-pagina"],
+      "note": "Estrutura da página e message match. `prova-social-sinais-confianca` é relevante mas disputa os mesmos slots."
+    },
+    "checkout": {
+      "expect": ["checkout-abandono-causas", "checkout-br-pagamentos"],
+      "note": "Os dois únicos documentos de checkout do corpus — se algum não vier, a dimensão está sendo escrita sem base."
+    },
+    "oferta": {
+      "expect": ["oferta-value-equation", "pricing-ancoragem-decisao"],
+      "note": "Equação de valor e ancoragem de preço."
+    },
+    "funil": {
+      "expect": ["tipos-funil-escolha"],
+      "note": "Escolha de funil. A régua de e-mail é trial-first e pertence a `ativacao`."
+    },
+    "descoberta": {
+      "expect": [],
+      "coverage": "none",
+      "note": "LACUNA CONHECIDA: zero documentos sobre SEO, sitemap, robots.txt, dados estruturados ou Core Web Vitals nos dois corpora, enquanto o checklist audita 6 itens (4 medidos pelo scan). Enquanto estiver assim, o esperado correto é NÃO recuperar nada — trecho vindo aqui é ruído, não evidência."
+    },
+    "midia": {
+      "expect": ["criativo-gancho-angulo-prova"],
+      "note": "Anatomia do criativo. Cobertura mínima de ângulos antes da primeira campanha."
+    },
+    "ativacao": {
+      "expect": ["saas-trial-ativacao"],
+      "note": "Só existe em funil trial-first; `metricas-saas-conversao` e a régua de e-mail são vizinhos legítimos."
+    }
+  }
+}

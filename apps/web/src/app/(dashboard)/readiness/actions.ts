@@ -803,7 +803,14 @@ export async function generateReadiness(productId: string): Promise<GenerateRead
         return perCorpus
           .filter(([ids, count]) => ids.length > 0 && count > 0)
           .map(([collectionIds, matchCount]) =>
-            searchKnowledge(supabase, vector, { collectionIds, matchCount, maxPerDocument: 2 }),
+            // One chunk per document, not two. With a broad query, two chunks
+            // from the best document add context; with a question this narrow,
+            // they cost a document. `maxPerDocument: 2` against a budget of 4
+            // caps the answer at two documents by construction — and what
+            // decides the verdict is whether the document carrying the rule is
+            // present at all, not how much of it. Measured on the real index:
+            // recall 64% -> 79% (`npm run eval:retrieval`).
+            searchKnowledge(supabase, vector, { collectionIds, matchCount, maxPerDocument: 1 }),
           );
       });
       for (const batch of await Promise.all(searches)) excerpts.push(...batch);
