@@ -473,6 +473,13 @@ export default function ReadinessVerdict({
                     items wear the same urgency word their plan tile does, so
                     the two surfaces can't tell different stories. */}
               <Box className="flex flex-none flex-row flex-wrap items-center gap-1.5">
+                {/* The journey step this fix belongs to — scannable before the
+                    card is even opened, and the thing that makes "upgrade" vs
+                    "cadastro" a visible commitment instead of a silent
+                    assumption. Absent on pre-existing verdicts. */}
+                {finding.stage && (
+                  <Chip label={t(`stage-${finding.stage}`)} size="small" variant="outlined" color="grey" />
+                )}
                 {resolution !== "open" ? (
                   <Button
                     component="span"
@@ -548,6 +555,17 @@ export default function ReadinessVerdict({
                 <Typography variant="body2" className={cn("text-text-secondary", resolved && "line-through")}>
                   {finding.recommended_action}
                 </Typography>
+                {/* WHERE the fix lands. This is the line that turns "adicione
+                    uma garantia e exiba na página de destino" — advice nobody
+                    can act on, and which pointed at the wrong surface — into a
+                    place the user can walk to and check. Absent on verdicts
+                    generated before the field existed. */}
+                {finding.where && (
+                  <Typography variant="body2">
+                    <span className="text-text-secondary">{t("finding-where")}: </span>
+                    {finding.where}
+                  </Typography>
+                )}
                 {/* Once the step-by-step has been paid for, it belongs HERE —
                       numbered, under the action — not in a separate block
                       further down that repeats the same job. */}

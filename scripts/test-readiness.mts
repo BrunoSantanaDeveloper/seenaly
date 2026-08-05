@@ -42,6 +42,9 @@ import {
   toReadinessProfile,
   toReadinessRow,
   groupsForModel,
+  READINESS_STAGES,
+  stagesForModel,
+  type FunnelModel,
   unprovableItems,
   verifyAgainstScan,
   verifyItem,
@@ -402,7 +405,13 @@ for (const model of [null, "trial_first"] as const) {
   const keys = groupsForModel(model).flatMap((g) => g.items.map((i) => i.key));
   const block = readinessChecklistBlock(p({ funnelModel: model }), undefined);
   for (const key of keys) {
-    check(`checklist block names \`${key}\` (model: ${model ?? "undeclared"})`, block.includes(`\`${key}\``), true);
+    // Tagged with the field it feeds, not glued to the label — see 0043: in
+    // backticks it read as prose and leaked into user-facing evidence.
+    check(
+      `checklist block names ${key} as related_items input (model: ${model ?? "undeclared"})`,
+      block.includes(`[related_items: ${key}]`),
+      true,
+    );
   }
   const schemaKeys = (
     (
@@ -421,6 +430,79 @@ check(
     .includes("trialToPaidTracked"),
   false,
 );
+
+/* ========================================================================== */
+section("Locating the fix — stage + where (0043)");
+
+// A verdict that cannot say WHERE is not actionable. The real failure: a
+// trial-first SaaS was told to "add a guarantee and show it on the landing
+// page" while the landing page already said "14 dias grátis, sem cartão" — the
+// gap was on the PRICING page. Schema-required fields are what force a commit.
+const findingProps = (model: FunnelModel | null) =>
+  (
+    (readinessJsonSchema(model).properties as Record<string, { items?: Record<string, unknown> }>).findings
+      ?.items as Record<string, unknown>
+  );
+for (const model of [null, "direct", "trial_first", "lead_first"] as const) {
+  const props = findingProps(model);
+  const required = props.required as string[];
+  check(`stage and where are required (model: ${model ?? "undeclared"})`, ["stage", "where"].every((k) => required.includes(k)), true);
+  const stageEnum = ((props.properties as Record<string, { enum?: readonly string[] }>).stage.enum ?? []) as readonly string[];
+  check(`stage enum equals the model's journey (model: ${model ?? "undeclared"})`, stageEnum, stagesForModel(model));
+}
+// The stage vocabulary must follow the funnel model, or it cannot catch the
+// "loss aversion at the free signup" error that motivated it.
+check("only trial-first has an upgrade stage", stagesForModel("trial_first").includes("upgrade"), true);
+check("a direct sale has no upgrade stage", stagesForModel("direct").includes("upgrade"), false);
+check("a direct sale has no signup stage", stagesForModel("direct").includes("cadastro"), false);
+check("lead-first closes with a human, not a checkout", stagesForModel("lead_first").includes("checkout"), false);
+check("lead-first has the sales conversation", stagesForModel("lead_first").includes("atendimento"), true);
+// Every stage any model can emit must have copy in every locale, or the chip
+// renders a raw key at the user.
+for (const stage of READINESS_STAGES) {
+  for (const locale of LOCALES) {
+    check(
+      `stage-${stage} has real copy in ${locale}`,
+      typeof readinessMessages[locale][`stage-${stage}`] === "string" &&
+        readinessMessages[locale][`stage-${stage}`].trim().length > 0,
+      true,
+    );
+  }
+}
+// Stored verdicts predate both fields: they must keep validating and rendering.
+check(
+  "a verdict without stage/where still validates",
+  isReadinessOutput({
+    verdict: "quase",
+    summary: "s",
+    findings: [
+      {
+        dimension: "oferta",
+        status: "atencao",
+        finding: "f",
+        evidence: [],
+        technical_basis: [],
+        recommended_action: "a",
+        effort: "baixo",
+        impact: "medio",
+        success_criterion: "c",
+      },
+    ],
+    blocking: [],
+    confidence: "media",
+    insufficient_data: false,
+    missing_data: "",
+  }),
+  true,
+);
+
+// The checklist key is INPUT for related_items — it leaked into user-facing
+// evidence once ("Garantia declarada na oferta `hasGuarantee`") because the
+// briefing put it in backticks right after the label, where it read as part of
+// the sentence. Tagged with its field, it reads as machine input.
+const keyedBlock = readinessChecklistBlock(p({ funnelModel: "direct" }), undefined);
+check("the key is tagged with the field it feeds", keyedBlock.includes("[related_items: pixelInstalled]"), true);
+check("the key is no longer glued to the label in backticks", /Pixel da Meta[^\n]*`pixelInstalled`/.test(keyedBlock), false);
 
 /* ========================================================================== */
 section("Scope boundary — readiness audits structure, never media setup (0041)");

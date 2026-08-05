@@ -2710,7 +2710,18 @@
     "checkout-type-help": "Isto define quais itens abaixo fazem sentido para você.",
     "scan-proved-payoff": "A leitura confirmou {count} itens para você — são {count} perguntas a menos nos próximos passos.",
     "group-note-technical": "Este é o passo mais técnico da lista. É normal precisar de ajuda aqui — cada item tem a explicação e, quando dá, o texto pronto para passar a quem cuida do seu site.",
-    "group-note-declared": "Nada aqui está numa página pública, então nossa leitura não alcança nenhum destes itens. Vale a sua palavra — e um veredito apoiado só nela não recebe confiança alta."
+    "group-note-declared": "Nada aqui está numa página pública, então nossa leitura não alcança nenhum destes itens. Vale a sua palavra — e um veredito apoiado só nela não recebe confiança alta.",
+    "finding-where": "Onde",
+    "stage-descoberta": "Descoberta",
+    "stage-anuncio": "Anúncio",
+    "stage-pagina": "Página",
+    "stage-checkout": "Checkout",
+    "stage-cadastro": "Cadastro",
+    "stage-ativacao": "Ativação",
+    "stage-upgrade": "Upgrade",
+    "stage-formulario": "Formulário",
+    "stage-atendimento": "Atendimento",
+    "stage-pos_venda": "Pós-venda"
   },
   "productCommon": {
     "load-error-title": "Não foi possível carregar estes dados",

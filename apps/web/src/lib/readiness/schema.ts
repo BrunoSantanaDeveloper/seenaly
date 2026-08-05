@@ -11,7 +11,7 @@
  * line instead of with a number they cannot inspect.
  */
 
-import { type FunnelModel, groupsForModel } from "./checklist";
+import { type FunnelModel, groupsForModel, stagesForModel } from "./checklist";
 
 import type { Confidence, DiagnosisEvidence, DiagnosisTechnicalBasis, EvidenceSource } from "@/lib/diagnosis/schema";
 
@@ -43,6 +43,16 @@ export interface ReadinessFinding {
   evidence: DiagnosisEvidence[];
   technical_basis: DiagnosisTechnicalBasis[];
   recommended_action: string;
+  /**
+   * WHERE the fix lands: the journey stage, and a concrete screen locator.
+   *
+   * OPTIONAL on the type for the same reason as `related_items` — verdicts
+   * stored before these fields existed must keep validating and rendering.
+   * REQUIRED in the schema going forward, so every new finding commits to a
+   * place instead of falling back to "na sua página".
+   */
+  stage?: string;
+  where?: string;
   /** Cost to fix — cheap-and-decisive is what gets done first. */
   effort: ReadinessLevel;
   impact: ReadinessLevel;
@@ -163,6 +173,17 @@ export function readinessJsonSchema(funnelModel: FunnelModel | null): Record<str
             effort: { type: "string", enum: ["baixo", "medio", "alto"] },
             impact: { type: "string", enum: ["baixo", "medio", "alto"] },
             success_criterion: { type: "string", description: "Como saber, de forma verificável, que foi resolvido." },
+            stage: {
+              type: "string",
+              enum: stagesForModel(funnelModel),
+              description:
+                "EM QUE ETAPA da jornada declarada deste negócio a correção acontece. Escolha pela etapa onde o problema CUSTA dinheiro, não pela primeira que parecer relacionada: um argumento sobre risco de pagar pertence ao momento em que se paga, não ao cadastro gratuito.",
+            },
+            where: {
+              type: "string",
+              description:
+                "EM QUE TELA e em que ponto dela, concreto o bastante para a pessoa ir até lá e olhar (ex.: 'card do plano Pro na página de planos, abaixo do preço'). PROIBIDO responder apenas 'na sua página' ou 'no seu site' quando o negócio tem mais de uma superfície. Se você não sabe qual tela, diga isso aqui e peça a URL em missing_data — nunca invente uma localização.",
+            },
             related_items: {
               type: "array",
               description:
@@ -177,6 +198,8 @@ export function readinessJsonSchema(funnelModel: FunnelModel | null): Record<str
             "evidence",
             "technical_basis",
             "recommended_action",
+            "stage",
+            "where",
             "effort",
             "impact",
             "success_criterion",

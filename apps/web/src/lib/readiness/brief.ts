@@ -191,12 +191,17 @@ export function readinessChecklistBlock(profile: ReadinessProfile, evaluation?: 
         );
       else if (claimed) marks.push("declarado, NÃO verificado");
       else marks.push("NÃO CONFIRMADO");
-      // The KEY travels with the label. Before, the block sent labels only, so
-      // the engine could only learn the key names from a hardcoded list in the
-      // prompt — which drifted (0034 added four keys and never touched it).
-      // Here the names come from the checklist definition itself, already
-      // filtered to the groups this business actually has.
-      return `- [${claimed ? "x" : " "}] ${ITEM_LABEL[item.key]} \`${item.key}\` (${marks.join("; ")})`;
+      // The KEY travels with the label, so the engine learns the valid names
+      // from the data instead of a hardcoded list in the prompt (which drifted:
+      // 0034 added four keys and never touched it).
+      //
+      // It is TAGGED, not merely appended. In backticks right after the label
+      // it read as part of the sentence, and a real verdict copied the whole
+      // line into user-facing evidence — "Garantia declarada na oferta
+      // `hasGuarantee` (NÃO CONFIRMADO)". Naming the field it belongs to says
+      // what the token is FOR at the exact place it appears; the prompt rule
+      // (0043) is the second lock.
+      return `- [${claimed ? "x" : " "}] ${ITEM_LABEL[item.key]} (${marks.join("; ")}) [related_items: ${item.key}]`;
     });
     return [`### ${GROUP_LABEL[group.key]}`, ...lines].join("\n");
   });

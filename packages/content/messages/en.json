@@ -2710,7 +2710,18 @@
     "checkout-type-help": "This decides which items below make sense for you.",
     "scan-proved-payoff": "The read confirmed {count} items for you — that's {count} fewer questions ahead.",
     "group-note-technical": "This is the most technical step in the list. Needing help here is normal — every item has its explanation and, where possible, ready-made text to hand to whoever runs your site.",
-    "group-note-declared": "None of this lives on a public page, so our read cannot reach any of these items. Your word is what we have — and a verdict resting only on it never gets high confidence."
+    "group-note-declared": "None of this lives on a public page, so our read cannot reach any of these items. Your word is what we have — and a verdict resting only on it never gets high confidence.",
+    "finding-where": "Where",
+    "stage-descoberta": "Discovery",
+    "stage-anuncio": "Ad",
+    "stage-pagina": "Page",
+    "stage-checkout": "Checkout",
+    "stage-cadastro": "Signup",
+    "stage-ativacao": "Activation",
+    "stage-upgrade": "Upgrade",
+    "stage-formulario": "Form",
+    "stage-atendimento": "Sales call",
+    "stage-pos_venda": "Post-purchase"
   },
   "productCommon": {
     "load-error-title": "We couldn't load this data",

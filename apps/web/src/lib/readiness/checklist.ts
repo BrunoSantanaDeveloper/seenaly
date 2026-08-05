@@ -66,6 +66,38 @@ export const isTrialFirst = (model: FunnelModel | null): boolean => model === "t
 export const isLeadFirst = (model: FunnelModel | null): boolean => model === "lead_first";
 
 /**
+ * WHERE a fix lands on the customer's journey — the structural step, in order.
+ *
+ * This exists because a verdict that cannot say "where" is not actionable. A
+ * real one told a trial-first SaaS to "add a guarantee to your offer and show
+ * it on the landing page", when the landing page already said "14 dias grátis,
+ * sem cartão · cancele quando quiser" and the thing actually missing was any
+ * cancellation term on the PAID plans. Right dimension, wrong surface — and
+ * nothing in the output had ever forced the engine to commit to a surface.
+ *
+ * It also catches a subtler error mechanically. That same finding argued loss
+ * aversion ("fear of losing your money") about the SIGNUP, where no money is at
+ * stake. Made to pick a stage, `cadastro` next to that argument is visibly
+ * wrong — to the model writing it and to us reading it.
+ *
+ * NOT the creative funnel stage (`CREATIVE_FUNNEL_STAGES` = audience
+ * temperature, topo/meio/fundo). Different axis: that one is who is watching,
+ * this one is which screen the work happens on.
+ */
+export const READINESS_STAGES_BY_MODEL: Record<FunnelModel, readonly string[]> = {
+  direct: ["descoberta", "anuncio", "pagina", "checkout", "pos_venda"],
+  trial_first: ["descoberta", "anuncio", "pagina", "cadastro", "ativacao", "upgrade", "pos_venda"],
+  lead_first: ["descoberta", "anuncio", "pagina", "formulario", "atendimento", "pos_venda"],
+};
+
+/** Every stage any model can use — the union the UI must be able to label. */
+export const READINESS_STAGES = [...new Set(Object.values(READINESS_STAGES_BY_MODEL).flat())] as const;
+
+/** The stages that apply to a declared model. Null falls back to `direct`. */
+export const stagesForModel = (model: FunnelModel | null): readonly string[] =>
+  READINESS_STAGES_BY_MODEL[model ?? "direct"];
+
+/**
  * How much of a claim we can actually PROVE.
  *
  * A self-declared checklist that feeds an AI verdict is garbage-in-garbage-out:

@@ -2710,7 +2710,18 @@
     "checkout-type-help": "Cela décide quels éléments ci-dessous ont du sens pour vous.",
     "scan-proved-payoff": "La lecture a confirmé {count} éléments pour vous — autant de questions en moins ensuite.",
     "group-note-technical": "C'est l'étape la plus technique de la liste. Avoir besoin d'aide ici est normal — chaque élément a son explication et, quand c'est possible, un texte prêt à transmettre à qui gère votre site.",
-    "group-note-declared": "Rien de tout cela n'est sur une page publique, notre lecture n'atteint aucun de ces éléments. C'est votre parole qui compte — et un verdict qui ne repose que sur elle n'obtient jamais une confiance élevée."
+    "group-note-declared": "Rien de tout cela n'est sur une page publique, notre lecture n'atteint aucun de ces éléments. C'est votre parole qui compte — et un verdict qui ne repose que sur elle n'obtient jamais une confiance élevée.",
+    "finding-where": "Où",
+    "stage-descoberta": "Découverte",
+    "stage-anuncio": "Annonce",
+    "stage-pagina": "Page",
+    "stage-checkout": "Paiement",
+    "stage-cadastro": "Inscription",
+    "stage-ativacao": "Activation",
+    "stage-upgrade": "Upgrade",
+    "stage-formulario": "Formulaire",
+    "stage-atendimento": "Entretien commercial",
+    "stage-pos_venda": "Après-vente"
   },
   "productCommon": {
     "load-error-title": "Impossible de charger ces données",

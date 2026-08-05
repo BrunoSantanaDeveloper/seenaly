@@ -2710,7 +2710,18 @@
     "checkout-type-help": "Das entscheidet, welche Punkte unten für dich sinnvoll sind.",
     "scan-proved-payoff": "Die Prüfung hat {count} Punkte für dich bestätigt — das sind {count} Fragen weniger.",
     "group-note-technical": "Das ist der technischste Schritt der Liste. Hier Hilfe zu brauchen ist normal — jeder Punkt hat seine Erklärung und, wo möglich, fertigen Text für die Person, die deine Website betreut.",
-    "group-note-declared": "Nichts davon steht auf einer öffentlichen Seite, unsere Prüfung erreicht keinen dieser Punkte. Es zählt dein Wort — und ein Urteil, das nur darauf ruht, bekommt nie hohe Sicherheit."
+    "group-note-declared": "Nichts davon steht auf einer öffentlichen Seite, unsere Prüfung erreicht keinen dieser Punkte. Es zählt dein Wort — und ein Urteil, das nur darauf ruht, bekommt nie hohe Sicherheit.",
+    "finding-where": "Wo",
+    "stage-descoberta": "Entdeckung",
+    "stage-anuncio": "Anzeige",
+    "stage-pagina": "Seite",
+    "stage-checkout": "Checkout",
+    "stage-cadastro": "Registrierung",
+    "stage-ativacao": "Aktivierung",
+    "stage-upgrade": "Upgrade",
+    "stage-formulario": "Formular",
+    "stage-atendimento": "Vertriebsgespräch",
+    "stage-pos_venda": "Nach dem Kauf"
   },
   "productCommon": {
     "load-error-title": "Diese Daten konnten nicht geladen werden",
