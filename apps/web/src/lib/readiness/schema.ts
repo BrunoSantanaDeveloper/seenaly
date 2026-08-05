@@ -177,12 +177,12 @@ export function readinessJsonSchema(funnelModel: FunnelModel | null): Record<str
               type: "string",
               enum: stagesForModel(funnelModel),
               description:
-                "EM QUE ETAPA da jornada declarada deste negócio a correção acontece. Escolha pela etapa onde o problema CUSTA dinheiro, não pela primeira que parecer relacionada: um argumento sobre risco de pagar pertence ao momento em que se paga, não ao cadastro gratuito.",
+                "QUANDO este problema custa dinheiro na jornada declarada — o momento em que a receita é ganha ou perdida por causa dele. NÃO é a tela onde o texto vai ser escrito: essa é a pergunta do campo `where`, e responder a mesma coisa nos dois desperdiça um dos campos. Exemplo: um aviso de garantia exibido na página de planos, que reduz o risco de ASSINAR, tem stage=`upgrade` e where=`página de planos` — nunca stage=`pagina`. Escolha pelo dinheiro: se o argumento é sobre risco de pagar, a etapa é aquela em que se paga, não o cadastro gratuito nem a página que hospeda o texto.",
             },
             where: {
               type: "string",
               description:
-                "EM QUE TELA e em que ponto dela, concreto o bastante para a pessoa ir até lá e olhar (ex.: 'card do plano Pro na página de planos, abaixo do preço'). PROIBIDO responder apenas 'na sua página' ou 'no seu site' quando o negócio tem mais de uma superfície. Se você não sabe qual tela, diga isso aqui e peça a URL em missing_data — nunca invente uma localização.",
+                "EM QUE TELA e em que ponto dela, concreto o bastante para a pessoa ir até lá e olhar (ex.: 'card do plano Pro na página de planos, abaixo do preço'). PROIBIDO responder apenas 'na sua página' ou 'no seu site' quando o negócio tem mais de uma superfície. PROIBIDO TAMBÉM hesitar entre duas telas com um 'ou': se você precisa escrever 'na página X ou na página Y', é porque não sabe qual existe — então escolha a mais provável, diga que é uma suposição, e PEÇA A URL da outra em missing_data. Nunca invente uma localização.",
             },
             related_items: {
               type: "array",

@@ -469,6 +469,24 @@ for (const stage of READINESS_STAGES) {
     );
   }
 }
+// The two fields must ask DIFFERENT questions, and the descriptions are what
+// carry that. The first cut of `stage` opened with "em que etapa a correção
+// ACONTECE" and only then said "escolha pela etapa onde custa dinheiro" — two
+// requests in one field. The model obeyed the first and tagged a finding about
+// subscription risk as `pagina`, because a page is where the text goes. This
+// guards the phrasing, not the model.
+const stageDesc = (
+  (findingProps("trial_first").properties as Record<string, { description?: string }>).stage.description ?? ""
+).toLowerCase();
+const whereDesc = (
+  (findingProps("trial_first").properties as Record<string, { description?: string }>).where.description ?? ""
+).toLowerCase();
+check("stage is defined by WHEN money moves, not where the fix is written", stageDesc.includes("quando"), true);
+check("stage never says the fix 'acontece' somewhere", stageDesc.includes("a correção acontece"), false);
+check("stage points at where for the screen question", stageDesc.includes("`where`"), true);
+check("where forbids hedging between two screens", whereDesc.includes("hesitar"), true);
+check("where routes the unknown screen to missing_data", whereDesc.includes("missing_data"), true);
+
 // Stored verdicts predate both fields: they must keep validating and rendering.
 check(
   "a verdict without stage/where still validates",
