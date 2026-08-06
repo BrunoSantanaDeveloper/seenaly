@@ -31,15 +31,18 @@ import NiChevronDownSmall from "@/icons/nexture/ni-chevron-down-small";
 import NiDatabase from "@/icons/nexture/ni-database";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiRocket from "@/icons/nexture/ni-rocket";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiTag from "@/icons/nexture/ni-tag";
 import NiTrendUp from "@/icons/nexture/ni-trend-up";
+import { nextJourneyStage } from "@/lib/journey";
 import { cn } from "@/lib/utils";
 
 export type ProductWorkspaceStage =
   | "context"
   | "readiness"
   | "data"
+  | "launch"
   | "diagnosis"
   | "experiments"
   | "creatives"
@@ -57,6 +60,7 @@ export type ProductWorkspaceProgress = {
   hasContext: boolean;
   hasReadiness: boolean;
   hasCreativeEvidence: boolean;
+  hasLaunchPlan: boolean;
   hasDiagnosis: boolean;
   hasExperiment: boolean;
   hasData: boolean;
@@ -114,6 +118,7 @@ const STAGE_TONE: Record<ProductWorkspaceStage, Tone> = {
   context: "primary",
   readiness: "accent-4",
   data: "accent-2",
+  launch: "accent-2",
   diagnosis: "accent-1",
   experiments: "accent-3",
   creatives: "accent-1",
@@ -128,6 +133,8 @@ type StageItem = {
   step?: number;
   done?: boolean;
   optional?: boolean;
+  /** Short discreet badge (e.g. "sem dados") — never a blocker, just a heads-up. */
+  hint?: string;
 };
 
 export default function ProductWorkspace({
@@ -184,8 +191,18 @@ export default function ProductWorkspace({
           { id: "context", icon: <NiTag size="small" />, step: 1, done: progress.hasContext },
           { id: "readiness", icon: <NiShieldCheck size="small" />, step: 2, done: progress.hasReadiness },
           { id: "creatives", icon: <NiCamera size="small" />, step: 3, done: progress.hasCreativeEvidence },
-          { id: "diagnosis", icon: <NiPulse size="small" />, step: 4, done: progress.hasDiagnosis },
-          { id: "experiments", icon: <NiFlask size="small" />, step: 5, done: progress.hasExperiment },
+          { id: "launch", icon: <NiRocket size="small" />, step: 4, done: progress.hasLaunchPlan },
+          {
+            id: "diagnosis",
+            icon: <NiPulse size="small" />,
+            step: 5,
+            done: progress.hasDiagnosis,
+            // Never a lock (the maturity spectrum invariant: value is never
+            // gated) — just the same heads-up the diagnosis screen itself
+            // gives before spending credits on "não há base para concluir".
+            hint: progress.hasData ? undefined : t("hint-no-data"),
+          },
+          { id: "experiments", icon: <NiFlask size="small" />, step: 6, done: progress.hasExperiment },
         ],
       },
       {
@@ -200,20 +217,23 @@ export default function ProductWorkspace({
         items: [{ id: "funnel", icon: <NiChartFunnel size="small" /> }],
       },
     ],
-    [progress],
+    [progress, t],
   );
 
   const allItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
   const current = allItems.find((item) => item.id === stage) ?? allItems[0];
-  const next = !progress.hasContext
-    ? ("context" as const)
-    : !progress.hasReadiness
-      ? ("readiness" as const)
-      : !progress.hasCreativeEvidence
-        ? ("creatives" as const)
-        : !progress.hasDiagnosis
-          ? ("diagnosis" as const)
-          : ("experiments" as const);
+  // hasData IS the campaign-data signal (products/[id]/layout.tsx) — reused
+  // here so "próxima ação" never recommends the campaign diagnosis before
+  // there is anything for it to read.
+  const next = nextJourneyStage({
+    hasContext: progress.hasContext,
+    hasReadiness: progress.hasReadiness,
+    hasCreativeEvidence: progress.hasCreativeEvidence,
+    hasLaunchPlan: progress.hasLaunchPlan,
+    hasDiagnosis: progress.hasDiagnosis,
+    hasExperiment: progress.hasExperiment,
+    hasCampaignData: progress.hasData,
+  });
 
   const contextValue = useMemo<ProductWorkspaceContextValue>(
     () => ({ product, products, progress, stage, href, switchProduct }),
@@ -246,6 +266,11 @@ export default function ProductWorkspace({
       {item.optional && (
         <Typography variant="body2" component="span" className="text-text-secondary ml-2 shrink-0">
           {t("optional")}
+        </Typography>
+      )}
+      {item.hint && (
+        <Typography variant="body2" component="span" className="text-text-secondary ml-2 shrink-0">
+          {item.hint}
         </Typography>
       )}
       {item.done !== undefined && (

@@ -2,7 +2,7 @@
 
 import { registerExperimentFromDiagnosis } from "../experiments/actions";
 import { useOrganization } from "../settings/organization/components/use-organization";
-import { type DiagnosisRating, generateDiagnosis, recordDiagnosisFeedback } from "./actions";
+import { type DiagnosisRating, generateDiagnosis, getDiagnosisCreditInfo, recordDiagnosisFeedback } from "./actions";
 import DiagnosisCard, { type DiagnosisFunnel, type DiagnosisMeta } from "./components/diagnosis-card";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -40,7 +40,7 @@ type DiagnosisRow = {
   knowledge_refs: { title: string; trust_level: number }[];
 };
 
-type ProductRow = { id: string; name: string };
+type ProductRow = { id: string; name: string; connectionId: string | null };
 
 export function DiagnosisExperience({
   forcedProductId,
@@ -73,6 +73,12 @@ export function DiagnosisExperience({
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dataLoadError, setDataLoadError] = useState(false);
+  // Honesty gate (docs/PRODUCT.md maturity spectrum): the diagnosis is never
+  // BLOCKED without campaign data, but spending credits to hear "não há base"
+  // deserves a warning before the click, not after.
+  const [hasCampaignData, setHasCampaignData] = useState(false);
+  const [hasLaunchPlan, setHasLaunchPlan] = useState(false);
+  const [creditCost, setCreditCost] = useState(0);
 
   const product = products.find((p) => p.id === selectedProductId) ?? null;
   const ready = productsLoaded && loaded;
@@ -84,7 +90,7 @@ export function DiagnosisExperience({
     const supabase = createClient();
     const { data, error: productsError } = await supabase
       .from("products")
-      .select("id, name")
+      .select("id, name, connection_id")
       .eq("org_id", currentOrg.id)
       .order("updated_at", { ascending: false });
     if (productsError) {
@@ -93,7 +99,11 @@ export function DiagnosisExperience({
       setLoaded(true);
       return;
     }
-    const list = (data as ProductRow[]) ?? [];
+    const list = ((data ?? []) as { id: string; name: string; connection_id: string | null }[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      connectionId: row.connection_id,
+    }));
     setDataLoadError(false);
     setProducts(list);
     setSelectedProductId((prev) => {
@@ -214,6 +224,37 @@ export function DiagnosisExperience({
     }
   };
 
+  // Same signal products/[id]/layout.tsx uses for its workspace rail: a
+  // connection alone is not data — it must be connected AND synced at least
+  // once. Best-effort: a load error here silently keeps the warning hidden
+  // rather than blocking the screen over a secondary signal.
+  const loadCampaignDataSignal = useCallback(async () => {
+    if (!product) {
+      setHasCampaignData(false);
+      setHasLaunchPlan(false);
+      return;
+    }
+    const supabase = createClient();
+    const [connectionResult, launchPlanResult] = await Promise.all([
+      product.connectionId
+        ? supabase
+            .from("connections")
+            .select("status, last_synced_at")
+            .eq("id", product.connectionId)
+            .eq("provider", "meta-ads")
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", product.id)
+        .eq("scope", "launch_plan"),
+    ]);
+    const connection = connectionResult.data as { status: string; last_synced_at: string | null } | null;
+    setHasCampaignData(connection?.status === "connected" && Boolean(connection.last_synced_at));
+    setHasLaunchPlan((launchPlanResult.count ?? 0) > 0);
+  }, [product]);
+
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
@@ -221,6 +262,17 @@ export function DiagnosisExperience({
   useEffect(() => {
     loadDiagnoses();
   }, [loadDiagnoses]);
+
+  useEffect(() => {
+    loadCampaignDataSignal();
+  }, [loadCampaignDataSignal]);
+
+  useEffect(() => {
+    if (!currentOrg) return;
+    getDiagnosisCreditInfo(currentOrg.id).then((info) => {
+      if (info.ok) setCreditCost(info.cost);
+    });
+  }, [currentOrg]);
 
   useEffect(() => {
     if (!workspace && requestedProductId) {
@@ -305,6 +357,34 @@ export function DiagnosisExperience({
           )}
           {product && ready && rows.length > 0 && <Grid size={{ xs: 12, md: "auto" }}>{generateButton}</Grid>}
         </Grid>
+
+        {/* Honesty before the spend (docs/PRODUCT.md maturity spectrum): this
+            screen is never gated without campaign data, but a credit-costing
+            answer of "não há base para concluir" deserves a warning BEFORE
+            the click, not a surprise after it — and a door to the Launch Plan
+            when the product has not built one yet. */}
+        {configured && ready && !dataLoadError && product && !hasCampaignData && (
+          <Grid size={12}>
+            <Alert
+              severity="info"
+              className="neutral bg-background-paper/60!"
+              action={
+                !hasLaunchPlan ? (
+                  <Button
+                    component={Link}
+                    href={workspace ? `/products/${product.id}/launch` : `/launch?product=${product.id}`}
+                    size="small"
+                    color="primary"
+                  >
+                    {t("no-data-warning-cta-launch")}
+                  </Button>
+                ) : undefined
+              }
+            >
+              {creditCost > 0 ? t("no-data-warning-body-cost", { cost: creditCost }) : t("no-data-warning-body")}
+            </Alert>
+          </Grid>
+        )}
 
         {!configured && (
           <Grid size={12}>
@@ -431,6 +511,9 @@ export function DiagnosisExperience({
               >
                 {registering ? t("registering-experiment") : t("register-experiment")}
               </Button>
+              <Typography variant="body2" className="text-text-secondary mt-1">
+                {t("register-experiment-hint")}
+              </Typography>
             </Box>
           </Grid>
         )}

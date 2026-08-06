@@ -32,6 +32,7 @@ export default function EditProductPage() {
   // Drives which next action leads: readiness precedes the campaign diagnosis.
   const [hasReadiness, setHasReadiness] = useState(false);
   const [hasCreativeEvidence, setHasCreativeEvidence] = useState(false);
+  const [hasLaunchPlan, setHasLaunchPlan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function EditProductPage() {
       { count: readinessCount, error: readinessError },
       { count: creativePlanCount, error: creativePlanError },
       { count: creativeCount, error: creativesError },
+      { count: launchPlanCount, error: launchPlanError },
     ] = await Promise.all([
       supabase.from("products").select("*").eq("id", id).maybeSingle(),
       supabase.from("product_objections").select("content").eq("product_id", id).order("created_at"),
@@ -87,6 +89,11 @@ export default function EditProductPage() {
         .eq("product_id", id)
         .eq("scope", "creative_plan"),
       supabase.from("creatives").select("id", { count: "exact", head: true }).eq("product_id", id),
+      supabase
+        .from("diagnoses")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", id)
+        .eq("scope", "launch_plan"),
     ]);
     if (
       productError ||
@@ -95,7 +102,8 @@ export default function EditProductPage() {
       plansError ||
       readinessError ||
       creativePlanError ||
-      creativesError
+      creativesError ||
+      launchPlanError
     ) {
       setLoadError(true);
       setLoading(false);
@@ -109,6 +117,7 @@ export default function EditProductPage() {
     setLoadError(false);
     setHasReadiness((readinessCount ?? 0) > 0);
     setHasCreativeEvidence((creativePlanCount ?? 0) > 0 || (creativeCount ?? 0) > 0);
+    setHasLaunchPlan((launchPlanCount ?? 0) > 0);
     setProduct(mapProductRow(row, { objections: objections ?? [], proofs: proofs ?? [], plans: plans ?? [] }));
     setLoading(false);
   }, [id]);
@@ -200,6 +209,7 @@ export default function EditProductPage() {
                 missing={completeness!.missing}
                 hasReadiness={hasReadiness}
                 hasCreativeEvidence={hasCreativeEvidence}
+                hasLaunchPlan={hasLaunchPlan}
                 onFieldClick={(field) => setFocusField((prev) => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))}
               />
             </Grid>

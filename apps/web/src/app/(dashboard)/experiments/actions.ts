@@ -4,6 +4,7 @@ import type { ExperimentInput } from "./types";
 
 import { isCreativePlanOutput } from "@/lib/creative-plan/schema";
 import type { DiagnosisOutput } from "@/lib/diagnosis/schema";
+import { isLaunchPlanOutput } from "@/lib/launch-plan/schema";
 import { isReadinessOutput } from "@/lib/readiness/schema";
 import { createClient } from "@flyee/auth/server";
 
@@ -245,6 +246,64 @@ export async function registerExperimentFromPlanHypothesis(planId: string, hypot
       change_made: changeMade,
       reason: `Plano de teste criativo — hipótese ${hypothesis.key}`,
       primary_metric: hypothesis.success_criterion,
+      created_by: user.user?.id ?? null,
+    })
+    .select("id")
+    .single();
+  if (insertError || !created) return { ok: false, error: insertError?.message ?? "Falha ao registrar o experimento." };
+  return { ok: true, id: created.id as string };
+}
+
+/**
+ * Register one Launch Plan step as a tracked experiment.
+ *
+ * Per STEP, not per plan — same reasoning as the readiness finding and the
+ * creative-plan hypothesis: a plan carries several ordered steps (the first
+ * bet, remarketing, ...) and collapsing them into one row would erase which
+ * one the memory actually learned from. Idempotency reuses the
+ * (diagnosis_id, change_made) convention: the change line embeds the step
+ * key, so clicking twice reuses the entry instead of duplicating it.
+ */
+export async function registerExperimentFromLaunchStep(planId: string, stepKey: string): Promise<SaveResult> {
+  const supabase = await createClient();
+  const { data: plan, error } = await supabase
+    .from("diagnoses")
+    .select("id, org_id, product_id, output, scope")
+    .eq("id", planId)
+    .maybeSingle();
+  if (error || !plan) return { ok: false, error: error?.message ?? "Plano não encontrado." };
+  if (plan.scope !== "launch_plan") return { ok: false, error: "Este registro não é um plano de lançamento." };
+
+  const output = plan.output;
+  if (!isLaunchPlanOutput(output)) return { ok: false, error: "O plano está fora do formato esperado." };
+  const step = output.steps.find((s) => s.key === stepKey);
+  if (!step) return { ok: false, error: "Etapa não encontrada no plano." };
+
+  // Deterministic from the plan output — the idempotency anchor.
+  const changeMade = `Etapa do lançamento [${step.key}]: ${step.action}`;
+  const { data: existing, error: existingError } = await supabase
+    .from("experiments")
+    .select("id")
+    .eq("diagnosis_id", plan.id)
+    .eq("change_made", changeMade)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) return { ok: false, error: existingError.message };
+  if (existing) return { ok: true, id: existing.id as string };
+
+  const { data: user } = await supabase.auth.getUser();
+  const { data: created, error: insertError } = await supabase
+    .from("experiments")
+    .insert({
+      org_id: plan.org_id,
+      product_id: plan.product_id,
+      diagnosis_id: plan.id,
+      title: `Plano de lançamento: ${step.title}`.slice(0, 80),
+      status: "planned",
+      hypothesis: step.precondition ? `Pré-condição: ${step.precondition}` : null,
+      change_made: changeMade,
+      reason: "Plano de lançamento",
+      primary_metric: step.signal_to_advance,
       created_by: user.user?.id ?? null,
     })
     .select("id")

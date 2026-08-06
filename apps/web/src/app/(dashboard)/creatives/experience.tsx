@@ -408,6 +408,7 @@ export function CreativesExperience({
         {hasProduct && !dataLoadError && planLoaded && plan && (
           <Grid size={12}>
             <CreativePlanCard
+              productId={productId ?? ""}
               plan={plan.output}
               meta={plan.meta}
               coverage={coverage}

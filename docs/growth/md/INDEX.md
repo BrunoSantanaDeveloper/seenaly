@@ -33,6 +33,19 @@ que acontece **depois do clique** e **antes da campanha** (página, checkout, of
 - [Copy que converte: headline, frameworks e nível de consciência](copy-frameworks-headline.md) (trust 4): A headline carrega a maior parte do peso; frameworks (PAS/AIDA/BAB, inimigo comum) são andaimes; e a mensagem precisa casar com o nível de consciência do público (Schwartz, com a simplificação operacional de três estágios e sua métrica). Como diagnosticar copy genérica e o que reescrever primeiro.
 - [Público, segmentação e fit ângulo–mercado](publico-segmentacao-angulo.md) (trust 4): Na entrega por IA da Meta (público amplo/Advantage+) o criativo é a segmentação; a mesma oferta exige ângulos diferentes por segmento. Como não confundir "público errado" com "ângulo errado para este público" e separar fadiga de saturação.
 
+### Conteúdo orgânico nativo
+
+> Recorte que sustenta o Plano de Teste Criativo (fase 8): o teste orgânico só gera
+> evidência utilizável se a peça for distribuída e for lida como conteúdo, não como
+> propaganda. Cobre distribuição, mix de pilares, cadência e a diferença estrutural entre
+> conteúdo nativo e peça publicitária. Sinal orgânico ordena hipóteses pagas; nunca prevê
+> resultado pago.
+
+- [Distribuição orgânica: os sinais que decidem alcance](distribuicao-organica-sinais.md) (trust 4): Retenção, salvamento e compartilhamento são a moeda do alcance — curtida quase não pesa. Por que uma peça com cara de anúncio é filtrada antes de ser avaliada, e como isso muda o que medir numa hipótese criativa.
+- [Pilares de conteúdo: a proporção entre educar, provar, conectar e vender](pilares-conteudo-mix.md) (trust 4): Um feed majoritariamente promocional treina a audiência a filtrá-lo. Framework de pilares mapeado para a taxonomia de tipos narrativos do Organic Growth — mix declarado e testável, nunca uma proporção universal.
+- [Cadência e consistência: ritmo sustentável bate volume em rajada](cadencia-consistencia-formatos.md) (trust 4): O algoritmo testa cada post numa fatia pequena antes de estender alcance, e uma hipótese só tem leitura confiável acima do mínimo de coorte. Como dimensionar o ritmo e produzir em lote sem prometer prazo.
+- [Conteúdo nativo vs. peça publicitária](conteudo-nativo-vs-anuncio.md) (trust 4): A diferença estrutural que decide se o teste orgânico significa alguma coisa — e por que a conversão de forma ao promover um vencedor para mídia paga é esperada, não um erro.
+
 ## Arquitetura de funil e escala
 
 - [Tipos de funil e critérios de escolha](tipos-funil-escolha.md) (trust 4): Mapa dos funis de aquisição (página+checkout low ticket, VSL, quiz diagnóstico→low ticket→webinário, webinário, lançamento) e os critérios — ticket, consciência, autoridade, complexidade da promessa — mais a régua de níveis de escala: criativo → oferta → funil.

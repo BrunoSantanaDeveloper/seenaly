@@ -24,6 +24,7 @@ interface LiveState {
   hasDepth: boolean;
   hasReadiness: boolean;
   hasCreativeEvidence: boolean;
+  hasLaunchPlan: boolean;
   hasMetaConnection: boolean;
   hasDiagnosis: boolean;
 }
@@ -80,6 +81,10 @@ export default function ActivationChecklist({
       .select("id", { count: "exact", head: true })
       .eq("scope", "creative_plan");
     const creativesQuery = supabase.from("creatives").select("id", { count: "exact", head: true });
+    const launchPlanQuery = supabase
+      .from("diagnoses")
+      .select("id", { count: "exact", head: true })
+      .eq("scope", "launch_plan");
 
     const [
       persisted,
@@ -88,6 +93,7 @@ export default function ActivationChecklist({
       { count: readinessVerdicts, error: readinessError },
       { count: creativePlans, error: creativePlansError },
       { count: creatives, error: creativesError },
+      { count: launchPlans, error: launchPlansError },
     ] = await Promise.all([
       getOnboardingState(supabase, flowKey),
       productId ? productsQuery.eq("id", productId) : productsQuery,
@@ -95,6 +101,7 @@ export default function ActivationChecklist({
       productId ? readinessQuery.eq("product_id", productId) : readinessQuery.eq("org_id", orgId),
       productId ? creativePlanQuery.eq("product_id", productId) : creativePlanQuery.eq("org_id", orgId),
       productId ? creativesQuery.eq("product_id", productId) : creativesQuery.eq("org_id", orgId),
+      productId ? launchPlanQuery.eq("product_id", productId) : launchPlanQuery.eq("org_id", orgId),
     ]);
 
     const productRows = (products ?? []) as ActivationProductRow[];
@@ -123,7 +130,15 @@ export default function ActivationChecklist({
       connectionsError = result.error;
     }
 
-    if (productsError || connectionsError || diagnosesError || readinessError || creativePlansError || creativesError) {
+    if (
+      productsError ||
+      connectionsError ||
+      diagnosesError ||
+      readinessError ||
+      creativePlansError ||
+      creativesError ||
+      launchPlansError
+    ) {
       setLoadError(true);
       setRefreshing(false);
       return;
@@ -138,6 +153,7 @@ export default function ActivationChecklist({
       hasDepth: productRows.some((product) => Boolean(product.main_promise && product.audience)),
       hasReadiness: (readinessVerdicts ?? 0) > 0,
       hasCreativeEvidence: (creativePlans ?? 0) > 0 || (creatives ?? 0) > 0,
+      hasLaunchPlan: (launchPlans ?? 0) > 0,
       hasMetaConnection,
       hasDiagnosis: (diagnoses ?? 0) > 0,
     });
@@ -168,7 +184,7 @@ export default function ActivationChecklist({
   }
   if (!live) return null;
 
-  const href = (stage: "context" | "readiness" | "creatives" | "diagnosis") =>
+  const href = (stage: "context" | "readiness" | "creatives" | "launch" | "diagnosis") =>
     productId ? `/products/${productId}${stage === "context" ? "" : `/${stage}`}` : `/${stage}`;
   const steps: OnboardingStep[] = [
     {
@@ -185,6 +201,7 @@ export default function ActivationChecklist({
       href: href("creatives"),
       done: live.hasCreativeEvidence,
     },
+    { key: "launch-plan", title: t("step-launch-plan"), href: href("launch"), done: live.hasLaunchPlan },
     { key: "first-diagnosis", title: t("step-diagnosis"), href: href("diagnosis"), done: live.hasDiagnosis },
     {
       key: "connect-meta",

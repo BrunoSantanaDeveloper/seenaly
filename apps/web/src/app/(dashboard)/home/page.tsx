@@ -4,6 +4,7 @@ import { computeCompleteness } from "../products/lib/completeness";
 import { mapProductRow } from "../products/lib/map";
 import type { ProductWithChildren } from "../products/types";
 import { useOrganization } from "../settings/organization/components/use-organization";
+import TaskQueueCard, { TaskQueueEmptyCard } from "./components/task-queue-card";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,10 +37,17 @@ import NiCheck from "@/icons/nexture/ni-check";
 import NiDatabase from "@/icons/nexture/ni-database";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiRocket from "@/icons/nexture/ni-rocket";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import NiTrendUp from "@/icons/nexture/ni-trend-up";
+import { isCreativePlanOutput } from "@/lib/creative-plan/schema";
+import { nextJourneyStage } from "@/lib/journey";
+import { buildJourneyTasks, type JourneyTask } from "@/lib/journey-tasks";
+import { isLaunchPlanOutput } from "@/lib/launch-plan/schema";
+import { toReadinessProfile } from "@/lib/readiness/checklist";
+import { isReadinessOutput } from "@/lib/readiness/schema";
 import { cn } from "@/lib/utils";
 import { createClient } from "@flyee/auth/client";
 
@@ -69,6 +77,7 @@ type Progress = {
   hasReadiness: boolean;
   hasCreativePlan: boolean;
   creativeCount: number;
+  hasLaunchPlan: boolean;
   hasDiagnosis: boolean;
   hasExperiment: boolean;
 };
@@ -77,17 +86,27 @@ const EMPTY_PROGRESS: Progress = {
   hasReadiness: false,
   hasCreativePlan: false,
   creativeCount: 0,
+  hasLaunchPlan: false,
   hasDiagnosis: false,
   hasExperiment: false,
 };
 
-type NextKey = "product" | "context" | "readiness" | "creative-plan" | "diagnosis" | "experiments" | "iterate";
+type NextKey =
+  | "product"
+  | "context"
+  | "readiness"
+  | "creative-plan"
+  | "launch"
+  | "diagnosis"
+  | "experiments"
+  | "iterate";
 
 const NEXT_CONFIG: Record<NextKey, { tone: Tone; icon: React.ReactNode }> = {
   product: { tone: "primary", icon: <NiTag aria-hidden /> },
   context: { tone: "primary", icon: <NiTag aria-hidden /> },
   readiness: { tone: "accent-4", icon: <NiShieldCheck aria-hidden /> },
   "creative-plan": { tone: "accent-1", icon: <NiCamera aria-hidden /> },
+  launch: { tone: "accent-2", icon: <NiRocket aria-hidden /> },
   diagnosis: { tone: "accent-1", icon: <NiPulse aria-hidden /> },
   experiments: { tone: "accent-3", icon: <NiFlask aria-hidden /> },
   iterate: { tone: "primary", icon: <NiSparkle aria-hidden /> },
@@ -187,7 +206,7 @@ export default function HomePage() {
       resetSelectedState();
 
       const supabase = createClient();
-      const [readiness, creativePlan, creatives, diagnoses, experiments] = await Promise.all([
+      const [readiness, creativePlan, creatives, launchPlan, diagnoses, experiments] = await Promise.all([
         supabase
           .from("diagnoses")
           .select("id", { count: "exact", head: true })
@@ -199,6 +218,11 @@ export default function HomePage() {
           .eq("product_id", selected.id)
           .eq("scope", "creative_plan"),
         supabase.from("creatives").select("id", { count: "exact", head: true }).eq("product_id", selected.id),
+        supabase
+          .from("diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", selected.id)
+          .eq("scope", "launch_plan"),
         supabase.from("diagnoses").select("id").eq("product_id", selected.id).in("scope", ["product", "campaign"]),
         supabase
           .from("experiments")
@@ -235,6 +259,7 @@ export default function HomePage() {
         readiness.error ||
         creativePlan.error ||
         creatives.error ||
+        launchPlan.error ||
         diagnoses.error ||
         experiments.error ||
         connectionError ||
@@ -254,6 +279,7 @@ export default function HomePage() {
         hasReadiness: (readiness.count ?? 0) > 0,
         hasCreativePlan: (creativePlan.count ?? 0) > 0,
         creativeCount: creatives.count ?? 0,
+        hasLaunchPlan: (launchPlan.count ?? 0) > 0,
         hasDiagnosis: paidDiagnosisIds.size > 0,
         hasExperiment: (experiments.data ?? []).some(
           (experiment) => experiment.diagnosis_id && paidDiagnosisIds.has(experiment.diagnosis_id),
@@ -275,6 +301,124 @@ export default function HomePage() {
     void loadSelectedProduct(product);
   }, [loadSelectedProduct, product, productsLoaded, resetSelectedState]);
 
+  // The unified queue (lib/journey-tasks.ts): everything it reads is already
+  // persisted by the three pre-paid engines, so this is navigation, not a new
+  // diagnosis — zero LLM calls, zero credits. `tasksKnown` distinguishes "no
+  // engine has ever run" (render nothing, the journey tiles below already
+  // guide setup) from "engines ran and the queue is empty" (an honest,
+  // muted completion card, not silence).
+  const [tasks, setTasks] = useState<JourneyTask[]>([]);
+  const [tasksKnown, setTasksKnown] = useState(false);
+
+  const loadTaskQueue = useCallback(async () => {
+    if (!product) {
+      setTasks([]);
+      setTasksKnown(false);
+      return;
+    }
+    const supabase = createClient();
+    const [{ data: readinessRow }, { data: creativePlanRow }, { data: launchPlanRow }] = await Promise.all([
+      supabase
+        .from("diagnoses")
+        .select("id, output")
+        .eq("product_id", product.id)
+        .eq("scope", "readiness")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("diagnoses")
+        .select("id, output")
+        .eq("product_id", product.id)
+        .eq("scope", "creative_plan")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("diagnoses")
+        .select("id, output")
+        .eq("product_id", product.id)
+        .eq("scope", "launch_plan")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    let readinessInput: Parameters<typeof buildJourneyTasks>[0]["readiness"] = null;
+    if (readinessRow && isReadinessOutput(readinessRow.output)) {
+      const [{ data: profileRow }, { data: experimentRows }] = await Promise.all([
+        supabase.from("product_readiness").select("*").eq("product_id", product.id).maybeSingle(),
+        supabase
+          .from("experiments")
+          .select("change_made")
+          .eq("diagnosis_id", readinessRow.id as string),
+      ]);
+      readinessInput = {
+        output: readinessRow.output,
+        profile: toReadinessProfile(profileRow as Record<string, unknown> | null),
+        registeredChangeMade: new Set(
+          ((experimentRows ?? []) as { change_made: string | null }[])
+            .map((row) => row.change_made)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      };
+    }
+
+    let creativePlanInput: Parameters<typeof buildJourneyTasks>[0]["creativePlan"] = null;
+    if (creativePlanRow && isCreativePlanOutput(creativePlanRow.output)) {
+      const { data: links } = await supabase
+        .from("creative_plan_links")
+        .select("hypothesis_key, creative_id")
+        .eq("diagnosis_id", creativePlanRow.id as string);
+      const linkRows = (links ?? []) as { hypothesis_key: string; creative_id: string }[];
+      const creativeIds = linkRows.map((link) => link.creative_id);
+      const publishedCount: Record<string, number> = {};
+      if (creativeIds.length > 0) {
+        const { data: publications } = await supabase
+          .from("organic_content_items")
+          .select("creative_id")
+          .in("creative_id", creativeIds)
+          .limit(1000);
+        const counts = new Map<string, number>();
+        for (const publication of (publications ?? []) as { creative_id: string | null }[]) {
+          if (!publication.creative_id) continue;
+          counts.set(publication.creative_id, (counts.get(publication.creative_id) ?? 0) + 1);
+        }
+        for (const link of linkRows) publishedCount[link.hypothesis_key] = counts.get(link.creative_id) ?? 0;
+      }
+      creativePlanInput = { output: creativePlanRow.output, publishedCount };
+    }
+
+    let launchPlanInput: Parameters<typeof buildJourneyTasks>[0]["launchPlan"] = null;
+    if (launchPlanRow && isLaunchPlanOutput(launchPlanRow.output)) {
+      const { data: experimentRows } = await supabase
+        .from("experiments")
+        .select("change_made")
+        .eq("diagnosis_id", launchPlanRow.id as string);
+      const registeredStepKeys = new Set<string>();
+      for (const row of (experimentRows ?? []) as { change_made: string | null }[]) {
+        const match = /^Etapa do lançamento \[([^\]]+)\]/.exec(row.change_made ?? "");
+        if (match) registeredStepKeys.add(match[1]);
+      }
+      launchPlanInput = { output: launchPlanRow.output, registeredStepKeys };
+    }
+
+    setTasksKnown(Boolean(readinessInput || creativePlanInput || launchPlanInput));
+    setTasks(
+      buildJourneyTasks({
+        productId: product.id,
+        workspace: false,
+        readiness: readinessInput,
+        creativePlan: creativePlanInput,
+        launchPlan: launchPlanInput,
+      }),
+    );
+  }, [product]);
+
+  useEffect(() => {
+    void loadTaskQueue();
+  }, [loadTaskQueue]);
+
   const handleProductChange = (productId: string) => {
     if (!currentOrg) return;
     window.localStorage.setItem(`seenaly:last-product:${currentOrg.id}`, productId);
@@ -286,19 +430,28 @@ export default function HomePage() {
   const selectionRequired = productsLoaded && products.length > 1 && !product;
   const hasCreativeEvidence = progress.hasCreativePlan || progress.creativeCount > 0;
 
+  // One shared ladder (lib/journey.ts) instead of a fourth hand-copy: it is
+  // the piece that keeps "diagnosis" from ever being recommended before there
+  // is campaign data to read. "iterate" is home's own cosmetic wrap for the
+  // terminal state once a first diagnosis already exists.
+  const stage = product
+    ? nextJourneyStage({
+        hasContext: Boolean(completeness?.ready),
+        hasReadiness: progress.hasReadiness,
+        hasCreativeEvidence,
+        hasLaunchPlan: progress.hasLaunchPlan,
+        hasDiagnosis: progress.hasDiagnosis,
+        hasExperiment: progress.hasExperiment,
+        hasCampaignData,
+      })
+    : "context";
   const nextKey: NextKey = !product
     ? "product"
-    : !completeness?.ready
-      ? "context"
-      : !progress.hasReadiness
-        ? "readiness"
-        : !hasCreativeEvidence
-          ? "creative-plan"
-          : !progress.hasDiagnosis
-            ? "diagnosis"
-            : !progress.hasExperiment
-              ? "experiments"
-              : "iterate";
+    : stage === "creatives"
+      ? "creative-plan"
+      : stage === "diagnosis" && progress.hasDiagnosis
+        ? "iterate"
+        : stage;
   const next = NEXT_CONFIG[nextKey];
   const nextHref =
     nextKey === "product"
@@ -333,6 +486,13 @@ export default function HomePage() {
           icon: <NiCamera aria-hidden />,
           href: `/products/${product.id}/creatives`,
           done: hasCreativeEvidence,
+        },
+        {
+          id: "launch",
+          tone: "accent-2" as Tone,
+          icon: <NiRocket aria-hidden />,
+          href: `/products/${product.id}/launch`,
+          done: progress.hasLaunchPlan,
         },
         {
           id: "diagnosis",
@@ -705,6 +865,14 @@ export default function HomePage() {
                 </Card>
               )}
             </Grid>
+
+            {/* The unified queue leads: it is the answer to "what do I
+                actually do today", ranked across all three pre-paid engines
+                at once. Nothing to render when no engine has ever run —
+                the journey map right below already carries that job. */}
+            {tasksKnown && (
+              <Grid size={12}>{tasks.length > 0 ? <TaskQueueCard tasks={tasks} /> : <TaskQueueEmptyCard />}</Grid>
+            )}
 
             <Grid size={12} className="mt-2">
               <Typography variant="h5" component="h2" className="card-title mb-0">

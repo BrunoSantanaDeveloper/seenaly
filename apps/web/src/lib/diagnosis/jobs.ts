@@ -4,6 +4,30 @@ import { createServiceClient } from "@flyee/auth/service";
 import { inngest } from "@flyee/jobs";
 
 /**
+ * Per-scope copy/route for the review-due reminder. `default` covers the
+ * campaign diagnosis (`product`/`campaign` scopes) and any future scope that
+ * has not earned its own line — it is the ONLY entry whose route ignores the
+ * product id, mirroring the original unconditional "/diagnosis" fallback.
+ */
+const REVIEW_REMINDER_COPY: Record<string, { title: string; body: string; href: (productId: string) => string }> = {
+  readiness: {
+    title: "Hora de reconferir a prontidão",
+    body: "refaça a verificação de prontidão e registre o que mudou na estrutura.",
+    href: (productId) => `/products/${productId}/readiness`,
+  },
+  launch_plan: {
+    title: "Hora de reconferir o plano de lançamento",
+    body: "releia o plano de lançamento e registre o que mudou desde a última leitura.",
+    href: (productId) => `/products/${productId}/launch`,
+  },
+  default: {
+    title: "Hora de reavaliar um diagnóstico",
+    body: "revise o diagnóstico e registre o que mudou desde a última leitura.",
+    href: () => "/diagnosis",
+  },
+};
+
+/**
  * Daily review-due reminder: the diagnosis loop only compounds if the user
  * comes back to re-read and record what changed. Each diagnosis carries a
  * next_review_at (set from the model's next_review_days); when it falls due we
@@ -59,21 +83,17 @@ export const diagnosisReviewReminders = inngest.createFunction(
           recipients = (owners ?? []).map((m) => m.user_id as string);
         }
         const name = productName.get(row.product_id);
-        // Scope-aware copy/route: a readiness verdict re-checks STRUCTURE at
-        // its own surface; every other scope keeps the original wording.
-        // (pt-BR by platform precedent — notification rows store rendered text.)
-        const isReadiness = row.scope === "readiness";
+        // Scope-aware copy/route: a readiness verdict re-checks STRUCTURE and a
+        // launch plan re-checks the first paid bet, each at its own surface;
+        // every other scope keeps the original wording. (pt-BR by platform
+        // precedent — notification rows store rendered text.)
+        const copy =
+          REVIEW_REMINDER_COPY[row.scope as keyof typeof REVIEW_REMINDER_COPY] ?? REVIEW_REMINDER_COPY.default;
         const result = await notifyUsers(recipients, {
           type: "system",
-          title: isReadiness ? "Hora de reconferir a prontidão" : "Hora de reavaliar um diagnóstico",
-          body: isReadiness
-            ? name
-              ? `${name}: refaça a verificação de prontidão e registre o que mudou na estrutura.`
-              : "Refaça a verificação de prontidão e registre o que mudou na estrutura."
-            : name
-              ? `${name}: revise o diagnóstico e registre o que mudou desde a última leitura.`
-              : "Revise o diagnóstico e registre o que mudou desde a última leitura.",
-          href: isReadiness ? `/products/${row.product_id}/readiness` : "/diagnosis",
+          title: copy.title,
+          body: name ? `${name}: ${copy.body}` : copy.body.charAt(0).toUpperCase() + copy.body.slice(1),
+          href: copy.href(row.product_id as string),
         });
         if (result.sent) notified += 1;
       }

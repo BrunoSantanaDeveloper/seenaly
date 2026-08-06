@@ -45,6 +45,7 @@ import EmptyState from "@/components/product/empty-state";
 import LoadErrorState from "@/components/product/load-error-state";
 import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
 import NiBook from "@/icons/nexture/ni-book";
+import NiCamera from "@/icons/nexture/ni-camera";
 import NiCross from "@/icons/nexture/ni-cross";
 import NiListCheck from "@/icons/nexture/ni-list-check";
 import NiPulse from "@/icons/nexture/ni-pulse";
@@ -988,6 +989,13 @@ export function ReadinessExperience({
   const latest = rows[0];
   const history = rows.slice(1);
   const isReady = latest?.output.verdict === "pronto";
+  // The forward exit must not depend on "pronto" alone: "quase" has ZERO
+  // blockers by definition (reconcileVerdict enforces it), so hiding the exit
+  // there contradicted the verdict itself — and a real user got stranded
+  // exactly that way. Readiness advises, it never gates (docs/PRODUCT.md:
+  // "não é um portão"), so even "nao_pronto" keeps a deliberate, eyes-open way
+  // through.
+  const verdictValue = latest?.output.verdict ?? null;
   // ONE derived gate for every "generate" affordance (U4) — finish-early on
   // step 2 and the final step must never disagree. Permissive when the cost
   // is unknown or zero: the server re-checks, and a phantom gate would
@@ -1431,17 +1439,32 @@ export function ReadinessExperience({
                 >
                   {t("review-answers")}
                 </Button>
-                {/* The campaign diagnosis is the NEXT room — only offered once
-                    the structure is actually ready, never as a premature dead
-                    end for someone with no campaigns to diagnose yet. */}
-                {isReady && (
+                {/* The creative plan is the NEXT room in the journey (context →
+                    readiness → creatives → launch → diagnosis) — jumping
+                    straight to the campaign diagnosis from here used to skip
+                    two rooms and, worse, could land a zero-data user on a
+                    screen with nothing to read. "pronto" and "quase" (zero
+                    blockers, by reconcileVerdict) offer it plainly;
+                    "nao_pronto" keeps a deliberate, eyes-open exit — readiness
+                    advises, it never gates. */}
+                {(isReady || verdictValue === "quase") && (
                   <Button
                     variant="text"
                     color="grey"
-                    startIcon={<NiPulse size="small" />}
-                    onClick={() => router.push(`/products/${product.id}/diagnosis`)}
+                    startIcon={<NiCamera size="small" />}
+                    onClick={() => router.push(`/products/${product.id}/creatives`)}
                   >
-                    {t("go-to-diagnosis")}
+                    {t("go-to-creatives")}
+                  </Button>
+                )}
+                {verdictValue === "nao_pronto" && (
+                  <Button
+                    variant="text"
+                    color="grey"
+                    size="small"
+                    onClick={() => router.push(`/products/${product.id}/creatives`)}
+                  >
+                    {t("go-anyway")}
                   </Button>
                 )}
               </Box>

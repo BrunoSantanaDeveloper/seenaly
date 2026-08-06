@@ -2,18 +2,32 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Alert, Box, Button, Card, CardContent, Chip, Collapse, Divider, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Collapse,
+  Divider,
+  MenuItem,
+  Select,
+  Typography,
+} from "@mui/material";
 
 import NiArrowRight from "@/icons/nexture/ni-arrow-right";
 import NiBulbOn from "@/icons/nexture/ni-bulb-on";
+import NiCalendar from "@/icons/nexture/ni-calendar";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiCheck from "@/icons/nexture/ni-check";
 import NiChevronDown from "@/icons/nexture/ni-chevron-down";
 import NiClipboard from "@/icons/nexture/ni-clipboard";
 import NiFlask from "@/icons/nexture/ni-flask";
 import NiListCheck from "@/icons/nexture/ni-list-check";
+import { buildCadence } from "@/lib/creative-plan/cadence";
 import type { Confidence, CreativePlanHypothesis, CreativePlanOutput } from "@/lib/creative-plan/schema";
 import { isCreativeEmotion, isCreativeFormat, isProofType } from "@/lib/creative-taxonomy";
 import { cn } from "@/lib/utils";
@@ -50,7 +64,13 @@ export interface HypothesisCoverage {
   experimentId?: string;
 }
 
+/** 2/3/5 pieces a week — the range this product's own docs corpus treats as
+ *  a realistic solo-operator cadence, never a promise of reach or reading. */
+const PACE_OPTIONS = [2, 3, 5] as const;
+const DEFAULT_PACE = 3;
+
 export default function CreativePlanCard({
+  productId,
   plan,
   meta,
   coverage,
@@ -64,6 +84,8 @@ export default function CreativePlanCard({
   creativeHref,
   experimentHref,
 }: {
+  /** Scopes the pace preference in localStorage — a per-product choice, not a global one. */
+  productId: string;
   plan: CreativePlanOutput;
   meta: PlanMeta;
   coverage: Record<string, HypothesisCoverage>;
@@ -83,6 +105,22 @@ export default function CreativePlanCard({
   const tOrganic = useTranslations("organicGrowth");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // The pace is the USER's declared assumption, never the engine's — it only
+  // reshapes volume_note's honest range into a week-by-week view, it never
+  // promises reach or a publishing deadline (docs/PRODUCT.md: "faixa
+  // condicional, nunca prazo prometido").
+  const [pace, setPace] = useState<number>(DEFAULT_PACE);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(`seenaly:plan-pace:${productId}`);
+    const parsed = stored ? Number(stored) : NaN;
+    setPace(PACE_OPTIONS.includes(parsed as (typeof PACE_OPTIONS)[number]) ? parsed : DEFAULT_PACE);
+  }, [productId]);
+
+  const changePace = (value: number) => {
+    setPace(value);
+    window.localStorage.setItem(`seenaly:plan-pace:${productId}`, String(value));
+  };
 
   const toggle = (key: string) =>
     setExpanded((prev) => {
@@ -345,6 +383,65 @@ export default function CreativePlanCard({
         )}
 
         {plan.hypotheses.length > 0 && <Box className="flex flex-col gap-3">{plan.hypotheses.map(hypothesisCard)}</Box>}
+
+        {/* The concrete answer to "what do I record THIS week?" — volume_note
+            already states the honest conditional math in prose; this turns
+            the SAME hypotheses (already ordered most-promising-first) into a
+            calendar, at a pace the user declares, never the engine. */}
+        {plan.hypotheses.length > 0 &&
+          (() => {
+            const cadence = buildCadence(
+              plan.hypotheses.map((h) => ({ key: h.key, angle: h.angle, content_count: h.content_count })),
+              pace,
+            );
+            return (
+              <Box className="border-grey-100 flex flex-col gap-3 rounded-2xl border p-4">
+                <Box className="flex flex-row flex-wrap items-center justify-between gap-2">
+                  <Box className="flex flex-row items-center gap-2">
+                    <NiCalendar size="small" className="text-text-secondary" aria-hidden />
+                    <Typography variant="subtitle2" className="mb-0">
+                      {t("plan-cadence-title")}
+                    </Typography>
+                  </Box>
+                  <Select
+                    size="small"
+                    value={pace}
+                    onChange={(event) => changePace(Number(event.target.value))}
+                    aria-label={t("plan-cadence-pace-label")}
+                  >
+                    {PACE_OPTIONS.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {t("plan-cadence-pace-option", { count: option })}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
+                <Box className="flex flex-col gap-2">
+                  {cadence.weeks.map((week) => (
+                    <Box key={week.week} className="flex flex-row items-start gap-2">
+                      <Chip
+                        label={t("plan-cadence-week", { week: week.week })}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        className="mt-0.5 flex-none"
+                      />
+                      <Box className="flex min-w-0 flex-col gap-0.5">
+                        {week.entries.map((entry) => (
+                          <Typography key={entry.key} variant="body2" className="leading-6">
+                            {t("plan-cadence-entry", { count: entry.count, angle: entry.angle })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+                <Typography variant="body2" className="text-text-secondary">
+                  {t("plan-cadence-hint", { weeks: cadence.totalWeeks })}
+                </Typography>
+              </Box>
+            );
+          })()}
 
         <Box className="bg-grey-25/60 flex flex-col gap-1.5 rounded-2xl p-4">
           <Typography variant="body2" className="leading-6">

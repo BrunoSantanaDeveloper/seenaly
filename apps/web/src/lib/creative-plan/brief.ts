@@ -127,6 +127,14 @@ export interface PlanRetrievalQuery {
  * Collection weights follow ownership: Meta documents its own creative specs
  * and placements; the playbook carries the craft (hook taxonomy, angle–market
  * fit, proof types) that Meta does not write down.
+ *
+ * The last three questions are ORGANIC-NATIVE and playbook-only on purpose.
+ * A 2026-08-05 review caught the plan writing ad-shaped hooks ("Chega de X!")
+ * for what are supposed to be organic test pieces — and the cause was
+ * upstream of the prompt: every question here asked about PAID advertising
+ * doctrine, so the engine retrieved ad doctrine and wrote ads. Meta documents
+ * how to advertise, not how organic distribution ranks content, so `meta: 0`
+ * on these three is ownership, not a slight.
  */
 export function planRetrievalPlan(): PlanRetrievalQuery[] {
   return [
@@ -159,6 +167,24 @@ export function planRetrievalPlan(): PlanRetrievalQuery[] {
       text: "teste e validação de criativo antes de escalar, diversificação criativa, o que caracteriza um teste conclusivo",
       meta: 2,
       playbook: 2,
+    },
+    {
+      key: "distribuicao_organica",
+      text: "distribuição orgânica: retenção, salvamento e compartilhamento como sinais de alcance, e por que conteúdo com cara de anúncio é suprimido",
+      meta: 0,
+      playbook: 3,
+    },
+    {
+      key: "nativo_vs_anuncio",
+      text: "diferença entre conteúdo nativo do feed e peça publicitária, e por que o teste orgânico exige forma nativa",
+      meta: 0,
+      playbook: 3,
+    },
+    {
+      key: "pilares_cadencia",
+      text: "pilares de conteúdo e cadência de publicação: mix entre educar, provar, conectar e vender, e ritmo sustentável até o volume de leitura",
+      meta: 0,
+      playbook: 3,
     },
   ];
 }

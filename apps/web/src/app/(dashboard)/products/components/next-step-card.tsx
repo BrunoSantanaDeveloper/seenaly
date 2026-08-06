@@ -9,6 +9,7 @@ import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import { TONE, type Tone } from "@/components/marketing/tone";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiPulse from "@/icons/nexture/ni-pulse";
+import NiRocket from "@/icons/nexture/ni-rocket";
 import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiTag from "@/icons/nexture/ni-tag";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export default function ProductNextStepCard({
   missing,
   hasReadiness,
   hasCreativeEvidence,
+  hasLaunchPlan,
   onFieldClick,
 }: {
   productId: string;
@@ -44,6 +46,8 @@ export default function ProductNextStepCard({
   hasReadiness: boolean;
   /** A creative plan or at least one tagged creative exists for this product. */
   hasCreativeEvidence: boolean;
+  /** A Launch Plan already exists for this product. */
+  hasLaunchPlan: boolean;
   /** Jump to the form section holding this field (opens + scrolls). */
   onFieldClick?: (field: CompletenessField) => void;
 }) {
@@ -54,7 +58,18 @@ export default function ProductNextStepCard({
   // Exactly ONE primary action per state, plus one quiet alternative — no two
   // filled/outlined buttons competing (the paralysis the user reported). New
   // products no longer land here at all; this is the returning-user surface.
-  const stage = !ready ? "context" : !hasReadiness ? "readiness" : !hasCreativeEvidence ? "creative" : "diagnosis";
+  // Same order as lib/journey.ts; kept as its own local ladder (not the
+  // shared helper) because this card never learns whether campaign data or a
+  // paid diagnosis exist — its terminal state is simply "you can launch".
+  const stage = !ready
+    ? "context"
+    : !hasReadiness
+      ? "readiness"
+      : !hasCreativeEvidence
+        ? "creative"
+        : !hasLaunchPlan
+          ? "launch"
+          : "diagnosis";
   const primary =
     stage === "context"
       ? {
@@ -74,11 +89,17 @@ export default function ProductNextStepCard({
               icon: <NiCamera size="small" />,
               label: t("next-step-cta-creative"),
             }
-          : {
-              href: `/products/${productId}/diagnosis`,
-              icon: <NiPulse size="small" />,
-              label: t("next-step-cta"),
-            };
+          : stage === "launch"
+            ? {
+                href: `/products/${productId}/launch`,
+                icon: <NiRocket size="small" />,
+                label: t("next-step-cta-launch"),
+              }
+            : {
+                href: `/products/${productId}/diagnosis`,
+                icon: <NiPulse size="small" />,
+                label: t("next-step-cta"),
+              };
   const secondary =
     stage === "diagnosis"
       ? {
@@ -95,7 +116,8 @@ export default function ProductNextStepCard({
   // The card wears the hue of the action it leads with — the same colour that
   // pillar carries on the home journey map and in the workspace rail. The CTA
   // button stays primary: colour marks the category, primary marks the action.
-  const headTone: Tone = stage === "context" ? "primary" : stage === "readiness" ? "accent-4" : "accent-1";
+  const headTone: Tone =
+    stage === "context" ? "primary" : stage === "readiness" ? "accent-4" : stage === "launch" ? "accent-2" : "accent-1";
 
   return (
     <Card component="section">
@@ -119,6 +141,8 @@ export default function ProductNextStepCard({
                 <NiShieldCheck size="medium" aria-hidden />
               ) : stage === "creative" ? (
                 <NiCamera size="medium" aria-hidden />
+              ) : stage === "launch" ? (
+                <NiRocket size="medium" aria-hidden />
               ) : (
                 <NiPulse size="medium" aria-hidden />
               )}
@@ -131,7 +155,9 @@ export default function ProductNextStepCard({
                     ? t("next-step-title-readiness")
                     : stage === "creative"
                       ? t("next-step-title-creative")
-                      : t("next-step-title-ready")}
+                      : stage === "launch"
+                        ? t("next-step-title-launch")
+                        : t("next-step-title-ready")}
               </Typography>
               <Typography variant="body2" className="text-text-secondary">
                 {stage === "context"
@@ -140,7 +166,9 @@ export default function ProductNextStepCard({
                     ? t("next-step-body-readiness")
                     : stage === "creative"
                       ? t("next-step-body-creative")
-                      : t("next-step-body-ready")}
+                      : stage === "launch"
+                        ? t("next-step-body-launch")
+                        : t("next-step-body-ready")}
               </Typography>
             </Box>
           </Box>

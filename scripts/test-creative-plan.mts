@@ -20,8 +20,10 @@ import {
   creativeEvidenceBlock,
   planCreativesBlock,
   planOrganicBlock,
+  planRetrievalPlan,
   type PlanCreativeRow,
 } from "../apps/web/src/lib/creative-plan/brief";
+import { buildCadence } from "../apps/web/src/lib/creative-plan/cadence";
 import {
   type CreativePlanOutput,
   isCreativePlanOutput,
@@ -161,6 +163,62 @@ checkTrue(
   "evidence: zero published suggests organic test first",
   creativeEvidenceBlock([creativeRow()]).includes("teste orgânico"),
 );
+
+/* ------------------------------ retrieval plan ---------------------------- */
+
+{
+  const plan = planRetrievalPlan();
+  const keys = plan.map((query) => query.key);
+  checkTrue("retrieval: every query carries at least one collection weight", plan.every((q) => q.meta + q.playbook > 0));
+  checkTrue("retrieval: keys are unique", new Set(keys).size === keys.length);
+  // The 2026-08-05 defect: every question asked about PAID advertising
+  // doctrine, so the engine retrieved ad doctrine and wrote ad-shaped hooks
+  // for pieces meant to be published organically.
+  for (const key of ["distribuicao_organica", "nativo_vs_anuncio", "pilares_cadencia"]) {
+    const query = plan.find((entry) => entry.key === key);
+    checkTrue(`retrieval: organic-native question "${key}" exists`, Boolean(query));
+    checkTrue(`retrieval: "${key}" is playbook-only (Meta documents ads, not organic ranking)`, query?.meta === 0);
+    checkTrue(`retrieval: "${key}" claims real playbook budget`, (query?.playbook ?? 0) >= 3);
+  }
+}
+
+/* -------------------------------- cadence ---------------------------------- */
+
+{
+  const single = buildCadence([{ key: "h1", angle: "Prova social", content_count: 5 }], 3);
+  check("cadence: splits one hypothesis across weeks at the given pace", single.totalWeeks, 2);
+  check("cadence: week 1 takes exactly the pace", single.weeks[0].entries[0].count, 3);
+  check("cadence: week 2 takes the remainder", single.weeks[1].entries[0].count, 2);
+}
+
+{
+  const sequential = buildCadence(
+    [
+      { key: "h1", angle: "Ângulo 1", content_count: 3 },
+      { key: "h2", angle: "Ângulo 2", content_count: 4 },
+    ],
+    3,
+  );
+  check("cadence: a hypothesis that exactly fills a week never mixes with the next", sequential.weeks[0].entries.length, 1);
+  check("cadence: total weeks matches ceil(total pieces / pace)", sequential.totalWeeks, 3);
+}
+
+{
+  const spillover = buildCadence(
+    [
+      { key: "h1", angle: "Ângulo 1", content_count: 2 },
+      { key: "h2", angle: "Ângulo 2", content_count: 4 },
+    ],
+    3,
+  );
+  check("cadence: a short hypothesis shares its week's leftover capacity with the next", spillover.weeks[0].entries.length, 2);
+  checkTrue(
+    "cadence: no week ever exceeds the declared pace",
+    spillover.weeks.every((week) => week.entries.reduce((sum, entry) => sum + entry.count, 0) <= 3),
+  );
+}
+
+checkTrue("cadence: pace of zero never divides by zero or loops forever", buildCadence([{ key: "h1", angle: "A", content_count: 2 }], 0).totalWeeks > 0);
 
 console.log(
   failures === 0 ? `\nALL PASS — ${passes} assertions.` : `\n${failures} FAILURE(S) out of ${passes + failures}.`,

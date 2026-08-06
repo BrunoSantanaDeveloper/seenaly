@@ -57,6 +57,26 @@ const ASSISTANT_SLUG = "diagnosis-engine";
 /** Most recent tagged creatives summarized for the engine. */
 const MAX_CREATIVES = 20;
 
+/** What a diagnosis costs and what the org currently has — read BEFORE spending. */
+export type DiagnosisCreditInfo = { ok: true; balance: number; cost: number } | { ok: false; error: string };
+
+/**
+ * Read the price of a diagnosis and the org's balance, so the UI can warn
+ * BEFORE spending — specifically for a zero-campaign-data product, where the
+ * honest outcome is "não há base para concluir" and the user deserves to know
+ * the cost of hearing that before they ask for it.
+ */
+export async function getDiagnosisCreditInfo(orgId: string): Promise<DiagnosisCreditInfo> {
+  const supabase = await createClient();
+  const [{ data: assistant, error: assistantError }, { data: balance, error: balanceError }] = await Promise.all([
+    supabase.from("assistants").select("credits_per_message").eq("slug", ASSISTANT_SLUG).maybeSingle(),
+    supabase.rpc("org_credit_balance", { target_org: orgId }),
+  ]);
+  const error = assistantError ?? balanceError;
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, balance: Number(balance ?? 0), cost: Number(assistant?.credits_per_message ?? 0) };
+}
+
 interface FunnelSnapshotRow extends FunnelCounts {
   label: string | null;
   period_end: string | null;

@@ -28,6 +28,7 @@ const ENGINES = [
   { slug: "diagnosis-engine", migration: "0012_diagnoses.sql" },
   { slug: "readiness-engine", migration: "0028_readiness.sql" },
   { slug: "creative-plan-engine", migration: "0033_creative_plan.sql" },
+  { slug: "launch-plan-engine", migration: "0046_launch_plan.sql" },
 ] as const;
 
 /** Minimal .env loader — never overrides variables already set in the environment. */
