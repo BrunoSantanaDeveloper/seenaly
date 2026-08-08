@@ -32,7 +32,8 @@
     "typecheck": "npm run typecheck -w @flyee/web",
     "test:diagnosis-steps": "tsx scripts/test-diagnosis-steps.mts",
     "test:product-draft": "tsx scripts/test-product-draft.mts",
-    "test": "npm run test:readiness && npm run test:creative-plan && npm run test:launch-plan && npm run test:onboarding && npm run test:diagnosis-steps && npm run test:product-draft"
+    "test:journey": "tsx scripts/test-journey.mts",
+    "test": "npm run test:readiness && npm run test:creative-plan && npm run test:launch-plan && npm run test:onboarding && npm run test:diagnosis-steps && npm run test:product-draft && npm run test:journey"
   },
   "devDependencies": {
     "husky": "9.1.7",

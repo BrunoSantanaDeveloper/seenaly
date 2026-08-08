@@ -1596,6 +1596,38 @@ check(
   false,
 );
 check("trial-first brief exposes the new item keys for related_items", trialBrief.includes("trialToPaidTracked"), true);
+// The 2026-08-07 recurrence of the 0043 case: a trial-first SaaS whose hero
+// already read "14 dias grátis, sem cartão · cancele quando quiser" was told to
+// add a guarantee to the landing page, near the SIGNUP CTAs — where nobody has
+// paid anything and loss aversion cannot apply. `where` made the mistake
+// visible without curing it, so the rule itself has to be in the brief.
+check(
+  "trial-first brief states the trial IS the pre-payment risk reversal",
+  trialBrief.includes("RISCO PRÉ-PAGAMENTO JÁ ESTÁ REVERTIDO PELO TRIAL"),
+  true,
+);
+check(
+  "trial-first brief forbids recommending a guarantee at the free-signup CTA",
+  trialBrief.includes("PROIBIDO recomendar garantia"),
+  true,
+);
+check(
+  "trial-first brief sends the guarantee concern to the paid/upgrade surface",
+  trialBrief.includes("PLANOS PAGOS") && trialBrief.includes("stage `upgrade`"),
+  true,
+);
+check(
+  "trial-first brief tells the engine to check the declared trial terms first",
+  /sem cart[ãa]o/i.test(trialBrief),
+  true,
+);
+// The rule is trial-first ONLY: a direct seller taking money upfront still
+// needs the guarantee audited the normal way.
+check(
+  "direct-sale brief keeps the guarantee audit untouched",
+  readinessFunnelModelBlock(p({ funnelModel: "direct" })).includes("PROIBIDO recomendar garantia"),
+  false,
+);
 check("undeclared model refuses to assume direct sale", readinessFunnelModelBlock(p()).includes("NÃO INFORMOU"), true);
 // Silence about the checkout must be framed as expected, even with no scan.
 check(

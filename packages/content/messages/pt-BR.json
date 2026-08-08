@@ -803,7 +803,12 @@
     "next-step-title-readiness": "Comece pela prontidão",
     "next-step-body-readiness": "Antes de gastar com anúncio, veja se sua estrutura converte. É a checagem mais barata que existe — não custa mídia.",
     "next-step-cta-readiness": "Verificar prontidão",
-    "next-step-cta-readiness-again": "Rever prontidão"
+    "next-step-cta-readiness-again": "Rever prontidão",
+    "start-here-created": "Produto criado. O contexto já está salvo.",
+    "start-here-title": "Comece pelo Diagnóstico de Prontidão",
+    "start-here-body": "Antes de gastar com anúncio, o Seenaly confere se a sua estrutura converte — e diz o que consertar primeiro.",
+    "start-here-cta": "Começar o diagnóstico",
+    "start-here-meta": "São algumas perguntas sobre a sua estrutura. Você pode parar no meio e gerar com o que já confirmou — nada aqui é obrigatório."
   },
   "home": {
     "title": "Sua próxima decisão de growth",
@@ -2302,6 +2307,7 @@
     "item-pageMobileTested": "Página testada no celular",
     "item-pageFast": "Página carrega rápido",
     "item-hasGuarantee": "Garantia declarada na oferta",
+    "item-hasGuarantee-trial_first": "Reembolso e cancelamento declarados nos planos pagos",
     "item-paymentPix": "Aceita PIX",
     "item-paymentCard": "Aceita cartão de crédito",
     "item-checkoutShort": "Checkout curto (poucos campos e etapas)",
@@ -2321,6 +2327,7 @@
     "checkout-type-link": "Link de pagamento",
     "checkout-type-none": "Ainda não recebo pagamento",
     "guarantee-days": "Dias de garantia",
+    "guarantee-days-trial_first": "Dias de reembolso após a cobrança",
     "blockers-title": "Bloqueadores encontrados: {count}",
     "blockers-body": "Gastar em anúncio agora é dinheiro previsivelmente desperdiçado. Resolva estes primeiro:",
     "blocker-no-page": "Não há página de destino cadastrada — o anúncio não tem para onde levar.",
@@ -2673,6 +2680,7 @@
     "item-what-pageMobileTested": "Abrir sua própria página no celular e comprar como se fosse um cliente. A maioria das visitas de anúncio vem do celular.",
     "item-what-pageFast": "Sua página abrir em poucos segundos. Página lenta faz a pessoa desistir antes de ver a oferta — e você já pagou pelo clique.",
     "item-what-hasGuarantee": "Uma promessa clara de devolução (ex.: 7 dias). Reduz o medo de comprar de quem ainda não te conhece.",
+    "item-what-hasGuarantee-trial_first": "No seu modelo o trial gratuito já tira o risco de quem ainda não pagou — não é preciso prometer garantia na página de destino. O que decide dinheiro aqui é o que a pessoa lê no momento de contratar: como cancelar e se há reembolso depois da primeira cobrança.",
     "item-what-paymentPix": "Aceitar PIX. No Brasil é o meio mais usado; não ter costuma custar vendas.",
     "item-what-paymentCard": "Aceitar cartão de crédito, inclusive parcelado quando fizer sentido para o seu ticket.",
     "item-what-checkoutShort": "Pedir o mínimo de dados possível para fechar a compra. Cada campo a mais derruba um pouco a conversão.",
@@ -2905,7 +2913,18 @@
     "economics-ticket": "Ticket médio",
     "economics-margin": "Margem",
     "economics-cac": "CAC alvo",
-    "economics-budget": "Orçamento mensal"
+    "economics-budget": "Orçamento mensal",
+    "queue-title": "Sua fila",
+    "queue-count": "{count} pendente(s)",
+    "queue-position": "Tarefa {index} de {total}",
+    "queue-urgent": "Crítico",
+    "queue-show-all": "Ver todas ({count})",
+    "queue-show-less": "Ver menos",
+    "queue-clear-title": "Nenhuma tarefa pendente",
+    "queue-clear-body": "Você concluiu tudo o que os planos atuais pediam. Gere uma nova leitura quando algo mudar.",
+    "next-task-label": "Próxima tarefa",
+    "next-task-cta": "Continuar",
+    "next-task-remaining-here": "Ainda faltam {count} nesta tela."
   },
   "library": {
     "title": "Biblioteca",

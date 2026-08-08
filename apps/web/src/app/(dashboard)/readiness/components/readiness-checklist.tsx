@@ -41,6 +41,7 @@ import {
   CHECKOUT_TYPES,
   type CheckoutType,
   groupsForModel,
+  isTrialFirst,
   notApplicableReason,
   READINESS_ITEM_BY_KEY,
   type ReadinessEvaluation,
@@ -214,6 +215,21 @@ export default function ReadinessChecklist({
   const modelGroups = groupsForModel(profile.funnelModel);
   const groups = groupKeys ? modelGroups.filter((group) => groupKeys.includes(group.key)) : modelGroups;
 
+  /**
+   * Trial-first turns the guarantee item into a DIFFERENT question, so it needs
+   * different words — same model-aware pattern as `group-why-checkout-<model>`
+   * in the wizard. The generic copy ("reduz o medo de comprar de quem ainda não
+   * te conhece") describes a cold buyer paying upfront; in this model nobody
+   * pays before trying, so asked that way the user answers about a surface that
+   * does not exist and the engine audits the wrong one. What actually decides
+   * money here is refund/cancellation AFTER the charge, at upgrade.
+   */
+  const isTrialGuarantee = (key: ReadinessItemKey) => key === "hasGuarantee" && isTrialFirst(profile.funnelModel);
+  const itemLabel = (key: ReadinessItemKey) =>
+    isTrialGuarantee(key) ? t("item-hasGuarantee-trial_first") : t(`item-${key}`);
+  const itemWhat = (key: ReadinessItemKey) =>
+    isTrialGuarantee(key) ? t("item-what-hasGuarantee-trial_first") : t(`item-what-${key}`);
+
   const itemRow = (key: ReadinessItemKey) => {
     const meta = READINESS_ITEM_BY_KEY[key];
     const naReason = notApplicableReason(key, profile, { hasLandingPage });
@@ -271,7 +287,7 @@ export default function ReadinessChecklist({
             }
             label={
               <Typography variant="body2" component="span">
-                {t(`item-${key}`)}
+                {itemLabel(key)}
               </Typography>
             }
           />
@@ -326,8 +342,8 @@ export default function ReadinessChecklist({
             // never reference a non-existent id.
             aria-label={
               helpOpen
-                ? t("hide-explanation-item", { item: t(`item-${key}`) })
-                : t("dont-know-item", { item: t(`item-${key}`) })
+                ? t("hide-explanation-item", { item: itemLabel(key) })
+                : t("dont-know-item", { item: itemLabel(key) })
             }
             aria-controls={helpOpen ? `readiness-help-${key}` : undefined}
           >
@@ -339,7 +355,7 @@ export default function ReadinessChecklist({
         <Collapse in={wasRefused} unmountOnExit>
           <Alert severity="warning" className="neutral bg-background-paper/60! mb-2 ml-8">
             <Typography variant="subtitle2">{t("refused-title")}</Typography>
-            <Typography variant="body2">{t("refused-body", { item: t(`item-${key}`), url: scanUrl ?? "" })}</Typography>
+            <Typography variant="body2">{t("refused-body", { item: itemLabel(key), url: scanUrl ?? "" })}</Typography>
             <Box className="mt-2 flex flex-row flex-wrap gap-1">
               <Button
                 size="small"
@@ -394,7 +410,7 @@ export default function ReadinessChecklist({
               <AssistOffer
                 reason={offer}
                 offering={assistOffering}
-                itemLabel={t(`item-${key}`)}
+                itemLabel={itemLabel(key)}
                 alreadyOpen={assistOpenItems.includes(key)}
                 balance={creditBalance}
                 onRequest={(note) => onRequestAssist(key, offer, note)}
@@ -419,7 +435,7 @@ export default function ReadinessChecklist({
                 {t("what-is")}
               </Typography>
               <Typography variant="body2" className="leading-6">
-                {t(`item-what-${key}`)}
+                {itemWhat(key)}
               </Typography>
             </Box>
 
@@ -638,7 +654,7 @@ export default function ReadinessChecklist({
           <TextField
             type="number"
             size="small"
-            label={t("guarantee-days")}
+            label={isTrialFirst(profile.funnelModel) ? t("guarantee-days-trial_first") : t("guarantee-days")}
             value={profile.guaranteeDays ?? ""}
             disabled={disabled}
             onChange={(event) => set("guaranteeDays", event.target.value === "" ? null : Number(event.target.value))}

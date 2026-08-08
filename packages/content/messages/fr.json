@@ -803,7 +803,12 @@
     "next-step-cta-readiness-again": "Revoir la préparation",
     "next-step-title-launch": "Construisez votre plan de lancement",
     "next-step-body-launch": "Calculez l'événement d'optimisation, le plancher de budget et la structure de la première campagne avant de dépenser.",
-    "next-step-cta-launch": "Ouvrir le plan de lancement"
+    "next-step-cta-launch": "Ouvrir le plan de lancement",
+    "start-here-created": "Produit créé. Votre contexte est enregistré.",
+    "start-here-title": "Commencez par le diagnostic de préparation",
+    "start-here-body": "Avant de dépenser en publicité, Seenaly vérifie si votre structure convertit — et vous dit quoi corriger en premier.",
+    "start-here-cta": "Commencer le diagnostic",
+    "start-here-meta": "Quelques questions sur votre structure. Vous pouvez vous arrêter en cours de route et générer avec ce que vous avez confirmé : rien n'est obligatoire ici."
   },
   "home": {
     "title": "Votre prochaine décision growth",
@@ -2302,6 +2307,7 @@
     "item-pageMobileTested": "Page testée sur mobile",
     "item-pageFast": "La page se charge vite",
     "item-hasGuarantee": "Garantie annoncée dans l'offre",
+    "item-hasGuarantee-trial_first": "Remboursement et résiliation indiqués sur les offres payantes",
     "item-paymentPix": "Accepte PIX",
     "item-paymentCard": "Accepte la carte bancaire",
     "item-checkoutShort": "Paiement court (peu de champs et d'étapes)",
@@ -2321,6 +2327,7 @@
     "checkout-type-link": "Lien de paiement",
     "checkout-type-none": "Je ne peux pas encore encaisser",
     "guarantee-days": "Jours de garantie",
+    "guarantee-days-trial_first": "Jours de remboursement après le prélèvement",
     "blockers-title": "Bloqueurs trouvés : {count}",
     "blockers-body": "Dépenser en publicité maintenant, c'est de l'argent prévisiblement gaspillé. Corrigez d'abord ceci :",
     "blocker-no-page": "Aucune page de destination enregistrée — la publicité n'a nulle part où envoyer les gens.",
@@ -2673,6 +2680,7 @@
     "item-what-pageMobileTested": "Ouvrir votre propre page sur mobile et acheter comme si vous étiez client. La majorité des visites publicitaires vient du mobile.",
     "item-what-pageFast": "Que votre page s'ouvre en quelques secondes. Une page lente fait abandonner avant même de voir l'offre — et vous avez déjà payé le clic.",
     "item-what-hasGuarantee": "Une promesse de remboursement claire (ex. : 7 jours). Elle réduit la peur d'acheter à quelqu'un qu'on ne connaît pas encore.",
+    "item-what-hasGuarantee-trial_first": "Dans votre modèle, l'essai gratuit supprime déjà le risque pour qui n'a pas encore payé — inutile de promettre une garantie sur la page de destination. Ce qui décide ici, c'est ce que la personne lit au moment de souscrire : comment résilier, et s'il existe un remboursement après le premier prélèvement.",
     "item-what-paymentPix": "Accepter PIX. Au Brésil c'est le moyen le plus utilisé ; ne pas l'avoir coûte souvent des ventes.",
     "item-what-paymentCard": "Accepter la carte de crédit, y compris en plusieurs fois quand cela a du sens pour votre panier.",
     "item-what-checkoutShort": "Demander le moins de données possible pour conclure l'achat. Chaque champ en plus fait baisser la conversion.",
@@ -2905,7 +2913,18 @@
     "economics-ticket": "Panier moyen",
     "economics-margin": "Marge",
     "economics-cac": "CAC cible",
-    "economics-budget": "Budget mensuel"
+    "economics-budget": "Budget mensuel",
+    "queue-title": "Votre file",
+    "queue-count": "{count} en attente",
+    "queue-position": "Tâche {index} sur {total}",
+    "queue-urgent": "Critique",
+    "queue-show-all": "Tout afficher ({count})",
+    "queue-show-less": "Afficher moins",
+    "queue-clear-title": "Aucune tâche en attente",
+    "queue-clear-body": "Vous avez terminé tout ce que les plans actuels demandaient. Générez une nouvelle lecture quand quelque chose change.",
+    "next-task-label": "Tâche suivante",
+    "next-task-cta": "Continuer",
+    "next-task-remaining-here": "Il en reste {count} sur cet écran."
   },
   "library": {
     "title": "Bibliothèque",

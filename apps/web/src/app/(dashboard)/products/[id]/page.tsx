@@ -4,6 +4,7 @@ import { deleteProduct } from "../actions";
 import ProductNextStepCard from "../components/next-step-card";
 import ProductForm from "../components/product-form";
 import ProductsHeader from "../components/products-header";
+import StartHereCard from "../components/start-here-card";
 import { COMPLETENESS_FIELDS, type CompletenessField, computeCompleteness } from "../lib/completeness";
 import { mapProductRow } from "../lib/map";
 import type { ProductWithChildren } from "../types";
@@ -47,6 +48,9 @@ export default function EditProductPage() {
   // "no page / no price" dead end gets a door). One-shot on mount; an invalid
   // value is silently ignored, never a crash on a crafted URL.
   const searchParams = useSearchParams();
+  // Set by the create form for a first product — the one moment the
+  // "comece por aqui" handoff replaces the returning-user card.
+  const justStarted = searchParams.get("started") === "1";
   const focusParamConsumedRef = useRef(false);
   useEffect(() => {
     if (focusParamConsumedRef.current || loading || !product) return;
@@ -201,18 +205,27 @@ export default function EditProductPage() {
 
         {product && (
           <>
-            {/* "What now?" leads; editing the context is secondary. */}
-            <Grid size={12}>
-              <ProductNextStepCard
-                productId={product.id}
-                ready={completeness!.ready}
-                missing={completeness!.missing}
-                hasReadiness={hasReadiness}
-                hasCreativeEvidence={hasCreativeEvidence}
-                hasLaunchPlan={hasLaunchPlan}
-                onFieldClick={(field) => setFocusField((prev) => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))}
-              />
-            </Grid>
+            {/* Straight off the create form (first product only): the honest
+                handoff into readiness replaces the generic next-step card,
+                which would otherwise say the same thing with less context. */}
+            {justStarted ? (
+              <Grid size={12}>
+                <StartHereCard readinessHref={`/products/${product.id}/readiness?new=1`} />
+              </Grid>
+            ) : (
+              /* "What now?" leads; editing the context is secondary. */
+              <Grid size={12}>
+                <ProductNextStepCard
+                  productId={product.id}
+                  ready={completeness!.ready}
+                  missing={completeness!.missing}
+                  hasReadiness={hasReadiness}
+                  hasCreativeEvidence={hasCreativeEvidence}
+                  hasLaunchPlan={hasLaunchPlan}
+                  onFieldClick={(field) => setFocusField((prev) => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))}
+                />
+              </Grid>
+            )}
             <Grid size={12}>
               <Box>
                 <ProductForm orgId={product.orgId} product={product} focusField={focusField} />

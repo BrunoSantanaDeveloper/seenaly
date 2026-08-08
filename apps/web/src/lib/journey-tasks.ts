@@ -44,6 +44,9 @@ export interface JourneyTasksInput {
   /** True inside /products/[id]/* — decides which URL shape every href uses. */
   workspace: boolean;
   readiness: {
+    /** The verdict row id — carried into the deep link so the anchor keeps
+     *  pointing at the reading these findings came from. */
+    verdictId?: string | null;
     output: ReadinessOutput;
     /** The declared checklist — a finding whose related_items are ALL
      *  ticked is treated as resolved, same rule the readiness screen itself
@@ -66,12 +69,36 @@ export interface JourneyTasksInput {
   } | null;
 }
 
-const readinessHref = (productId: string, workspace: boolean) =>
-  workspace ? `/products/${productId}/readiness` : `/readiness?product=${productId}`;
-const creativesHref = (productId: string, workspace: boolean) =>
-  workspace ? `/products/${productId}/creatives` : `/creatives?product=${productId}`;
-const launchHref = (productId: string, workspace: boolean) =>
-  workspace ? `/products/${productId}/launch` : `/launch?product=${productId}`;
+/**
+ * Every task href DEEP LINKS to the item itself, never to the screen that
+ * contains it.
+ *
+ * The 2026-08-07 review caught the failure this fixes: clicking "instalar o
+ * Pixel" landed the user at the top of the readiness screen, where they had to
+ * find again the thing they had just clicked. The anchors below already
+ * existed on the destination screens (`#finding-N` is read on mount by
+ * readiness/experience.tsx) — the queue simply never used them.
+ *
+ * `?product=` and the path form must both survive the anchor: the non-workspace
+ * routes redirect to `/products/[id]/...`, and that redirect preserves query +
+ * hash (readiness' `redirectSuffix`), so the anchor arrives either way.
+ */
+const withAnchor = (base: string, query: string | null, anchor: string) =>
+  `${base}${query ? (base.includes("?") ? "&" : "?") + query : ""}#${anchor}`;
+
+const readinessHref = (productId: string, workspace: boolean, verdictId: string | null, index: number) =>
+  withAnchor(
+    workspace ? `/products/${productId}/readiness` : `/readiness?product=${productId}`,
+    // Naming the verdict keeps the link correct even after a NEWER verdict is
+    // generated in another tab — without it the anchor would silently point at
+    // finding N of a different reading.
+    verdictId ? `verdict=${verdictId}` : null,
+    `finding-${index}`,
+  );
+const creativesHref = (productId: string, workspace: boolean, key: string) =>
+  withAnchor(workspace ? `/products/${productId}/creatives` : `/creatives?product=${productId}`, null, `hip-${key}`);
+const launchHref = (productId: string, workspace: boolean, key: string) =>
+  withAnchor(workspace ? `/products/${productId}/launch` : `/launch?product=${productId}`, null, `etapa-${key}`);
 
 function isFindingResolved(
   finding: ReadinessFinding,
@@ -97,7 +124,7 @@ export function buildJourneyTasks(input: JourneyTasksInput): JourneyTask[] {
   const tasks: JourneyTask[] = [];
 
   if (input.readiness) {
-    const { output, profile, registeredChangeMade } = input.readiness;
+    const { output, profile, registeredChangeMade, verdictId } = input.readiness;
     output.findings.forEach((finding, index) => {
       if (finding.status === "ok" || finding.status === "sem_dados") return;
       if (isFindingResolved(finding, profile, registeredChangeMade)) return;
@@ -108,7 +135,7 @@ export function buildJourneyTasks(input: JourneyTasksInput): JourneyTask[] {
         detail: finding.finding,
         effort: finding.effort,
         urgent: finding.status === "critico",
-        href: readinessHref(input.productId, input.workspace),
+        href: readinessHref(input.productId, input.workspace, verdictId ?? null, index),
       });
     });
   }
@@ -128,7 +155,7 @@ export function buildJourneyTasks(input: JourneyTasksInput): JourneyTask[] {
           published > 0
             ? `${published}/${hypothesis.content_count} publicado(s) — faltam para leitura`
             : hypothesis.hook,
-        href: creativesHref(input.productId, input.workspace),
+        href: creativesHref(input.productId, input.workspace, hypothesis.key),
       });
     });
   }
@@ -142,7 +169,7 @@ export function buildJourneyTasks(input: JourneyTasksInput): JourneyTask[] {
         source: "launch_plan",
         title: step.title,
         detail: step.precondition || step.action,
-        href: launchHref(input.productId, input.workspace),
+        href: launchHref(input.productId, input.workspace, step.key),
       });
     });
   }

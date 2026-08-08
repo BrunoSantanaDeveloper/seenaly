@@ -44,6 +44,7 @@ import {
 import EmptyState from "@/components/product/empty-state";
 import LoadErrorState from "@/components/product/load-error-state";
 import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
+import NextTaskCard from "@/components/product-workspace/next-task";
 import NiBook from "@/icons/nexture/ni-book";
 import NiCamera from "@/icons/nexture/ni-camera";
 import NiCross from "@/icons/nexture/ni-cross";
@@ -770,6 +771,10 @@ export function ReadinessExperience({
     setStaleVerdict(true);
     track("readiness_finding_resolved", { resolved, items: allowed.length, refused: disproved.length });
     await persist(next);
+    // The rail's queue is server-rendered in the product layout, so a task
+    // that just became resolved must be re-read there too — otherwise the
+    // list the user is steering by silently disagrees with the screen.
+    if (workspace) router.refresh();
   };
 
   const requestHowTo = async (findingIndex: number) => {
@@ -814,6 +819,10 @@ export function ReadinessExperience({
       }
       track("experiment_registered", { from: "readiness" });
       setRegisteredByIndex((previous) => ({ ...previous, [findingIndex]: result.id }));
+      // The rail's queue is server-rendered in the product layout, so a task
+      // that just became resolved must be re-read there too — otherwise the
+      // list the user is steering by silently disagrees with the screen.
+      if (workspace) router.refresh();
     } finally {
       setRegisteringIndex(null);
     }
@@ -1573,6 +1582,14 @@ export function ReadinessExperience({
               // still has an older, unfetched predecessor.
               hasOlderPredecessor={rows.length === 6}
             />
+          </Grid>
+        )}
+
+        {/* No dead end at the bottom: the handoff to whatever comes after
+            this screen, read from the same queue the rail shows. */}
+        {workspace && (
+          <Grid size={12}>
+            <NextTaskCard skipSource="readiness" />
           </Grid>
         )}
       </Grid>

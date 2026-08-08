@@ -803,7 +803,12 @@
     "next-step-cta-readiness-again": "Bereitschaft prüfen",
     "next-step-title-launch": "Erstelle deinen Launch-Plan",
     "next-step-body-launch": "Berechne das Optimierungsereignis, die Budgetuntergrenze und die Struktur der ersten Kampagne, bevor du ausgibst.",
-    "next-step-cta-launch": "Launch-Plan öffnen"
+    "next-step-cta-launch": "Launch-Plan öffnen",
+    "start-here-created": "Produkt erstellt. Ihr Kontext ist gespeichert.",
+    "start-here-title": "Beginnen Sie mit der Bereitschaftsprüfung",
+    "start-here-body": "Bevor Sie Geld für Anzeigen ausgeben, prüft Seenaly, ob Ihre Struktur konvertiert — und sagt Ihnen, was zuerst zu beheben ist.",
+    "start-here-cta": "Prüfung starten",
+    "start-here-meta": "Ein paar Fragen zu Ihrer Struktur. Sie können jederzeit aufhören und mit dem Bestätigten generieren — nichts davon ist Pflicht."
   },
   "home": {
     "title": "Ihre nächste Growth-Entscheidung",
@@ -2302,6 +2307,7 @@
     "item-pageMobileTested": "Seite auf dem Handy getestet",
     "item-pageFast": "Seite lädt schnell",
     "item-hasGuarantee": "Garantie im Angebot genannt",
+    "item-hasGuarantee-trial_first": "Rückerstattung und Kündigung in den kostenpflichtigen Tarifen genannt",
     "item-paymentPix": "Akzeptiert PIX",
     "item-paymentCard": "Akzeptiert Kreditkarte",
     "item-checkoutShort": "Kurzer Checkout (wenige Felder und Schritte)",
@@ -2321,6 +2327,7 @@
     "checkout-type-link": "Zahlungslink",
     "checkout-type-none": "Ich kann noch keine Zahlung entgegennehmen",
     "guarantee-days": "Garantietage",
+    "guarantee-days-trial_first": "Tage für Rückerstattung nach der Abbuchung",
     "blockers-title": "Gefundene Blocker: {count}",
     "blockers-body": "Jetzt Geld für Werbung auszugeben ist absehbar verschwendet. Behebe zuerst diese Punkte:",
     "blocker-no-page": "Keine Landingpage hinterlegt — die Anzeige hat kein Ziel.",
@@ -2673,6 +2680,7 @@
     "item-what-pageMobileTested": "Deine eigene Seite am Handy öffnen und kaufen, als wärst du Kunde. Die meisten Anzeigen-Besuche kommen vom Handy.",
     "item-what-pageFast": "Dass deine Seite in wenigen Sekunden lädt. Eine langsame Seite lässt Leute abspringen, bevor sie das Angebot sehen — und den Klick hast du schon bezahlt.",
     "item-what-hasGuarantee": "Ein klares Rückgabeversprechen (z. B. 7 Tage). Es senkt die Angst, bei jemandem zu kaufen, den man noch nicht kennt.",
+    "item-what-hasGuarantee-trial_first": "In Ihrem Modell nimmt die kostenlose Testphase bereits das Risiko für alle, die noch nicht gezahlt haben — ein Garantie-Hinweis auf der Landingpage ist nicht nötig. Über Geld entscheidet hier, was die Person beim Abschluss liest: wie man kündigt und ob es nach der ersten Abbuchung eine Rückerstattung gibt.",
     "item-what-paymentPix": "PIX akzeptieren. In Brasilien ist es das meistgenutzte Mittel; es nicht zu haben kostet meist Umsatz.",
     "item-what-paymentCard": "Kreditkarte akzeptieren, inklusive Ratenzahlung, wenn das zu deinem Warenkorb passt.",
     "item-what-checkoutShort": "So wenig Daten wie möglich für den Kaufabschluss verlangen. Jedes zusätzliche Feld drückt die Conversion.",
@@ -2905,7 +2913,18 @@
     "economics-ticket": "Durchschnittsticket",
     "economics-margin": "Marge",
     "economics-cac": "Ziel-CAC",
-    "economics-budget": "Monatsbudget"
+    "economics-budget": "Monatsbudget",
+    "queue-title": "Ihre Warteschlange",
+    "queue-count": "{count} offen",
+    "queue-position": "Aufgabe {index} von {total}",
+    "queue-urgent": "Kritisch",
+    "queue-show-all": "Alle anzeigen ({count})",
+    "queue-show-less": "Weniger anzeigen",
+    "queue-clear-title": "Keine offenen Aufgaben",
+    "queue-clear-body": "Sie haben alles erledigt, was die aktuellen Pläne verlangt haben. Erzeugen Sie eine neue Auswertung, wenn sich etwas ändert.",
+    "next-task-label": "Nächste Aufgabe",
+    "next-task-cta": "Weiter",
+    "next-task-remaining-here": "Auf diesem Bildschirm sind noch {count} offen."
   },
   "library": {
     "title": "Bibliothek",

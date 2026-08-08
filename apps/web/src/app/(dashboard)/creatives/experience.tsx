@@ -27,6 +27,7 @@ import {
 import EmptyState from "@/components/product/empty-state";
 import LoadErrorState from "@/components/product/load-error-state";
 import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
+import NextTaskCard from "@/components/product-workspace/next-task";
 import NiBook from "@/icons/nexture/ni-book";
 import NiBulbOn from "@/icons/nexture/ni-bulb-on";
 import NiCamera from "@/icons/nexture/ni-camera";
@@ -257,12 +258,14 @@ export function CreativesExperience({
       const result = await materializeHypothesis(plan.id, key);
       if (result.ok) {
         await Promise.all([loadPlan(), loadCreatives()]);
+        // Keep the rail's queue in step with the coverage that just moved.
+        if (workspace) router.refresh();
       } else {
         setActionError(result.error);
       }
       setMaterializingKey(null);
     },
-    [loadCreatives, loadPlan, materializingKey, plan],
+    [loadCreatives, loadPlan, materializingKey, plan, router, workspace],
   );
 
   const handleRegisterExperiment = useCallback(
@@ -273,12 +276,13 @@ export function CreativesExperience({
       const result = await registerExperimentFromPlanHypothesis(plan.id, key);
       if (result.ok) {
         await loadPlan();
+        if (workspace) router.refresh();
       } else {
         setActionError(result.error);
       }
       setRegisteringKey(null);
     },
-    [loadPlan, plan, registeringKey],
+    [loadPlan, plan, registeringKey, router, workspace],
   );
 
   /** The REAL pipeline steps (context → library → knowledge → hypotheses). */
@@ -476,6 +480,12 @@ export function CreativesExperience({
             angleLabel={t("field-angle")}
             formatLabel={(value) => (isCreativeFormat(value) ? t(`format-${value}`) : value)}
           />
+        )}
+
+        {workspace && (
+          <Grid size={12}>
+            <NextTaskCard skipSource="creative_plan" />
+          </Grid>
         )}
       </Grid>
 

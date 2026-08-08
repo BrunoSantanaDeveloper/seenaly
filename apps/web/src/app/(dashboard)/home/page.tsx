@@ -42,12 +42,9 @@ import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiSparkle from "@/icons/nexture/ni-sparkle";
 import NiTag from "@/icons/nexture/ni-tag";
 import NiTrendUp from "@/icons/nexture/ni-trend-up";
-import { isCreativePlanOutput } from "@/lib/creative-plan/schema";
 import { nextJourneyStage } from "@/lib/journey";
-import { buildJourneyTasks, type JourneyTask } from "@/lib/journey-tasks";
-import { isLaunchPlanOutput } from "@/lib/launch-plan/schema";
-import { toReadinessProfile } from "@/lib/readiness/checklist";
-import { isReadinessOutput } from "@/lib/readiness/schema";
+import type { JourneyTask } from "@/lib/journey-tasks";
+import { loadJourneyTasks } from "@/lib/journey-tasks-load";
 import { cn } from "@/lib/utils";
 import { createClient } from "@flyee/auth/client";
 
@@ -317,102 +314,11 @@ export default function HomePage() {
       return;
     }
     const supabase = createClient();
-    const [{ data: readinessRow }, { data: creativePlanRow }, { data: launchPlanRow }] = await Promise.all([
-      supabase
-        .from("diagnoses")
-        .select("id, output")
-        .eq("product_id", product.id)
-        .eq("scope", "readiness")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("diagnoses")
-        .select("id, output")
-        .eq("product_id", product.id)
-        .eq("scope", "creative_plan")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("diagnoses")
-        .select("id, output")
-        .eq("product_id", product.id)
-        .eq("scope", "launch_plan")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    let readinessInput: Parameters<typeof buildJourneyTasks>[0]["readiness"] = null;
-    if (readinessRow && isReadinessOutput(readinessRow.output)) {
-      const [{ data: profileRow }, { data: experimentRows }] = await Promise.all([
-        supabase.from("product_readiness").select("*").eq("product_id", product.id).maybeSingle(),
-        supabase
-          .from("experiments")
-          .select("change_made")
-          .eq("diagnosis_id", readinessRow.id as string),
-      ]);
-      readinessInput = {
-        output: readinessRow.output,
-        profile: toReadinessProfile(profileRow as Record<string, unknown> | null),
-        registeredChangeMade: new Set(
-          ((experimentRows ?? []) as { change_made: string | null }[])
-            .map((row) => row.change_made)
-            .filter((value): value is string => Boolean(value)),
-        ),
-      };
-    }
-
-    let creativePlanInput: Parameters<typeof buildJourneyTasks>[0]["creativePlan"] = null;
-    if (creativePlanRow && isCreativePlanOutput(creativePlanRow.output)) {
-      const { data: links } = await supabase
-        .from("creative_plan_links")
-        .select("hypothesis_key, creative_id")
-        .eq("diagnosis_id", creativePlanRow.id as string);
-      const linkRows = (links ?? []) as { hypothesis_key: string; creative_id: string }[];
-      const creativeIds = linkRows.map((link) => link.creative_id);
-      const publishedCount: Record<string, number> = {};
-      if (creativeIds.length > 0) {
-        const { data: publications } = await supabase
-          .from("organic_content_items")
-          .select("creative_id")
-          .in("creative_id", creativeIds)
-          .limit(1000);
-        const counts = new Map<string, number>();
-        for (const publication of (publications ?? []) as { creative_id: string | null }[]) {
-          if (!publication.creative_id) continue;
-          counts.set(publication.creative_id, (counts.get(publication.creative_id) ?? 0) + 1);
-        }
-        for (const link of linkRows) publishedCount[link.hypothesis_key] = counts.get(link.creative_id) ?? 0;
-      }
-      creativePlanInput = { output: creativePlanRow.output, publishedCount };
-    }
-
-    let launchPlanInput: Parameters<typeof buildJourneyTasks>[0]["launchPlan"] = null;
-    if (launchPlanRow && isLaunchPlanOutput(launchPlanRow.output)) {
-      const { data: experimentRows } = await supabase
-        .from("experiments")
-        .select("change_made")
-        .eq("diagnosis_id", launchPlanRow.id as string);
-      const registeredStepKeys = new Set<string>();
-      for (const row of (experimentRows ?? []) as { change_made: string | null }[]) {
-        const match = /^Etapa do lançamento \[([^\]]+)\]/.exec(row.change_made ?? "");
-        if (match) registeredStepKeys.add(match[1]);
-      }
-      launchPlanInput = { output: launchPlanRow.output, registeredStepKeys };
-    }
-
-    setTasksKnown(Boolean(readinessInput || creativePlanInput || launchPlanInput));
-    setTasks(
-      buildJourneyTasks({
-        productId: product.id,
-        workspace: false,
-        readiness: readinessInput,
-        creativePlan: creativePlanInput,
-        launchPlan: launchPlanInput,
-      }),
-    );
+    // Shared with the workspace rail — the queue must be identical wherever it
+    // appears, so the fetching lives in one module (lib/journey-tasks-load).
+    const result = await loadJourneyTasks(supabase, product.id, false);
+    setTasksKnown(result.known);
+    setTasks(result.tasks);
   }, [product]);
 
   useEffect(() => {

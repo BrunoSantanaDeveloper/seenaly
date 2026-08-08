@@ -352,7 +352,22 @@ export default function ProductForm({
           if (onSaveSuccess) {
             await onSaveSuccess(result.id);
           } else {
-            router.push(`/readiness?product=${result.id}&new=1`);
+            // A first-timer used to be dropped straight into the 9-step
+            // readiness wizard the instant they saved — an ambush, and the
+            // reason a real user asked "wasn't this supposed to change?".
+            // Now the first product gets a short, opt-in landing that says
+            // what comes next and what it costs; anyone who has already been
+            // through the journey keeps the direct route. Decided BEFORE
+            // navigating so there is no redirect flash.
+            const supabase = createClient();
+            const { count, error: countError } = await supabase
+              .from("products")
+              .select("id", { count: "exact", head: true })
+              .eq("org_id", orgId);
+            // Count unavailable → treat as a returning user: the direct route
+            // is the safe default (it is the behaviour that already shipped).
+            const isFirstProduct = !countError && (count ?? 0) <= 1;
+            router.push(isFirstProduct ? `/products/${result.id}?started=1` : `/products/${result.id}/readiness?new=1`);
           }
         } else {
           if (onSaveSuccess) {

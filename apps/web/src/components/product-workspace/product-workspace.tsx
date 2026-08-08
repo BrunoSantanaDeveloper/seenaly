@@ -36,6 +36,7 @@ import NiShieldCheck from "@/icons/nexture/ni-shield-check";
 import NiTag from "@/icons/nexture/ni-tag";
 import NiTrendUp from "@/icons/nexture/ni-trend-up";
 import { nextJourneyStage } from "@/lib/journey";
+import type { JourneyTask, JourneyTaskSource } from "@/lib/journey-tasks";
 import { cn } from "@/lib/utils";
 
 export type ProductWorkspaceStage =
@@ -87,6 +88,21 @@ type ProductWorkspaceContextValue = {
   stage: ProductWorkspaceStage;
   href: (stage: ProductWorkspaceStage, productId?: string) => string;
   switchProduct: (productId: string) => void;
+  /** The work queue, ordered. Empty when no engine has run yet. */
+  tasks: JourneyTask[];
+};
+
+/** Which rail stage owns each task source — used to mark the active row. */
+const STAGE_BY_SOURCE: Record<JourneyTaskSource, ProductWorkspaceStage> = {
+  readiness: "readiness",
+  creative_plan: "creatives",
+  launch_plan: "launch",
+};
+
+const SOURCE_ICON: Record<JourneyTaskSource, React.ReactNode> = {
+  readiness: <NiShieldCheck size="small" />,
+  creative_plan: <NiCamera size="small" />,
+  launch_plan: <NiRocket size="small" />,
 };
 
 const ProductWorkspaceContext = createContext<ProductWorkspaceContextValue | null>(null);
@@ -137,11 +153,111 @@ type StageItem = {
   hint?: string;
 };
 
+/**
+ * The work queue, in the rail — the fix for the failure a real user hit on
+ * 2026-08-07: the queue lived only on the Home page, so the moment they started
+ * working they lost sight of what came next and had to navigate back out to
+ * find the thread again. That made the journey WORSE than having no queue.
+ *
+ * So the queue travels with them. It is the same ordered list the Home card
+ * shows (one builder, one loader), every row deep links into the item itself,
+ * and the row for the screen they are on is marked so "where am I" is answered
+ * without reading. Collapsed to three rows because the rail is navigation, not
+ * a worklist screen; "ver todas" expands in place rather than sending them away
+ * — the round trip is exactly what we are removing.
+ */
+function QueueSection({
+  tasks,
+  stage,
+  compact = false,
+}: {
+  tasks: JourneyTask[];
+  stage: ProductWorkspaceStage;
+  compact?: boolean;
+}) {
+  const t = useTranslations("workspace");
+  const [expanded, setExpanded] = useState(false);
+  if (tasks.length === 0) return null;
+
+  // "Current" is the first task belonging to the screen in view; with none, the
+  // head of the queue. Derived from real position — never a stored pointer that
+  // could drift out of sync with the data.
+  const activeIndex = Math.max(
+    0,
+    tasks.findIndex((task) => STAGE_BY_SOURCE[task.source] === stage),
+  );
+  const shown = expanded ? tasks : tasks.slice(0, 3);
+
+  return (
+    // In the rail the label matches `nav`'s own px-4 exactly, so queue and map
+    // read as one column; the compact card already pads its content, so the
+    // horizontal padding drops there instead of doubling.
+    <Box>
+      <Typography
+        variant="body2"
+        component="p"
+        id="workspace-queue-label"
+        className={cn("text-text-secondary pt-3 pb-1 text-xs tracking-wide uppercase", compact ? "px-0" : "px-4")}
+      >
+        {t("queue-title")} · {t("queue-count", { count: tasks.length })}
+      </Typography>
+      <MenuList className="p-0" aria-labelledby="workspace-queue-label">
+        {shown.map((task, index) => {
+          const active = index === activeIndex;
+          return (
+            <MenuItem key={task.id} component={Link} href={task.href} selected={active}>
+              <ListItemIcon>
+                <span
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-xl",
+                    TONE[STAGE_TONE[STAGE_BY_SOURCE[task.source]]].softBg,
+                    TONE[STAGE_TONE[STAGE_BY_SOURCE[task.source]]].text,
+                  )}
+                >
+                  {SOURCE_ICON[task.source]}
+                </span>
+              </ListItemIcon>
+              <span className="min-w-0 grow">
+                <span className={cn("block truncate", active && "font-medium")}>{task.title}</span>
+                <Typography variant="body2" component="span" className="text-text-secondary block text-xs">
+                  {t("queue-position", { index: index + 1, total: tasks.length })}
+                </Typography>
+              </span>
+              {/* The engine's own "critico" — no new severity system. */}
+              {task.urgent && (
+                <Chip
+                  label={t("queue-urgent")}
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  className="ml-2 shrink-0"
+                />
+              )}
+            </MenuItem>
+          );
+        })}
+      </MenuList>
+      {tasks.length > 3 && (
+        <Button
+          variant="text"
+          color="grey"
+          size="small"
+          className={cn(compact ? "mx-0" : "mx-3")}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? t("queue-show-less") : t("queue-show-all", { count: tasks.length })}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
 export default function ProductWorkspace({
   product,
   products,
   progress,
   economics,
+  tasks = [],
   loadError = false,
   children,
 }: PropsWithChildren<{
@@ -149,6 +265,8 @@ export default function ProductWorkspace({
   products: ProductWorkspaceProduct[];
   progress: ProductWorkspaceProgress;
   economics?: ProductWorkspaceEconomics;
+  /** Ordered work queue for this product (lib/journey-tasks-load). */
+  tasks?: JourneyTask[];
   loadError?: boolean;
 }>) {
   const t = useTranslations("workspace");
@@ -236,8 +354,8 @@ export default function ProductWorkspace({
   });
 
   const contextValue = useMemo<ProductWorkspaceContextValue>(
-    () => ({ product, products, progress, stage, href, switchProduct }),
-    [href, product, products, progress, stage, switchProduct],
+    () => ({ product, products, progress, stage, href, switchProduct, tasks }),
+    [href, product, products, progress, stage, switchProduct, tasks],
   );
 
   const stageLabel = (item: StageItem) => `${item.step ? `${item.step}. ` : ""}${t(`stage-${item.id}`)}`;
@@ -399,6 +517,7 @@ export default function ProductWorkspace({
                 {allItems.map(renderItem)}
               </Menu>
               {nextAction}
+              <QueueSection tasks={tasks} stage={stage} compact />
             </CardContent>
           </Card>
           {children}
@@ -413,6 +532,7 @@ export default function ProductWorkspace({
                   {switcher}
                   {nextAction}
                 </Box>
+                <QueueSection tasks={tasks} stage={stage} />
                 {nav}
               </CardContent>
             </Card>

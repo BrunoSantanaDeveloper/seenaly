@@ -105,6 +105,25 @@ export default function CreativePlanCard({
   const tOrganic = useTranslations("organicGrowth");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Landed here from the work queue (#hip-<key>): open THAT hypothesis and
+  // scroll to it. Arriving at the top of the plan and having to hunt for the
+  // row you just clicked is the dead end this deep link removes. The hash never
+  // reaches searchParams, and the native jump fires before the card exists —
+  // hence reading it on mount and scrolling ourselves.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  useEffect(() => {
+    const match = /^#hip-(.+)$/.exec(window.location.hash);
+    if (!match) return;
+    const key = decodeURIComponent(match[1]);
+    if (!plan.hypotheses.some((hypothesis) => hypothesis.key === key)) return;
+    setFocusKey(key);
+    setExpanded((prev) => new Set(prev).add(key));
+    const timer = window.setTimeout(
+      () => document.getElementById(`hip-${key}`)?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      60,
+    );
+    return () => window.clearTimeout(timer);
+  }, [plan]);
   // The pace is the USER's declared assumption, never the engine's — it only
   // reshapes volume_note's honest range into a week-by-week view, it never
   // promises reach or a publishing deadline (docs/PRODUCT.md: "faixa
@@ -197,7 +216,16 @@ export default function CreativePlanCard({
     const state = coverage[hypothesis.key] ?? { organicCount: 0 };
     const open = expanded.has(hypothesis.key);
     return (
-      <Box key={hypothesis.key} className="border-grey-100 flex flex-col gap-3 rounded-2xl border p-4">
+      <Box
+        key={hypothesis.key}
+        id={`hip-${hypothesis.key}`}
+        className={cn(
+          "border-grey-100 flex flex-col gap-3 rounded-2xl border p-4",
+          // Landed from the queue: say WHICH row without stealing the card's
+          // own hierarchy — a ring, not a filled state.
+          focusKey === hypothesis.key && "ring-primary/40 ring-2",
+        )}
+      >
         <Box className="flex flex-row flex-wrap items-start gap-2">
           <span className="bg-primary/10 text-primary mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-xl">
             <NiBulbOn size="small" aria-hidden />

@@ -130,6 +130,13 @@ export function readinessFunnelModelBlock(profile: ReadinessProfile): string {
       // senão nenhuma segmentação futura é possível.
       "8. Para que qualquer segmentação futura exista, os ESTADOS DO TRIAL precisam ser distinguíveis no seu próprio sistema (cadastrou e não ativou; ativou e não contratou; trial expirando; já é pagante). Isso é estrutura de dados do negócio, e é o que você audita. Como esses estados viram público de anúncio é decisão da campanha — não recomende aqui.",
       "9. Achados sobre a estrutura pós-login (fricção do cadastro, momento de ativação, conversão trial → pagante, caminho de upgrade) usam a dimensão `ativacao` — nunca `checkout` nem `funil`. Fora do modelo trial-first, NUNCA use a dimensão `ativacao`.",
+      // Caso real (Medchina AI, 2026-08-07), e o MESMO erro que originou a
+      // migração 0043: o motor mandou "declare uma garantia e mostre na página
+      // de destino, perto dos CTAs de cadastro" para um SaaS cujo herói já diz
+      // "14 dias grátis, sem cartão · cancele quando quiser". O campo `where`
+      // tornou o erro VISÍVEL sem curá-lo: o modelo sabe que precisa dizer onde,
+      // então diz — com confiança, na superfície errada. A cura é a regra.
+      "10. O RISCO PRÉ-PAGAMENTO JÁ ESTÁ REVERTIDO PELO TRIAL. O trial gratuito — ainda mais quando é sem cartão — É a reversão de risco deste modelo: ninguém paga para descobrir se funciona. Portanto é PROIBIDO recomendar garantia, devolução ou reembolso na página de destino, no cadastro ou perto de qualquer CTA de conta grátis: ali não há dinheiro em jogo, e aversão à perda não se aplica a quem ainda não pagou nada. Se o playbook trouxer princípio de garantia, ele vale APENAS onde a pessoa passa a pagar — termos de reembolso e cancelamento nos PLANOS PAGOS e no fluxo de upgrade, com stage `upgrade`. E antes de apontar a falta, verifique se a oferta já declara os termos do trial (dias grátis, sem cartão, cancelar quando quiser): se declara, a reversão de risco pré-pagamento EXISTE e não é achado.",
       "",
       "Ao gerar related_items para findings deste modelo: as chaves signupFrictionLow, activationDefined, trialToPaidTracked e upgradePathClear pertencem a findings da dimensão `ativacao`.",
     );

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 
@@ -20,6 +21,7 @@ import NiStopwatch from "@/icons/nexture/ni-stopwatch";
 import type { Confidence } from "@/lib/diagnosis/schema";
 import type { OptimizationEventBasis } from "@/lib/launch-plan/math";
 import type { LaunchPlanOutput, TargetingPosture } from "@/lib/launch-plan/schema";
+import { cn } from "@/lib/utils";
 
 /**
  * Who is here: someone whose structure passed (or mostly passed) Prontidão
@@ -82,6 +84,22 @@ export default function LaunchPlanCard({
   experimentHref?: (experimentId: string) => string;
 }) {
   const t = useTranslations("launchPlan");
+  // Landed from the work queue (#etapa-<key>): mark and scroll to that step.
+  // Steps render expanded already, so unlike the creative plan there is nothing
+  // to open — only to find.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  useEffect(() => {
+    const match = /^#etapa-(.+)$/.exec(window.location.hash);
+    if (!match) return;
+    const key = decodeURIComponent(match[1]);
+    if (!plan.steps.some((step) => step.key === key)) return;
+    setFocusKey(key);
+    const timer = window.setTimeout(
+      () => document.getElementById(`etapa-${key}`)?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      60,
+    );
+    return () => window.clearTimeout(timer);
+  }, [plan]);
 
   const section = (icon: React.ReactNode, title: string, body: React.ReactNode, emphasize = false) =>
     emphasize ? (
@@ -293,7 +311,14 @@ export default function LaunchPlanCard({
                 {plan.steps.map((step, index) => {
                   const experimentId = registeredStepExperiments[step.key];
                   return (
-                    <Box key={step.key} className="border-grey-100 flex flex-col gap-1.5 rounded-2xl border p-3">
+                    <Box
+                      key={step.key}
+                      id={`etapa-${step.key}`}
+                      className={cn(
+                        "border-grey-100 flex flex-col gap-1.5 rounded-2xl border p-3",
+                        focusKey === step.key && "ring-primary/40 ring-2",
+                      )}
+                    >
                       <Typography variant="subtitle2" className="mb-0">
                         {index + 1}. {step.title}
                       </Typography>

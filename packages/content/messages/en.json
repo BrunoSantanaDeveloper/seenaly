@@ -803,7 +803,12 @@
     "next-step-title-readiness": "Start with readiness",
     "next-step-body-readiness": "Before spending on ads, check whether your structure converts. It's the cheapest check there is — it costs no media.",
     "next-step-cta-readiness": "Check readiness",
-    "next-step-cta-readiness-again": "Review readiness"
+    "next-step-cta-readiness-again": "Review readiness",
+    "start-here-created": "Product created. Your context is saved.",
+    "start-here-title": "Start with the readiness check",
+    "start-here-body": "Before you spend on ads, Seenaly checks whether your structure converts — and tells you what to fix first.",
+    "start-here-cta": "Start the check",
+    "start-here-meta": "A few questions about your structure. You can stop halfway and generate with what you confirmed — nothing here is required."
   },
   "home": {
     "title": "Your next growth decision",
@@ -2302,6 +2307,7 @@
     "item-pageMobileTested": "Page tested on mobile",
     "item-pageFast": "Page loads fast",
     "item-hasGuarantee": "Guarantee stated in the offer",
+    "item-hasGuarantee-trial_first": "Refund and cancellation stated on the paid plans",
     "item-paymentPix": "Accepts PIX",
     "item-paymentCard": "Accepts credit card",
     "item-checkoutShort": "Short checkout (few fields and steps)",
@@ -2321,6 +2327,7 @@
     "checkout-type-link": "Payment link",
     "checkout-type-none": "I can't take payment yet",
     "guarantee-days": "Guarantee days",
+    "guarantee-days-trial_first": "Refund days after the charge",
     "blockers-title": "Blockers found: {count}",
     "blockers-body": "Spending on ads right now is predictably wasted money. Fix these first:",
     "blocker-no-page": "No landing page registered — the ad has nowhere to send people.",
@@ -2673,6 +2680,7 @@
     "item-what-pageMobileTested": "Opening your own page on a phone and buying as if you were a customer. Most ad traffic comes from phones.",
     "item-what-pageFast": "Your page opening in a few seconds. A slow page makes people leave before seeing the offer — and you already paid for the click.",
     "item-what-hasGuarantee": "A clear refund promise (e.g. 7 days). It lowers the fear of buying from someone you don't know yet.",
+    "item-what-hasGuarantee-trial_first": "In your model the free trial already removes the risk for someone who has not paid yet — no guarantee badge is needed on the landing page. What decides money here is what people read at the moment they subscribe: how to cancel, and whether there is a refund after the first charge.",
     "item-what-paymentPix": "Accepting PIX. In Brazil it is the most used method; not having it usually costs sales.",
     "item-what-paymentCard": "Accepting credit card, including instalments when they make sense for your ticket.",
     "item-what-checkoutShort": "Asking for as little data as possible to close the sale. Every extra field costs conversion.",
@@ -2905,7 +2913,18 @@
     "economics-ticket": "Average ticket",
     "economics-margin": "Margin",
     "economics-cac": "Target CAC",
-    "economics-budget": "Monthly budget"
+    "economics-budget": "Monthly budget",
+    "queue-title": "Your queue",
+    "queue-count": "{count} pending",
+    "queue-position": "Task {index} of {total}",
+    "queue-urgent": "Critical",
+    "queue-show-all": "Show all ({count})",
+    "queue-show-less": "Show less",
+    "queue-clear-title": "No pending tasks",
+    "queue-clear-body": "You finished everything the current plans asked for. Generate a new reading when something changes.",
+    "next-task-label": "Next task",
+    "next-task-cta": "Continue",
+    "next-task-remaining-here": "{count} still left on this screen."
   },
   "library": {
     "title": "Library",

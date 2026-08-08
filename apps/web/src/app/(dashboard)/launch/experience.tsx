@@ -14,6 +14,7 @@ import { Alert, Breadcrumbs, FormControl, Grid, MenuItem, Select, Skeleton, Typo
 import EmptyState from "@/components/product/empty-state";
 import LoadErrorState from "@/components/product/load-error-state";
 import ProcessingOverlay, { type ProcessingStage } from "@/components/product/processing-overlay";
+import NextTaskCard from "@/components/product-workspace/next-task";
 import NiBook from "@/icons/nexture/ni-book";
 import NiCrosshair from "@/icons/nexture/ni-crosshair";
 import NiMoney from "@/icons/nexture/ni-money";
@@ -182,12 +183,14 @@ export function LaunchExperience({
       if (result.ok) {
         track("experiment_registered");
         await loadPlan();
+        // A registered step leaves the queue — re-read the rail so it agrees.
+        if (workspace) router.refresh();
       } else {
         setActionError(result.error);
       }
       setRegisteringStepKey(null);
     },
-    [loadPlan, plan, registeringStepKey],
+    [loadPlan, plan, registeringStepKey, router, workspace],
   );
 
   const generatingStages: ProcessingStage[] = [
@@ -340,6 +343,12 @@ export function LaunchExperience({
                 onClick: handleGenerate,
               }}
             />
+          </Grid>
+        )}
+
+        {workspace && (
+          <Grid size={12}>
+            <NextTaskCard skipSource="launch_plan" />
           </Grid>
         )}
       </Grid>

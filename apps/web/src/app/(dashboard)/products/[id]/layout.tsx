@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import ProductWorkspace from "@/components/product-workspace/product-workspace";
+import { loadJourneyTasks } from "@/lib/journey-tasks-load";
 import { isSupabaseConfigured } from "@flyee/auth";
 import { createClient } from "@flyee/auth/server";
 
@@ -89,8 +90,16 @@ export default async function ProductLayout({
 
   const paidDiagnosisIds = new Set((diagnoses ?? []).map((diagnosis) => diagnosis.id));
 
+  // The queue is loaded HERE, once, and rides the rail on every workspace
+  // screen — the fix for losing sight of the next task the moment work starts.
+  // Its own failure must never take the workspace down: an empty queue simply
+  // hides the section, which is also the correct rendering before any engine
+  // has run.
+  const { tasks } = await loadJourneyTasks(supabase, id, true).catch(() => ({ tasks: [] }));
+
   return (
     <ProductWorkspace
+      tasks={tasks}
       product={{ id: product.id, orgId: product.org_id, name: product.name, status: product.status }}
       products={(products ?? []).map((item) => ({
         id: item.id,
